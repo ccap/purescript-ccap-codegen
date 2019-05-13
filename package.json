@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "scripts": {
+    "clean": "rimraf output && rimraf .pulp-cache",
+    "build": "pulp build -- --censor-lib --strict",
+    "test": "pulp test"
+  },
+  "dependencies": {
+    "yargs": "^8.0.2"
+  },
+  "devDependencies": {
+    "bower": "^1.8.8",
+    "pulp": "^12.3.1",
+    "purescript": "^0.12.5",
+    "rimraf": "^2.6.2",
+    "purescript-psa": "^0.7.3"
+  }
+}

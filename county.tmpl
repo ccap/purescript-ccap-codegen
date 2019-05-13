@@ -1,0 +1,42 @@
+/*
+ * An example template file
+ */
+
+// - A template file consists of one or more modules.
+// - A module consists of one or more type declarations.
+// - Type and module names are camel-case with an initial upper-case letter.
+//
+// The following primitive types are supported:
+//   - boolean
+//   - date
+//   - dateTime
+//   - int
+//   - decimal
+//   - string
+//   - time
+//
+// Record types:
+//   - Contain one one or more properties.
+//   - Property names are camel-case with an initial lower-case letter.
+//   - Properties can be marked as optional.
+//   - Record types must be given a name to be nested within a record or used
+//     in an array type.
+//
+// TODO Enums, cross-module type references, types (domains) from database, PureScript, Scala
+
+module County {
+  type CountyNo: int,
+  type CountyName: string,
+  type AssessFacilityId: int,
+
+  type County: {
+    countyNo: CountyNo,
+    countyName: CountyName,
+    assessFacilityId: AssessFacilityId optional,
+    soapPort: int
+  },
+
+  type Response: {
+    counties: array County
+  }
+}

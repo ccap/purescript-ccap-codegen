@@ -1,0 +1,30 @@
+{
+  "name": "purescript-ccap-codegen",
+  "license": "BSD-3-Clause",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/ccap/purescript-ccap-codegen.git"
+  },
+  "dependencies": {
+    "purescript-boxes": "https://github.com/pbrant/purescript-boxes.git",
+    "purescript-debug": "^4.0.0",
+    "purescript-heterogenous": "^0.4.0",
+    "purescript-generics-rep": "^6.1.1",
+    "purescript-node-fs": "^5.0.0",
+    "purescript-parsing": "^5.0.2",
+    "purescript-prelude": "^4.0.0",
+    "purescript-record": "^2.0.0",
+    "purescript-strings": "^4.0.1",
+    "purescript-transformers": "^4.2.0",
+    "purescript-yargs": "^4.0.0"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "^4.0.0"
+  }
+}
