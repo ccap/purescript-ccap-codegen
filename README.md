@@ -8,5 +8,6 @@ Status](https://travis-ci.org/ccap/purescript-ccap-codegen.svg)](https://travis-
 ### Testing
 
 ```sh
-$ pulp run
+$ pulp run -- -f county.tmpl -m pretty
+$ pulp run -- -f county.tmpl -m test
 ```
