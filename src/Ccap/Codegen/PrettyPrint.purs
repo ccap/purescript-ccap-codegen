@@ -4,7 +4,7 @@ module Ccap.Codegen.PrettyPrint
 
 import Prelude
 
-import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TyType(..), TyTypeNonRecord(..), TypeDecl(..))
+import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TyTypeOrRecord(..), TyTypeNonRecord(..), TypeDecl(..))
 import Data.Array (length, mapWithIndex) as Array
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (top) as Boxes

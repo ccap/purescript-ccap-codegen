@@ -7,7 +7,7 @@ module Ccap.Codegen.Parser
 import Prelude
 
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
-import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TyType(..), TyTypeNonRecord(..), TypeDecl(..))
+import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TyTypeOrRecord(..), TyTypeNonRecord(..), TypeDecl(..))
 import Control.Alt ((<|>))
 import Data.Array (fromFoldable, many, some) as Array
 import Data.Char.Unicode (isLower)
@@ -86,7 +86,7 @@ tyTypeNonRecord _ =
     <|> (TyRef <$> position <*> moduleOrTypeName)
     <|> (reserved "array" >>= tyTypeNonRecord <#> TyArray)
 
-tyType :: Unit -> ParserT String Identity TyType
+tyType :: Unit -> ParserT String Identity TyTypeOrRecord
 tyType _ =
   (tyTypeNonRecord unit <#> TyTypeNonRecord)
     <|> (braces $ commaSep1 (recordProp unit) <#> TyRecord)

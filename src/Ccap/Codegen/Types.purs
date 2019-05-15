@@ -4,7 +4,7 @@ module Ccap.Codegen.Types
   , Primitive(..)
   , TyTypeNonRecord(..)
   , RecordProp(..)
-  , TyType(..)
+  , TyTypeOrRecord(..)
   , TypeDecl(..)
   , Variant
   ) where
@@ -16,9 +16,9 @@ import Text.Parsing.Parser.Pos (Position)
 
 data Module = Module String (Array TypeDecl)
 
-data TypeDecl = TypeDecl String TyType
+data TypeDecl = TypeDecl String TyTypeOrRecord
 
-data TyType
+data TyTypeOrRecord
   = TyTypeNonRecord TyTypeNonRecord
   | TyRecord (Array RecordProp)
 
@@ -57,9 +57,9 @@ derive instance genericTyTypeNonRecord :: Generic TyTypeNonRecord _
 instance showTyTypeNonRecord :: Show TyTypeNonRecord where
   show t = genericShow t
 
-derive instance eqTyType :: Eq TyType
-derive instance genericTyType :: Generic TyType _
-instance showTyType :: Show TyType where
+derive instance eqTyType :: Eq TyTypeOrRecord
+derive instance genericTyType :: Generic TyTypeOrRecord _
+instance showTyType :: Show TyTypeOrRecord where
   show = genericShow
 
 derive instance eqTypeDecl :: Eq TypeDecl
