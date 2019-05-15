@@ -6,7 +6,7 @@ import Prelude
 
 import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TyType(..), TyTypeNonRecord(..), TypeDecl(..))
 import Data.Array (length, mapWithIndex) as Array
-import Text.PrettyPrint.Boxes (Box, char, emptyBox, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
+import Text.PrettyPrint.Boxes (Box, char, emptyBox, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (top) as Boxes
 
 prettyPrint :: Array Module -> String
@@ -75,3 +75,4 @@ tyTypeNonRecord = case _ of
   Primitive p -> primitive p
   TyRef _ s -> text s
   TyArray t -> text "array" <<+>> tyTypeNonRecord t
+  TySum vs -> vcat left (vs <#> (\x -> text "| " <<+>> text x))

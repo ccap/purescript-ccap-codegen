@@ -6,6 +6,7 @@ module Ccap.Codegen.Types
   , RecordProp(..)
   , TyType(..)
   , TypeDecl(..)
+  , Variant
   ) where
 
 import Data.Generic.Rep (class Generic)
@@ -25,8 +26,11 @@ data TyTypeNonRecord
   = Primitive Primitive
   | TyRef Position String
   | TyArray TyTypeNonRecord
+  | TySum (Array Variant)
 
 data RecordProp = RecordProp String TyTypeNonRecord IsRequired
+
+type Variant = String
 
 data IsRequired
   = Required
