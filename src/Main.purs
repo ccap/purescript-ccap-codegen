@@ -4,6 +4,7 @@ import Prelude
 
 import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrintPrinter
+import Ccap.Codegen.Purescript (prettyPrint) as Purescript
 import Ccap.Codegen.Types (Module)
 import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..))
@@ -21,6 +22,8 @@ app fileName mode = do
   case mode of
     "pretty" -> runParserAndProcess fileName contents \ms ->
       Console.info $ PrintPrinter.prettyPrint ms
+    "purs" -> runParserAndProcess fileName contents $
+      Purescript.prettyPrint >>> Console.info
     "test" -> do
       let success = roundTrip contents
       either
