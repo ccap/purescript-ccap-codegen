@@ -2,7 +2,7 @@ module Ccap.Codegen.Types
   ( IsRequired(..)
   , Module(..)
   , Primitive(..)
-  , TyTypeNonRecord(..)
+  , TyType(..)
   , RecordProp(..)
   , TyTypeOrRecord(..)
   , TypeDecl(..)
@@ -19,16 +19,16 @@ data Module = Module String (Array TypeDecl)
 data TypeDecl = TypeDecl String TyTypeOrRecord
 
 data TyTypeOrRecord
-  = TyTypeNonRecord TyTypeNonRecord
+  = TyType TyType
   | TyRecord (Array RecordProp)
 
-data TyTypeNonRecord
+data TyType
   = Primitive Primitive
   | TyRef Position String
-  | TyArray TyTypeNonRecord
+  | TyArray TyType
   | TySum (Array Variant)
 
-data RecordProp = RecordProp String TyTypeNonRecord IsRequired
+data RecordProp = RecordProp String TyType IsRequired
 
 type Variant = String
 
@@ -52,14 +52,14 @@ derive instance genericModule :: Generic Module _
 instance showModule :: Show Module where
   show = genericShow
 
-derive instance eqTyTypeNonRecord :: Eq TyTypeNonRecord
-derive instance genericTyTypeNonRecord :: Generic TyTypeNonRecord _
-instance showTyTypeNonRecord :: Show TyTypeNonRecord where
+derive instance eqTyType :: Eq TyType
+derive instance genericTyType :: Generic TyType _
+instance showTyType :: Show TyType where
   show t = genericShow t
 
-derive instance eqTyType :: Eq TyTypeOrRecord
-derive instance genericTyType :: Generic TyTypeOrRecord _
-instance showTyType :: Show TyTypeOrRecord where
+derive instance eqTyTypeOrRecord :: Eq TyTypeOrRecord
+derive instance genericTyTypeOrRecord :: Generic TyTypeOrRecord _
+instance showTyTypeOrRecord :: Show TyTypeOrRecord where
   show = genericShow
 
 derive instance eqTypeDecl :: Eq TypeDecl

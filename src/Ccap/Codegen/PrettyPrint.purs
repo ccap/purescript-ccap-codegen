@@ -4,7 +4,7 @@ module Ccap.Codegen.PrettyPrint
 
 import Prelude
 
-import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TyTypeOrRecord(..), TyTypeNonRecord(..), TypeDecl(..))
+import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TyTypeOrRecord(..), TyType(..), TypeDecl(..))
 import Data.Array (length, mapWithIndex) as Array
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (top) as Boxes
@@ -37,7 +37,7 @@ indentedList :: Array Box -> Box
 indentedList = indented <<< vcat Boxes.top
 
 typeDecl :: Boolean -> TypeDecl -> Box
-typeDecl last (TypeDecl name (TyTypeNonRecord t)) =
+typeDecl last (TypeDecl name (TyType t)) =
   text "type" <<+>> text name <<>> char ':' <<+>> tyTypeNonRecord t <<>> commaExceptLast last
 typeDecl last (TypeDecl name (TyRecord props)) =
   text "type" <<+>> text name <<>> char ':' <<+>> char '{'
@@ -70,7 +70,7 @@ isRequired = case _ of
   Required -> emptyBox 0 0
   Optional -> text " optional"
 
-tyTypeNonRecord :: TyTypeNonRecord -> Box
+tyTypeNonRecord :: TyType -> Box
 tyTypeNonRecord = case _ of
   Primitive p -> primitive p
   TyRef _ s -> text s
