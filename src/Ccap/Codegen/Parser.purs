@@ -89,10 +89,10 @@ tyType _ =
 tyTypeOrRecord :: ParserT String Identity TypeOrRecord
 tyTypeOrRecord =
   (tyType unit <#> Type)
-    <|> (braces $ commaSep1 (recordProp unit) <#> Record)
+    <|> (braces $ commaSep1 recordProp <#> Record)
 
-recordProp :: Unit -> ParserT String Identity RecordProp
-recordProp _ = ado
+recordProp :: ParserT String Identity RecordProp
+recordProp = ado
   name <- identifier
   lexeme $ char ':'
   ty <- tyType unit
