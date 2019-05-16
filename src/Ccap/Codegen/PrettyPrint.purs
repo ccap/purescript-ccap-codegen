@@ -4,7 +4,7 @@ module Ccap.Codegen.PrettyPrint
 
 import Prelude
 
-import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TypeOrRecord(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TypeOrRecord(..), Type(..), TypeDecl(..))
 import Data.Array (length, mapWithIndex) as Array
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (top) as Boxes
@@ -62,17 +62,13 @@ commaExceptLast b =
     else char ','
 
 recordProp :: Boolean -> RecordProp -> Box
-recordProp last (RecordProp s t r) =
-  text s <<>> char ':' <<+>> tyTypeNonRecord t <<>> isRequired r <<>> commaExceptLast last
-
-isRequired :: IsRequired -> Box
-isRequired = case _ of
-  Required -> emptyBox 0 0
-  Optional -> text " optional"
+recordProp last (RecordProp s t) =
+  text s <<>> char ':' <<+>> tyTypeNonRecord t <<>> commaExceptLast last
 
 tyTypeNonRecord :: Type -> Box
 tyTypeNonRecord = case _ of
   Primitive p -> primitive p
   Ref _ s -> text s
   Array t -> text "array" <<+>> tyTypeNonRecord t
+  Option t ->  text "optional" <<+>> tyTypeNonRecord t
   Sum vs -> vcat left (vs <#> (\x -> text "| " <<+>> text x))

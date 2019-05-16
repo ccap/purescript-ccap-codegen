@@ -1,6 +1,5 @@
 module Ccap.Codegen.Types
-  ( IsRequired(..)
-  , Module(..)
+  ( Module(..)
   , Primitive(..)
   , Type(..)
   , RecordProp(..)
@@ -26,23 +25,21 @@ data Type
   = Primitive Primitive
   | Ref Position String
   | Array Type
+  | Option Type
   | Sum (Array Variant)
 
-data RecordProp = RecordProp String Type IsRequired
+data RecordProp = RecordProp String Type
 
 type Variant = String
 
-data IsRequired
-  = Required
-  | Optional
-
 data Primitive
   = PBoolean
-  | PDate
-  | PDateTime
   | PInt
   | PDecimal
   | PString
+  -- TODO: These should probably become (pseudo?) user-defined types when possible.
+  | PDate
+  | PDateTime
   | PTime
 
 -- Instances here to avoid cluttering the above
@@ -70,11 +67,6 @@ instance showTypeDecl :: Show TypeDecl where
 derive instance eqRecordProp :: Eq RecordProp
 derive instance genericRecordProp :: Generic RecordProp _
 instance showRecordProp :: Show RecordProp where
-  show = genericShow
-
-derive instance eqIsRequired :: Eq IsRequired
-derive instance genericIsRequired :: Generic IsRequired _
-instance showIsRequired :: Show IsRequired where
   show = genericShow
 
 derive instance eqPrimitive :: Eq Primitive

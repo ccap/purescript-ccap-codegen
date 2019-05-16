@@ -7,16 +7,15 @@ module Ccap.Codegen.Parser
 import Prelude
 
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
-import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TypeOrRecord(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TypeOrRecord(..), Type(..), TypeDecl(..))
 import Control.Alt ((<|>))
 import Data.Array (fromFoldable, many, some) as Array
 import Data.Char.Unicode (isLower)
 import Data.Either (Either)
 import Data.Identity (Identity)
-import Data.Maybe (maybe)
 import Data.String.CodeUnits (fromCharArray, singleton) as String
 import Text.Parsing.Parser (ParseError, ParserT, parseErrorMessage, parseErrorPosition, position, runParser)
-import Text.Parsing.Parser.Combinators (optionMaybe, (<?>))
+import Text.Parsing.Parser.Combinators ((<?>))
 import Text.Parsing.Parser.Language (javaStyle)
 import Text.Parsing.Parser.Pos (Position(..))
 import Text.Parsing.Parser.String (char, satisfy)
@@ -85,9 +84,10 @@ tyTypeNonRecord _ =
   anyPrimitive
     <|> (Ref <$> position <*> moduleOrTypeName)
     <|> (reserved "array" >>= tyTypeNonRecord <#> Array)
+    <|> (reserved "optional" >>= tyTypeNonRecord <#> Option)
 
-tyType :: Unit -> ParserT String Identity TypeOrRecord
-tyType _ =
+tyTypeOrRecord :: ParserT String Identity TypeOrRecord
+tyTypeOrRecord =
   (tyTypeNonRecord unit <#> Type)
     <|> (braces $ commaSep1 (recordProp unit) <#> Record)
 
@@ -96,9 +96,7 @@ recordProp _ = ado
   name <- identifier
   lexeme $ char ':'
   ty <- tyTypeNonRecord unit
-  required <- optionMaybe (reserved "optional") <#>
-                maybe Required (const Optional)
-  in RecordProp name ty required
+  in RecordProp name ty
 
 oneModule :: ParserT String Identity Module
 oneModule = ado
@@ -112,7 +110,7 @@ typeDecl = ado
   reserved "type"
   name <- moduleOrTypeName
   lexeme $ char ':'
-  ty <- tyType unit
+  ty <- tyTypeOrRecord
   in TypeDecl name ty
 
 wholeFile :: ParserT String Identity (Array Module)
