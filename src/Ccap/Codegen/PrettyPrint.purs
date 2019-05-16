@@ -38,7 +38,7 @@ indentedList = indented <<< vcat Boxes.top
 
 typeDecl :: Boolean -> TypeDecl -> Box
 typeDecl last (TypeDecl name (Type t)) =
-  text "type" <<+>> text name <<>> char ':' <<+>> tyTypeNonRecord t <<>> commaExceptLast last
+  text "type" <<+>> text name <<>> char ':' <<+>> tyType t <<>> commaExceptLast last
 typeDecl last (TypeDecl name (Record props)) =
   text "type" <<+>> text name <<>> char ':' <<+>> char '{'
     // commaList props recordProp
@@ -63,12 +63,12 @@ commaExceptLast b =
 
 recordProp :: Boolean -> RecordProp -> Box
 recordProp last (RecordProp s t) =
-  text s <<>> char ':' <<+>> tyTypeNonRecord t <<>> commaExceptLast last
+  text s <<>> char ':' <<+>> tyType t <<>> commaExceptLast last
 
-tyTypeNonRecord :: Type -> Box
-tyTypeNonRecord = case _ of
+tyType :: Type -> Box
+tyType = case _ of
   Primitive p -> primitive p
   Ref _ s -> text s
-  Array t -> text "array" <<+>> tyTypeNonRecord t
-  Option t ->  text "optional" <<+>> tyTypeNonRecord t
+  Array t -> text "array" <<+>> tyType t
+  Option t ->  text "optional" <<+>> tyType t
   Sum vs -> vcat left (vs <#> (\x -> text "| " <<+>> text x))

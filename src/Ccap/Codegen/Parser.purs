@@ -79,23 +79,23 @@ anyPrimitive =
     <|> primitive "string" PString
     <|> primitive "time" PTime
 
-tyTypeNonRecord :: Unit -> ParserT String Identity Type
-tyTypeNonRecord _ =
+tyType :: Unit -> ParserT String Identity Type
+tyType _ =
   anyPrimitive
     <|> (Ref <$> position <*> moduleOrTypeName)
-    <|> (reserved "array" >>= tyTypeNonRecord <#> Array)
-    <|> (reserved "optional" >>= tyTypeNonRecord <#> Option)
+    <|> (reserved "array" >>= tyType <#> Array)
+    <|> (reserved "optional" >>= tyType <#> Option)
 
 tyTypeOrRecord :: ParserT String Identity TypeOrRecord
 tyTypeOrRecord =
-  (tyTypeNonRecord unit <#> Type)
+  (tyType unit <#> Type)
     <|> (braces $ commaSep1 (recordProp unit) <#> Record)
 
 recordProp :: Unit -> ParserT String Identity RecordProp
 recordProp _ = ado
   name <- identifier
   lexeme $ char ':'
-  ty <- tyTypeNonRecord unit
+  ty <- tyType unit
   in RecordProp name ty
 
 oneModule :: ParserT String Identity Module
