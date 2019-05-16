@@ -2,9 +2,9 @@ module Ccap.Codegen.Types
   ( IsRequired(..)
   , Module(..)
   , Primitive(..)
-  , TyType(..)
+  , Type(..)
   , RecordProp(..)
-  , TyTypeOrRecord(..)
+  , TypeOrRecord(..)
   , TypeDecl(..)
   , Variant
   ) where
@@ -16,19 +16,19 @@ import Text.Parsing.Parser.Pos (Position)
 
 data Module = Module String (Array TypeDecl)
 
-data TypeDecl = TypeDecl String TyTypeOrRecord
+data TypeDecl = TypeDecl String TypeOrRecord
 
-data TyTypeOrRecord
-  = TyType TyType
-  | TyRecord (Array RecordProp)
+data TypeOrRecord
+  = Type Type
+  | Record (Array RecordProp)
 
-data TyType
+data Type
   = Primitive Primitive
-  | TyRef Position String
-  | TyArray TyType
-  | TySum (Array Variant)
+  | Ref Position String
+  | Array Type
+  | Sum (Array Variant)
 
-data RecordProp = RecordProp String TyType IsRequired
+data RecordProp = RecordProp String Type IsRequired
 
 type Variant = String
 
@@ -52,14 +52,14 @@ derive instance genericModule :: Generic Module _
 instance showModule :: Show Module where
   show = genericShow
 
-derive instance eqTyType :: Eq TyType
-derive instance genericTyType :: Generic TyType _
-instance showTyType :: Show TyType where
+derive instance eqType :: Eq Type
+derive instance genericType :: Generic Type _
+instance showType :: Show Type where
   show t = genericShow t
 
-derive instance eqTyTypeOrRecord :: Eq TyTypeOrRecord
-derive instance genericTyTypeOrRecord :: Generic TyTypeOrRecord _
-instance showTyTypeOrRecord :: Show TyTypeOrRecord where
+derive instance eqTypeOrRecord :: Eq TypeOrRecord
+derive instance genericTypeOrRecord :: Generic TypeOrRecord _
+instance showTypeOrRecord :: Show TypeOrRecord where
   show = genericShow
 
 derive instance eqTypeDecl :: Eq TypeDecl

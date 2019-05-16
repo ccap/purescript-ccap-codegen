@@ -7,7 +7,7 @@ module Ccap.Codegen.Parser
 import Prelude
 
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
-import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TyTypeOrRecord(..), TyType(..), TypeDecl(..))
+import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TypeOrRecord(..), Type(..), TypeDecl(..))
 import Control.Alt ((<|>))
 import Data.Array (fromFoldable, many, some) as Array
 import Data.Char.Unicode (isLower)
@@ -67,10 +67,10 @@ moduleOrTypeName = lexeme $ mkModuleOrTypeName <$> upper <*> Array.many alphaNum
   where mkModuleOrTypeName :: Char -> Array Char -> String
         mkModuleOrTypeName c s = String.singleton c <> String.fromCharArray s
 
-primitive :: String -> Primitive -> ParserT String Identity TyType
+primitive :: String -> Primitive -> ParserT String Identity Type
 primitive s decl = reserved s <#> const (Primitive decl)
 
-anyPrimitive :: ParserT String Identity TyType
+anyPrimitive :: ParserT String Identity Type
 anyPrimitive =
   primitive "boolean" PBoolean
     <|> primitive "date" PDate
@@ -80,16 +80,16 @@ anyPrimitive =
     <|> primitive "string" PString
     <|> primitive "time" PTime
 
-tyTypeNonRecord :: Unit -> ParserT String Identity TyType
+tyTypeNonRecord :: Unit -> ParserT String Identity Type
 tyTypeNonRecord _ =
   anyPrimitive
-    <|> (TyRef <$> position <*> moduleOrTypeName)
-    <|> (reserved "array" >>= tyTypeNonRecord <#> TyArray)
+    <|> (Ref <$> position <*> moduleOrTypeName)
+    <|> (reserved "array" >>= tyTypeNonRecord <#> Array)
 
-tyType :: Unit -> ParserT String Identity TyTypeOrRecord
+tyType :: Unit -> ParserT String Identity TypeOrRecord
 tyType _ =
-  (tyTypeNonRecord unit <#> TyType)
-    <|> (braces $ commaSep1 (recordProp unit) <#> TyRecord)
+  (tyTypeNonRecord unit <#> Type)
+    <|> (braces $ commaSep1 (recordProp unit) <#> Record)
 
 recordProp :: Unit -> ParserT String Identity RecordProp
 recordProp _ = ado

@@ -4,7 +4,7 @@ module Ccap.Codegen.PrettyPrint
 
 import Prelude
 
-import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TyTypeOrRecord(..), TyType(..), TypeDecl(..))
+import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TypeOrRecord(..), Type(..), TypeDecl(..))
 import Data.Array (length, mapWithIndex) as Array
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (top) as Boxes
@@ -37,9 +37,9 @@ indentedList :: Array Box -> Box
 indentedList = indented <<< vcat Boxes.top
 
 typeDecl :: Boolean -> TypeDecl -> Box
-typeDecl last (TypeDecl name (TyType t)) =
+typeDecl last (TypeDecl name (Type t)) =
   text "type" <<+>> text name <<>> char ':' <<+>> tyTypeNonRecord t <<>> commaExceptLast last
-typeDecl last (TypeDecl name (TyRecord props)) =
+typeDecl last (TypeDecl name (Record props)) =
   text "type" <<+>> text name <<>> char ':' <<+>> char '{'
     // commaList props recordProp
     // (text "}" <<>> commaExceptLast last)
@@ -70,9 +70,9 @@ isRequired = case _ of
   Required -> emptyBox 0 0
   Optional -> text " optional"
 
-tyTypeNonRecord :: TyType -> Box
+tyTypeNonRecord :: Type -> Box
 tyTypeNonRecord = case _ of
   Primitive p -> primitive p
-  TyRef _ s -> text s
-  TyArray t -> text "array" <<+>> tyTypeNonRecord t
-  TySum vs -> vcat left (vs <#> (\x -> text "| " <<+>> text x))
+  Ref _ s -> text s
+  Array t -> text "array" <<+>> tyTypeNonRecord t
+  Sum vs -> vcat left (vs <#> (\x -> text "| " <<+>> text x))
