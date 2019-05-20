@@ -13,9 +13,10 @@ import Data.Array (fromFoldable, many, some) as Array
 import Data.Char.Unicode (isLower)
 import Data.Either (Either)
 import Data.Identity (Identity)
+import Data.List (List)
 import Data.String.CodeUnits (fromCharArray, singleton) as String
 import Text.Parsing.Parser (ParseError, ParserT, parseErrorMessage, parseErrorPosition, position, runParser)
-import Text.Parsing.Parser.Combinators ((<?>))
+import Text.Parsing.Parser.Combinators (optional, sepBy1, (<?>))
 import Text.Parsing.Parser.Language (javaStyle)
 import Text.Parsing.Parser.Pos (Position(..))
 import Text.Parsing.Parser.String (char, satisfy)
@@ -48,6 +49,18 @@ commaSep1 inner = tokenParser.commaSep1 inner <#> Array.fromFoldable
 
 braces :: forall a. ParserT String Identity  a -> ParserT String Identity a
 braces = tokenParser.braces
+
+brackets :: forall a. ParserT String Identity  a -> ParserT String Identity a
+brackets = tokenParser.brackets
+
+-- | Parse phrases delimited and optionally prefixed by a separator, requiring at least one match.
+sepStartBy1 :: forall m s a sep. Monad m => ParserT s m a -> ParserT s m sep -> ParserT s m (List a)
+sepStartBy1 p sep = optional sep *> sepBy1 p sep
+
+
+pipeSep1 :: forall a.  ParserT String Identity a -> ParserT String Identity (Array a)
+pipeSep1 a = (a `sepStartBy1` (lexeme $ char '|')) <#> Array.fromFoldable
+
 
 whiteSpace :: ParserT String Identity Unit
 whiteSpace = tokenParser.whiteSpace
@@ -90,6 +103,7 @@ tyTypeOrRecord :: ParserT String Identity TypeOrRecord
 tyTypeOrRecord =
   (tyType unit <#> Type)
     <|> (braces $ commaSep1 recordProp <#> Record)
+    <|> (brackets $ pipeSep1 moduleOrTypeName <#> Sum)
 
 recordProp :: ParserT String Identity RecordProp
 recordProp = ado

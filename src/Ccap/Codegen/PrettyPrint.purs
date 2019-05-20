@@ -47,7 +47,9 @@ typeDecl last (TypeDecl name tt) =
         // commaList props recordProp
         // (text "}" <<>> commaExceptLast last)
     Sum vs ->
-      dec <<+>> vcat left (vs <#> (\x -> text "| " <<+>> text x))
+      dec <<+>> char '['
+      // indented (vcat left (vs <#> (\x -> text "| " <<+>> text x)))
+      // char ']'
 
 commaList
   :: forall a
