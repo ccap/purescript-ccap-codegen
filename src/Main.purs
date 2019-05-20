@@ -24,6 +24,8 @@ app fileName mode = do
       Console.info $ PrintPrinter.prettyPrint ms
     "purs" -> runParserAndProcess fileName contents $
       Purescript.prettyPrint >>> Console.info
+    "show" -> runParserAndProcess fileName contents $
+      show >>> Console.info
     "test" -> do
       let success = roundTrip contents
       either
