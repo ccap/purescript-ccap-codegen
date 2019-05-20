@@ -20,13 +20,13 @@ data TypeDecl = TypeDecl String TypeOrRecord
 data TypeOrRecord
   = Type Type
   | Record (Array RecordProp)
+  | Sum (Array Variant)
 
 data Type
   = Primitive Primitive
   | Ref Position String
   | Array Type
   | Option Type
-  | Sum (Array Variant)
 
 data RecordProp = RecordProp String Type
 

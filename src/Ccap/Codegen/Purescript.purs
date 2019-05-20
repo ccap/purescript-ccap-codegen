@@ -7,7 +7,7 @@ import Prelude
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TypeOrRecord(..), Type(..), TypeDecl(..))
 import Data.Array (drop, length, snoc, (:))
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
-import Text.PrettyPrint.Boxes (top) as Boxes
+import Text.PrettyPrint.Boxes (bottom, top) as Boxes
 
 prettyPrint :: Array Module -> String
 prettyPrint modules =
@@ -39,12 +39,17 @@ indented = (<<>>) indent
 
 typeDecl :: Boolean -> TypeDecl -> Box
 typeDecl last (TypeDecl name tt) =
-  let dec = text "type" <<+>> text name <<+>> char '='
+  let dec kw = text kw <<+>> text name <<+>> char '='
   in case tt of
     Type t ->
-      dec <<+>> tyType t
+      dec "type" <<+>> tyType t
     Record props ->
-      dec // indented (record props)
+      dec "type" // indented (record props)
+    Sum vs ->
+      dec "data" // indented (
+        hsep 1 Boxes.bottom $ vcat left <$> [ drop 1 vs <#> \_ -> char '|',  vs <#> text ]
+        )
+
 
 tyType :: Type -> Box
 tyType =
@@ -54,7 +59,6 @@ tyType =
   Ref _ s -> text s
   Array t -> wrap "Array" t
   Option t ->  wrap "Maybe" t
-  Sum vs -> vcat left (vs <#> (\x -> text "| " <<+>> text x))
 
 record :: Array RecordProp -> Box
 record props =

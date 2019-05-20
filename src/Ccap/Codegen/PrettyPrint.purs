@@ -37,12 +37,17 @@ indentedList :: Array Box -> Box
 indentedList = indented <<< vcat Boxes.top
 
 typeDecl :: Boolean -> TypeDecl -> Box
-typeDecl last (TypeDecl name (Type t)) =
-  text "type" <<+>> text name <<>> char ':' <<+>> tyType t <<>> commaExceptLast last
-typeDecl last (TypeDecl name (Record props)) =
-  text "type" <<+>> text name <<>> char ':' <<+>> char '{'
-    // commaList props recordProp
-    // (text "}" <<>> commaExceptLast last)
+typeDecl last (TypeDecl name tt) =
+  let dec = text "type" <<+>> text name <<>> char ':'
+  in case tt of
+    Type t ->
+      dec <<+>> tyType t <<>> commaExceptLast last
+    Record props ->
+      dec <<+>> char '{'
+        // commaList props recordProp
+        // (text "}" <<>> commaExceptLast last)
+    Sum vs ->
+      dec <<+>> vcat left (vs <#> (\x -> text "| " <<+>> text x))
 
 commaList
   :: forall a
@@ -71,4 +76,3 @@ tyType = case _ of
   Ref _ s -> text s
   Array t -> text "array" <<+>> tyType t
   Option t ->  text "optional" <<+>> tyType t
-  Sum vs -> vcat left (vs <#> (\x -> text "| " <<+>> text x))
