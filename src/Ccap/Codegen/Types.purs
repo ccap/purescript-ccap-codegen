@@ -3,7 +3,7 @@ module Ccap.Codegen.Types
   , Primitive(..)
   , Type(..)
   , RecordProp(..)
-  , TypeOrRecord(..)
+  , TopType(..)
   , TypeDecl(..)
   , Variant
   ) where
@@ -15,9 +15,9 @@ import Text.Parsing.Parser.Pos (Position)
 
 data Module = Module String (Array TypeDecl)
 
-data TypeDecl = TypeDecl String TypeOrRecord
+data TypeDecl = TypeDecl String TopType
 
-data TypeOrRecord
+data TopType
   = Type Type
   | Record (Array RecordProp)
   | Sum (Array Variant)
@@ -54,9 +54,9 @@ derive instance genericType :: Generic Type _
 instance showType :: Show Type where
   show t = genericShow t
 
-derive instance eqTypeOrRecord :: Eq TypeOrRecord
-derive instance genericTypeOrRecord :: Generic TypeOrRecord _
-instance showTypeOrRecord :: Show TypeOrRecord where
+derive instance eqTopType :: Eq TopType
+derive instance genericTopType :: Generic TopType _
+instance showTopType :: Show TopType where
   show = genericShow
 
 derive instance eqTypeDecl :: Eq TypeDecl

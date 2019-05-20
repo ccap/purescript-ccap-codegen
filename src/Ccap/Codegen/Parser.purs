@@ -7,7 +7,7 @@ module Ccap.Codegen.Parser
 import Prelude
 
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
-import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TypeOrRecord(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Alt ((<|>))
 import Data.Array (fromFoldable, many, some) as Array
 import Data.Char.Unicode (isLower)
@@ -99,8 +99,8 @@ tyType _ =
     <|> (reserved "array" >>= tyType <#> Array)
     <|> (reserved "optional" >>= tyType <#> Option)
 
-tyTypeOrRecord :: ParserT String Identity TypeOrRecord
-tyTypeOrRecord =
+topType :: ParserT String Identity TopType
+topType =
   (tyType unit <#> Type)
     <|> (braces $ commaSep1 recordProp <#> Record)
     <|> (brackets $ pipeSep1 moduleOrTypeName <#> Sum)
@@ -124,7 +124,7 @@ typeDecl = ado
   reserved "type"
   name <- moduleOrTypeName
   lexeme $ char ':'
-  ty <- tyTypeOrRecord
+  ty <- topType
   in TypeDecl name ty
 
 wholeFile :: ParserT String Identity (Array Module)
