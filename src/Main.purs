@@ -58,6 +58,6 @@ main = do
                    <*> yarg
                         "m"
                         [ "mode" ]
-                        (Just "The output mode (must be one of pretty, scala, ps, or test)")
+                        (Just "The output mode (must be one of pretty, purs, scala, show, or test)")
                         (Right "Mode is required")
                         false
