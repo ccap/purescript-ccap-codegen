@@ -16,7 +16,7 @@ import Data.Identity (Identity)
 import Data.List (List)
 import Data.String.CodeUnits (fromCharArray, singleton) as String
 import Text.Parsing.Parser (ParseError, ParserT, parseErrorMessage, parseErrorPosition, position, runParser)
-import Text.Parsing.Parser.Combinators (optional, sepBy1, (<?>))
+import Text.Parsing.Parser.Combinators (sepBy1, (<?>))
 import Text.Parsing.Parser.Language (javaStyle)
 import Text.Parsing.Parser.Pos (Position(..))
 import Text.Parsing.Parser.String (char, satisfy)
@@ -53,13 +53,13 @@ braces = tokenParser.braces
 brackets :: forall a. ParserT String Identity  a -> ParserT String Identity a
 brackets = tokenParser.brackets
 
--- | Parse phrases delimited and optionally prefixed by a separator, requiring at least one match.
-sepStartBy1 :: forall m s a sep. Monad m => ParserT s m a -> ParserT s m sep -> ParserT s m (List a)
-sepStartBy1 p sep = optional sep *> sepBy1 p sep
+-- | Parse phrases prefixed by a separator, requiring at least one match.
+startBy1 :: forall m s a sep. Monad m => ParserT s m a -> ParserT s m sep -> ParserT s m (List a)
+startBy1 p sep = sep *> sepBy1 p sep
 
 
 pipeSep1 :: forall a.  ParserT String Identity a -> ParserT String Identity (Array a)
-pipeSep1 a = (a `sepStartBy1` (lexeme $ char '|')) <#> Array.fromFoldable
+pipeSep1 a = (a `startBy1` (lexeme $ char '|')) <#> Array.fromFoldable
 
 
 whiteSpace :: ParserT String Identity Unit
