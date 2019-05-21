@@ -5,6 +5,7 @@ import Prelude
 import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrintPrinter
 import Ccap.Codegen.Purescript (prettyPrint) as Purescript
+import Ccap.Codegen.Scala (prettyPrint) as Scala
 import Ccap.Codegen.Types (Module)
 import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..))
@@ -24,6 +25,8 @@ app fileName mode = do
       Console.info $ PrintPrinter.prettyPrint ms
     "purs" -> runParserAndProcess fileName contents $
       Purescript.prettyPrint >>> Console.info
+    "scala" -> runParserAndProcess fileName contents $
+      Scala.prettyPrint >>> Console.info
     "show" -> runParserAndProcess fileName contents $
       show >>> Console.info
     "test" -> do
