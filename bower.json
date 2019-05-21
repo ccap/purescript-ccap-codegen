@@ -12,7 +12,7 @@
     "url": "git://github.com/ccap/purescript-ccap-codegen.git"
   },
   "dependencies": {
-    "purescript-boxes": "https://github.com/pbrant/purescript-boxes.git",
+    "purescript-boxes": "^1.0.1",
     "purescript-debug": "^4.0.0",
     "purescript-heterogenous": "^0.4.0",
     "purescript-generics-rep": "^6.1.1",
