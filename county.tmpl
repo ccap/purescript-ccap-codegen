@@ -32,11 +32,18 @@ module County {
   type County: {
     countyNo: CountyNo,
     countyName: CountyName,
-    assessFacilityId: AssessFacilityId optional,
+    assessFacilityId: optional AssessFacilityId,
     soapPort: int
   },
 
   type Response: {
     counties: array County
-  }
+  },
+
+  type CountyEnum: [
+    | Adams
+    | Ashland
+    | Baron
+    | Etc
+  ]
 }

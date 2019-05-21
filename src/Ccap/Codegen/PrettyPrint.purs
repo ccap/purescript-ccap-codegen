@@ -4,9 +4,9 @@ module Ccap.Codegen.PrettyPrint
 
 import Prelude
 
-import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TyType(..), TyTypeNonRecord(..), TypeDecl(..))
+import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array (length, mapWithIndex) as Array
-import Text.PrettyPrint.Boxes (Box, char, emptyBox, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
+import Text.PrettyPrint.Boxes (Box, char, emptyBox, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (top) as Boxes
 
 prettyPrint :: Array Module -> String
@@ -37,12 +37,19 @@ indentedList :: Array Box -> Box
 indentedList = indented <<< vcat Boxes.top
 
 typeDecl :: Boolean -> TypeDecl -> Box
-typeDecl last (TypeDecl name (TyTypeNonRecord t)) =
-  text "type" <<+>> text name <<>> char ':' <<+>> tyTypeNonRecord t <<>> commaExceptLast last
-typeDecl last (TypeDecl name (TyRecord props)) =
-  text "type" <<+>> text name <<>> char ':' <<+>> char '{'
-    // commaList props recordProp
-    // (text "}" <<>> commaExceptLast last)
+typeDecl last (TypeDecl name tt) =
+  let dec = text "type" <<+>> text name <<>> char ':'
+  in case tt of
+    Type t ->
+      dec <<+>> tyType t <<>> commaExceptLast last
+    Record props ->
+      dec <<+>> char '{'
+        // commaList props recordProp
+        // (text "}" <<>> commaExceptLast last)
+    Sum vs ->
+      dec <<+>> char '['
+      // indented (vcat left (vs <#> (\x -> text "| " <<+>> text x)))
+      // char ']'
 
 commaList
   :: forall a
@@ -62,16 +69,12 @@ commaExceptLast b =
     else char ','
 
 recordProp :: Boolean -> RecordProp -> Box
-recordProp last (RecordProp s t r) =
-  text s <<>> char ':' <<+>> tyTypeNonRecord t <<>> isRequired r <<>> commaExceptLast last
+recordProp last (RecordProp s t) =
+  text s <<>> char ':' <<+>> tyType t <<>> commaExceptLast last
 
-isRequired :: IsRequired -> Box
-isRequired = case _ of
-  Required -> emptyBox 0 0
-  Optional -> text " optional"
-
-tyTypeNonRecord :: TyTypeNonRecord -> Box
-tyTypeNonRecord = case _ of
+tyType :: Type -> Box
+tyType = case _ of
   Primitive p -> primitive p
-  TyRef _ s -> text s
-  TyArray t -> text "array" <<+>> tyTypeNonRecord t
+  Ref _ s -> text s
+  Array t -> text "array" <<+>> tyType t
+  Option t ->  text "optional" <<+>> tyType t

@@ -7,16 +7,16 @@ module Ccap.Codegen.Parser
 import Prelude
 
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
-import Ccap.Codegen.Types (IsRequired(..), Module(..), Primitive(..), RecordProp(..), TyType(..), TyTypeNonRecord(..), TypeDecl(..))
+import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Alt ((<|>))
 import Data.Array (fromFoldable, many, some) as Array
 import Data.Char.Unicode (isLower)
 import Data.Either (Either)
 import Data.Identity (Identity)
-import Data.Maybe (maybe)
+import Data.List (List)
 import Data.String.CodeUnits (fromCharArray, singleton) as String
 import Text.Parsing.Parser (ParseError, ParserT, parseErrorMessage, parseErrorPosition, position, runParser)
-import Text.Parsing.Parser.Combinators (optionMaybe, (<?>))
+import Text.Parsing.Parser.Combinators (sepBy1, (<?>))
 import Text.Parsing.Parser.Language (javaStyle)
 import Text.Parsing.Parser.Pos (Position(..))
 import Text.Parsing.Parser.String (char, satisfy)
@@ -50,6 +50,18 @@ commaSep1 inner = tokenParser.commaSep1 inner <#> Array.fromFoldable
 braces :: forall a. ParserT String Identity  a -> ParserT String Identity a
 braces = tokenParser.braces
 
+brackets :: forall a. ParserT String Identity  a -> ParserT String Identity a
+brackets = tokenParser.brackets
+
+-- | Parse phrases prefixed by a separator, requiring at least one match.
+startBy1 :: forall m s a sep. Monad m => ParserT s m a -> ParserT s m sep -> ParserT s m (List a)
+startBy1 p sep = sep *> sepBy1 p sep
+
+
+pipeSep1 :: forall a.  ParserT String Identity a -> ParserT String Identity (Array a)
+pipeSep1 a = (a `startBy1` (lexeme $ char '|')) <#> Array.fromFoldable
+
+
 whiteSpace :: ParserT String Identity Unit
 whiteSpace = tokenParser.whiteSpace
 
@@ -67,10 +79,10 @@ moduleOrTypeName = lexeme $ mkModuleOrTypeName <$> upper <*> Array.many alphaNum
   where mkModuleOrTypeName :: Char -> Array Char -> String
         mkModuleOrTypeName c s = String.singleton c <> String.fromCharArray s
 
-primitive :: String -> Primitive -> ParserT String Identity TyTypeNonRecord
+primitive :: String -> Primitive -> ParserT String Identity Type
 primitive s decl = reserved s <#> const (Primitive decl)
 
-anyPrimitive :: ParserT String Identity TyTypeNonRecord
+anyPrimitive :: ParserT String Identity Type
 anyPrimitive =
   primitive "boolean" PBoolean
     <|> primitive "date" PDate
@@ -80,25 +92,25 @@ anyPrimitive =
     <|> primitive "string" PString
     <|> primitive "time" PTime
 
-tyTypeNonRecord :: Unit -> ParserT String Identity TyTypeNonRecord
-tyTypeNonRecord _ =
-  anyPrimitive
-    <|> (TyRef <$> position <*> moduleOrTypeName)
-    <|> (reserved "array" >>= tyTypeNonRecord <#> TyArray)
-
-tyType :: Unit -> ParserT String Identity TyType
+tyType :: Unit -> ParserT String Identity Type
 tyType _ =
-  (tyTypeNonRecord unit <#> TyTypeNonRecord)
-    <|> (braces $ commaSep1 (recordProp unit) <#> TyRecord)
+  anyPrimitive
+    <|> (Ref <$> position <*> moduleOrTypeName)
+    <|> (reserved "array" >>= tyType <#> Array)
+    <|> (reserved "optional" >>= tyType <#> Option)
 
-recordProp :: Unit -> ParserT String Identity RecordProp
-recordProp _ = ado
+topType :: ParserT String Identity TopType
+topType =
+  (tyType unit <#> Type)
+    <|> (braces $ commaSep1 recordProp <#> Record)
+    <|> (brackets $ pipeSep1 moduleOrTypeName <#> Sum)
+
+recordProp :: ParserT String Identity RecordProp
+recordProp = ado
   name <- identifier
   lexeme $ char ':'
-  ty <- tyTypeNonRecord unit
-  required <- optionMaybe (reserved "optional") <#>
-                maybe Required (const Optional)
-  in RecordProp name ty required
+  ty <- tyType unit
+  in RecordProp name ty
 
 oneModule :: ParserT String Identity Module
 oneModule = ado
@@ -112,7 +124,7 @@ typeDecl = ado
   reserved "type"
   name <- moduleOrTypeName
   lexeme $ char ':'
-  ty <- tyType unit
+  ty <- topType
   in TypeDecl name ty
 
 wholeFile :: ParserT String Identity (Array Module)

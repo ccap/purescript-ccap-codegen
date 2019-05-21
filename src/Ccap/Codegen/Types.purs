@@ -1,11 +1,11 @@
 module Ccap.Codegen.Types
-  ( IsRequired(..)
-  , Module(..)
+  ( Module(..)
   , Primitive(..)
-  , TyTypeNonRecord(..)
+  , Type(..)
   , RecordProp(..)
-  , TyType(..)
+  , TopType(..)
   , TypeDecl(..)
+  , Variant
   ) where
 
 import Data.Generic.Rep (class Generic)
@@ -15,30 +15,31 @@ import Text.Parsing.Parser.Pos (Position)
 
 data Module = Module String (Array TypeDecl)
 
-data TypeDecl = TypeDecl String TyType
+data TypeDecl = TypeDecl String TopType
 
-data TyType
-  = TyTypeNonRecord TyTypeNonRecord
-  | TyRecord (Array RecordProp)
+data TopType
+  = Type Type
+  | Record (Array RecordProp)
+  | Sum (Array Variant)
 
-data TyTypeNonRecord
+data Type
   = Primitive Primitive
-  | TyRef Position String
-  | TyArray TyTypeNonRecord
+  | Ref Position String
+  | Array Type
+  | Option Type
 
-data RecordProp = RecordProp String TyTypeNonRecord IsRequired
+data RecordProp = RecordProp String Type
 
-data IsRequired
-  = Required
-  | Optional
+type Variant = String
 
 data Primitive
   = PBoolean
-  | PDate
-  | PDateTime
   | PInt
   | PDecimal
   | PString
+  -- TODO: These should probably become (pseudo?) user-defined types when possible.
+  | PDate
+  | PDateTime
   | PTime
 
 -- Instances here to avoid cluttering the above
@@ -48,14 +49,14 @@ derive instance genericModule :: Generic Module _
 instance showModule :: Show Module where
   show = genericShow
 
-derive instance eqTyTypeNonRecord :: Eq TyTypeNonRecord
-derive instance genericTyTypeNonRecord :: Generic TyTypeNonRecord _
-instance showTyTypeNonRecord :: Show TyTypeNonRecord where
+derive instance eqType :: Eq Type
+derive instance genericType :: Generic Type _
+instance showType :: Show Type where
   show t = genericShow t
 
-derive instance eqTyType :: Eq TyType
-derive instance genericTyType :: Generic TyType _
-instance showTyType :: Show TyType where
+derive instance eqTopType :: Eq TopType
+derive instance genericTopType :: Generic TopType _
+instance showTopType :: Show TopType where
   show = genericShow
 
 derive instance eqTypeDecl :: Eq TypeDecl
@@ -66,11 +67,6 @@ instance showTypeDecl :: Show TypeDecl where
 derive instance eqRecordProp :: Eq RecordProp
 derive instance genericRecordProp :: Generic RecordProp _
 instance showRecordProp :: Show RecordProp where
-  show = genericShow
-
-derive instance eqIsRequired :: Eq IsRequired
-derive instance genericIsRequired :: Generic IsRequired _
-instance showIsRequired :: Show IsRequired where
   show = genericShow
 
 derive instance eqPrimitive :: Eq Primitive
