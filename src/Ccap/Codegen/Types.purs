@@ -19,6 +19,7 @@ data TypeDecl = TypeDecl String TopType
 
 data TopType
   = Type Type
+  | Wrap Type
   | Record (Array RecordProp)
   | Sum (Array Variant)
 

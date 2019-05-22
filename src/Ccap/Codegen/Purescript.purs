@@ -43,13 +43,14 @@ typeDecl last (TypeDecl name tt) =
   in case tt of
     Type t ->
       dec "type" <<+>> tyType t
+    Wrap t ->
+      dec "newtype" <<+>> text name <<+>> tyType t
     Record props ->
       dec "type" // indented (record props)
     Sum vs ->
       dec "data" // indented (
         hsep 1 Boxes.bottom $ vcat left <$> [ drop 1 vs <#> \_ -> char '|',  vs <#> text ]
         )
-
 
 tyType :: Type -> Box
 tyType =
