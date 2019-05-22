@@ -21,8 +21,8 @@ app :: String -> String -> Effect Unit
 app fileName mode = do
   contents <- Sync.readTextFile UTF8 fileName
   case mode of
-    "pretty" -> runParserAndProcess fileName contents \ms ->
-      Console.info $ PrintPrinter.prettyPrint ms
+    "pretty" -> runParserAndProcess fileName contents $
+      PrintPrinter.prettyPrint >>> Console.info
     "purs" -> runParserAndProcess fileName contents $
       Purescript.prettyPrint >>> Console.info
     "scala" -> runParserAndProcess fileName contents $

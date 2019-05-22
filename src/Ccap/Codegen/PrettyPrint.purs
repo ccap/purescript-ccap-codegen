@@ -50,8 +50,8 @@ typeDecl last (TypeDecl name tt) =
         // (text "}" <<>> commaExceptLast last)
     Sum vs ->
       dec <<+>> char '['
-      // indented (vcat left (vs <#> (\x -> text "| " <<+>> text x)))
-      // char ']'
+        // indented (vcat left (vs <#> (\x -> text "| " <<+>> text x)))
+        // char ']'
 
 commaList
   :: forall a

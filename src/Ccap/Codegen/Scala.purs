@@ -26,7 +26,7 @@ imports =
   [ "org.joda.time.LocalDate"
   , "org.joda.time.LocalDateTime"
   , "org.joda.time.LocalTime"
-  ] <#> (\i -> text ("import "<>i)) # vcat left
+  ] <#> (\i -> text ("import " <> i)) # vcat left
 
 primitive :: Primitive -> Box
 primitive p = text
@@ -59,18 +59,18 @@ typeDecl last (TypeDecl name tt) =
         ]
     Record props ->
        text "case class" <<+>> text name <<>> char '('
-       // indented (recordFields props)
-       // char ')'
+        // indented (recordFields props)
+        // char ')'
     Sum vs ->
       let
         variants = vcat left do
           v <- vs
           pure $ text ("case object " <> v <> " extends " <> name)
       in
-      text "sealed trait" <<+>> text name
-      // (text "object" <<+>> text name <<+>> char '{')
-      // indented variants
-      // char '}'
+        text "sealed trait" <<+>> text name
+          // (text "object" <<+>> text name <<+>> char '{')
+          // indented variants
+          // char '}'
 
 tyType :: Type -> Box
 tyType =

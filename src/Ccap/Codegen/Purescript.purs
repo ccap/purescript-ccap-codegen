@@ -48,9 +48,8 @@ typeDecl last (TypeDecl name tt) =
     Record props ->
       dec "type" // indented (record props)
     Sum vs ->
-      dec "data" // indented (
-        hsep 1 Boxes.bottom $ vcat left <$> [ drop 1 vs <#> \_ -> char '|',  vs <#> text ]
-        )
+      dec "data" // indented
+        (hsep 1 Boxes.bottom $ vcat left <$> [ drop 1 vs <#> \_ -> char '|',  vs <#> text ])
 
 tyType :: Type -> Box
 tyType =
