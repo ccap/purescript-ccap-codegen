@@ -25,9 +25,9 @@
 // TODO Enums, cross-module type references, types (domains) from database, PureScript, Scala
 
 module County {
-  type CountyNo: int,
+  type CountyNo: wrap int,
   type CountyName: string,
-  type AssessFacilityId: int,
+  type AssessFacilityId: wrap int,
 
   type County: {
     countyNo: CountyNo,

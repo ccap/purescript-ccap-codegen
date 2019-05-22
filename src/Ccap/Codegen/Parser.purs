@@ -104,6 +104,7 @@ topType =
   (tyType unit <#> Type)
     <|> (braces $ commaSep1 recordProp <#> Record)
     <|> (brackets $ pipeSep1 moduleOrTypeName <#> Sum)
+    <|> (reserved "wrap" >>= tyType <#> Wrap)
 
 recordProp :: ParserT String Identity RecordProp
 recordProp = ado

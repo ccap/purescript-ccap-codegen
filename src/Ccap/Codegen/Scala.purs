@@ -50,28 +50,36 @@ typeDecl last (TypeDecl name tt) =
   case tt of
     Type t ->
       text "type" <<+>> text name <<+>> char '=' <<+>> tyType t
+    Wrap t ->
+      let tagname = text (name<>"T")
+      in vcat left
+        [ text "final abstract class" <<+>> tagname
+        , text "type" <<+>> text name <<+>> char '='
+          <<+>> text "scalaz.@@[" <<>> tyType t <<>> char ',' <<+>> tagname <<>> char ']'
+        ]
     Record props ->
        text "case class" <<+>> text name <<>> char '('
        // indented (recordFields props)
        // char ')'
     Sum vs ->
+      let
+        variants = vcat left do
+          v <- vs
+          pure $ text ("case object " <> v <> " extends " <> name)
+      in
       text "sealed trait" <<+>> text name
       // (text "object" <<+>> text name <<+>> char '{')
-      // indented (variants vs)
+      // indented variants
       // char '}'
-        where
-          variants vs = vcat left do
-            v <- vs
-            pure $ text ("case object " <> v <> " extends " <> name)
 
 tyType :: Type -> Box
 tyType =
   let wrap tycon t = text tycon <<>> char '[' <<>> tyType t <<>> char ']'
   in case _ of
-  Primitive p -> primitive p
-  Ref _ s -> text s
-  Array t -> wrap "Array" t
-  Option t ->  wrap "Option" t
+    Primitive p -> primitive p
+    Ref _ s -> text s
+    Array t -> wrap "Array" t
+    Option t ->  wrap "Option" t
 
 recordFields :: Array RecordProp -> Box
 recordFields props = vcat left (props <#> field)
