@@ -17,17 +17,18 @@ import Node.Yargs.Applicative (runY, yarg)
 import Node.Yargs.Setup (usage)
 import Text.Parsing.Parser (runParser)
 
-app :: String -> String -> Effect Unit
-app fileName mode = do
+app :: String -> String -> String -> Effect Unit
+app fileName mode package = do
   contents <- Sync.readTextFile UTF8 fileName
+  let runSpec = { fileName, contents }
   case mode of
-    "pretty" -> runParserAndProcess fileName contents $
+    "pretty" -> runParserAndProcess runSpec $
       PrintPrinter.prettyPrint >>> Console.info
-    "purs" -> runParserAndProcess fileName contents $
-      Purescript.prettyPrint >>> Console.info
-    "scala" -> runParserAndProcess fileName contents $
-      Scala.prettyPrint >>> Console.info
-    "show" -> runParserAndProcess fileName contents $
+    "purs" -> runParserAndProcess runSpec $
+      Purescript.prettyPrint package >>> Console.info
+    "scala" -> runParserAndProcess runSpec $
+      Scala.prettyPrint package >>> Console.info
+    "show" -> runParserAndProcess runSpec $
       show >>> Console.info
     "test" -> do
       let success = roundTrip contents
@@ -37,12 +38,16 @@ app fileName mode = do
         success
     m -> Console.error $ "ERROR: Unknown mode " <> m
 
+type RunSpec =
+  { fileName :: String
+  , contents :: String
+  }
+
 runParserAndProcess
-  :: String
-  -> String
+  :: RunSpec
   -> (Array Module -> Effect Unit)
   -> Effect Unit
-runParserAndProcess fileName contents process = do
+runParserAndProcess { fileName, contents } process = do
   let ast = runParser contents wholeFile
   either
     (Console.error <<< errorMessage fileName)
@@ -63,4 +68,10 @@ main = do
                         [ "mode" ]
                         (Just "The output mode (must be one of pretty, purs, scala, show, or test)")
                         (Right "Mode is required")
+                        false
+                   <*> yarg
+                        "p"
+                        [ "package" ]
+                        (Just "The package (Scala) or module prefix (PureScript) to use")
+                        (Right "Package is required")
                         false

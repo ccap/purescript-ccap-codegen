@@ -9,13 +9,13 @@ import Data.Array (drop, length, snoc, (:))
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (bottom, top) as Boxes
 
-prettyPrint :: Array Module -> String
-prettyPrint modules =
-  render $ vsep 1 Boxes.top (modules <#> oneModule)
+prettyPrint :: String -> Array Module -> String
+prettyPrint module_ modules =
+  render $ vsep 1 Boxes.top (modules <#> oneModule module_)
 
-oneModule :: Module -> Box
-oneModule (Module name decls) = vsep 1 left do
-  text ("module " <> name <> " where")
+oneModule :: String -> Module -> Box
+oneModule module_ (Module name decls) = vsep 1 left do
+  text ("module " <> module_ <> "." <> name <> " where")
     : text "import Data.Maybe (Maybe)"
     : (decls <#> typeDecl true)
 

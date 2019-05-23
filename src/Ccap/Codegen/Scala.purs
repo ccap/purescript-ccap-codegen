@@ -9,24 +9,25 @@ import Data.Array (snoc, (:))
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (top) as Boxes
 
-prettyPrint :: Array Module -> String
-prettyPrint modules =
-  render $ vsep 1 Boxes.top (modules <#> oneModule)
+prettyPrint :: String -> Array Module -> String
+prettyPrint package modules =
+  render $ vsep 1 Boxes.top (modules <#> oneModule package)
 
-oneModule :: Module -> Box
-oneModule (Module name decls) = vsep 1 left do
-  text "package gov.wicourts.codegen" -- TODO: Make configurable
+oneModule :: String -> Module -> Box
+oneModule package (Module name decls) = vsep 1 left do
+  text ("package " <> package)
     : imports
     : text ("object " <> name <> " {")
-    : (decls <#> typeDecl true)
+    : (decls <#> typeDecl true >>> indented)
     `snoc` text "}"
 
 imports :: Box
-imports =
-  [ "org.joda.time.LocalDate"
-  , "org.joda.time.LocalDateTime"
-  , "org.joda.time.LocalTime"
-  ] <#> (\i -> text ("import " <> i)) # vcat left
+imports = emptyBox 0 0
+-- TODO
+--  [ "org.joda.time.LocalDate"
+--  , "org.joda.time.LocalDateTime"
+--  , "org.joda.time.LocalTime"
+--  ] <#> (\i -> text ("import " <> i)) # vcat left
 
 primitive :: Primitive -> Box
 primitive p = text
@@ -58,7 +59,7 @@ typeDecl last (TypeDecl name tt) =
           <<+>> text "scalaz.@@[" <<>> tyType t <<>> char ',' <<+>> tagname <<>> char ']'
         ]
     Record props ->
-       text "case class" <<+>> text name <<>> char '('
+       text "final case class" <<+>> text name <<>> char '('
         // indented (recordFields props)
         // char ')'
     Sum vs ->
