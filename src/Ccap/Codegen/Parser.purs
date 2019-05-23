@@ -27,16 +27,14 @@ tokenParser :: GenTokenParser String Identity
 tokenParser = makeTokenParser $
   LanguageDef (unGenLanguageDef javaStyle)
     { reservedNames =
-        [ "module"
-        , "type"
-        , "boolean"
-        , "date"
-        , "dateTime"
+        [ "boolean"
         , "decimal"
         , "int"
+        , "module"
         , "optional"
         , "string"
-        , "time"
+        , "type"
+        , "wrap"
         ]
     , identStart = lower
     , identLetter = alphaNum
