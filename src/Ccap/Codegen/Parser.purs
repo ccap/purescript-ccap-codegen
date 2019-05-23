@@ -57,10 +57,8 @@ brackets = tokenParser.brackets
 startBy1 :: forall m s a sep. Monad m => ParserT s m a -> ParserT s m sep -> ParserT s m (List a)
 startBy1 p sep = sep *> sepBy1 p sep
 
-
 pipeSep1 :: forall a.  ParserT String Identity a -> ParserT String Identity (Array a)
 pipeSep1 a = (a `startBy1` (lexeme $ char '|')) <#> Array.fromFoldable
-
 
 whiteSpace :: ParserT String Identity Unit
 whiteSpace = tokenParser.whiteSpace
