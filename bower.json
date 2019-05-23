@@ -18,6 +18,7 @@
     "purescript-generics-rep": "^6.1.1",
     "purescript-node-fs": "^5.0.0",
     "purescript-parsing": "^5.0.2",
+    "purescript-postgresql-client": "pbrant/purescript-postgresql-client#update-dependencies",
     "purescript-prelude": "^4.0.0",
     "purescript-record": "^2.0.0",
     "purescript-strings": "^4.0.1",
