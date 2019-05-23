@@ -6,6 +6,8 @@ import Prelude
 
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array (snoc, (:))
+import Data.Map as Map
+import Data.Maybe (Maybe(..))
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (top) as Boxes
 
@@ -39,13 +41,17 @@ typeDecl last (TypeDecl name tt) =
   case tt of
     Type t ->
       text "type" <<+>> text name <<+>> char '=' <<+>> tyType t
-    Wrap t ->
-      let tagname = text (name<>"T")
-      in vcat left
-        [ text "final abstract class" <<+>> tagname
-        , text "type" <<+>> text name <<+>> char '='
-          <<+>> text "scalaz.@@[" <<>> tyType t <<>> char ',' <<+>> tagname <<>> char ']'
-        ]
+    Wrap t wo ->
+      case Map.lookup "scala" wo of
+        Nothing ->
+          let tagname = text (name<>"T")
+          in vcat left
+            [ text "final abstract class" <<+>> tagname
+            , text "type" <<+>> text name <<+>> char '='
+              <<+>> text "scalaz.@@[" <<>> tyType t <<>> char ',' <<+>> tagname <<>> char ']'
+            ]
+        Just { typ, wrap, unwrap } ->
+          text "type" <<+>> text name <<+>> char '=' <<+>> text typ
     Record props ->
        text "final case class" <<+>> text name <<>> char '('
         // indented (recordFields props)

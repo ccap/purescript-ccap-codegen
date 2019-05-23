@@ -14,6 +14,7 @@ import Data.Char.Unicode (isLower)
 import Data.Either (Either)
 import Data.Identity (Identity)
 import Data.List (List)
+import Data.Map as Map
 import Data.String.CodeUnits (fromCharArray, singleton) as String
 import Text.Parsing.Parser (ParseError, ParserT, parseErrorMessage, parseErrorPosition, position, runParser)
 import Text.Parsing.Parser.Combinators (sepBy1, (<?>))
@@ -99,7 +100,7 @@ topType =
   (tyType unit <#> Type)
     <|> (braces $ commaSep1 recordProp <#> Record)
     <|> (brackets $ pipeSep1 moduleOrTypeName <#> Sum)
-    <|> (reserved "wrap" >>= tyType <#> Wrap)
+    <|> (reserved "wrap" >>= tyType <#> (\t -> Wrap t Map.empty))
 
 recordProp :: ParserT String Identity RecordProp
 recordProp = ado

@@ -6,6 +6,8 @@ import Prelude
 
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array (drop, length, snoc, (:))
+import Data.Map as Map
+import Data.Maybe (Maybe(..))
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (bottom, top) as Boxes
 
@@ -39,8 +41,13 @@ typeDecl last (TypeDecl name tt) =
   in case tt of
     Type t ->
       dec "type" <<+>> tyType t
-    Wrap t ->
-      dec "newtype" <<+>> text name <<+>> tyType t
+    Wrap t wo ->
+      case Map.lookup "scala" wo of
+        Nothing ->
+          dec "newtype" <<+>> text name <<+>> tyType t
+        Just { typ, wrap, unwrap } ->
+          dec "type" <<+>> text typ
+          // text "-- TODO: Emit import for above type when needed"
     Record props ->
       dec "type" // indented (record props)
     Sum vs ->

@@ -39,7 +39,7 @@ typeDecl last (TypeDecl name tt) =
   in case tt of
     Type t ->
       dec <<+>> tyType t <<>> commaExceptLast last
-    Wrap t ->
+    Wrap t wo ->
       dec <<+>> text "wrap" <<+>> tyType t <<>> commaExceptLast last
     Record props ->
       dec <<+>> char '{'

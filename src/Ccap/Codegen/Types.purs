@@ -6,10 +6,12 @@ module Ccap.Codegen.Types
   , TopType(..)
   , TypeDecl(..)
   , Variant
+  , WrapOpts
   ) where
 
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
+import Data.Map (Map)
 import Prelude (class Eq, class Show)
 import Text.Parsing.Parser.Pos (Position)
 
@@ -19,7 +21,7 @@ data TypeDecl = TypeDecl String TopType
 
 data TopType
   = Type Type
-  | Wrap Type
+  | Wrap Type (Map String WrapOpts)
   | Record (Array RecordProp)
   | Sum (Array Variant)
 
@@ -38,6 +40,12 @@ data Primitive
   | PInt
   | PDecimal
   | PString
+
+type WrapOpts =
+  { typ :: String
+  , wrap :: String
+  , unwrap :: String
+  }
 
 -- Instances here to avoid cluttering the above
 
