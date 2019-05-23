@@ -38,10 +38,6 @@ data Primitive
   | PInt
   | PDecimal
   | PString
-  -- TODO: These should probably become (pseudo?) user-defined types when possible.
-  | PDate
-  | PDateTime
-  | PTime
 
 -- Instances here to avoid cluttering the above
 

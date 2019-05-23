@@ -83,12 +83,9 @@ primitive s decl = reserved s <#> const (Primitive decl)
 anyPrimitive :: ParserT String Identity Type
 anyPrimitive =
   primitive "boolean" PBoolean
-    <|> primitive "date" PDate
-    <|> primitive "dateTime" PDateTime
     <|> primitive "int" PInt
     <|> primitive "decimal" PDecimal
     <|> primitive "string" PString
-    <|> primitive "time" PTime
 
 tyType :: Unit -> ParserT String Identity Type
 tyType _ =

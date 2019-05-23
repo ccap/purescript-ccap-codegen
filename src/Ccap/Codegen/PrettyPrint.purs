@@ -23,12 +23,9 @@ primitive :: Primitive -> Box
 primitive p = text
   case p of
     PBoolean -> "boolean"
-    PDate -> "date"
-    PDateTime -> "dateTime"
     PInt -> "int"
     PDecimal -> "decimal"
     PString -> "string"
-    PTime -> "time"
 
 indented :: Box -> Box
 indented b = emptyBox 0 2 <<>> b

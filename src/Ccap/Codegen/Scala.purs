@@ -16,18 +16,9 @@ prettyPrint package modules =
 oneModule :: String -> Module -> Box
 oneModule package (Module name decls) = vsep 1 left do
   text ("package " <> package)
-    : imports
     : text ("object " <> name <> " {")
     : (decls <#> typeDecl true >>> indented)
     `snoc` text "}"
-
-imports :: Box
-imports = emptyBox 0 0
--- TODO
---  [ "org.joda.time.LocalDate"
---  , "org.joda.time.LocalDateTime"
---  , "org.joda.time.LocalTime"
---  ] <#> (\i -> text ("import " <> i)) # vcat left
 
 primitive :: Primitive -> Box
 primitive p = text
@@ -36,9 +27,6 @@ primitive p = text
     PInt -> "Int"
     PDecimal -> "BigDecimal"
     PString -> "String"
-    PDate -> "LocalDate"
-    PDateTime -> "LocalDateTime"
-    PTime -> "LocalTime"
 
 indent :: Box
 indent = emptyBox 0 2

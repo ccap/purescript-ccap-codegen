@@ -26,10 +26,6 @@ primitive p = text
     PInt -> "Int"
     PDecimal -> "Number" -- ish
     PString -> "String"
-    -- TODO
-    PDate -> "date"
-    PDateTime -> "dateTime"
-    PTime -> "time"
 
 indent :: Box
 indent = emptyBox 0 2
