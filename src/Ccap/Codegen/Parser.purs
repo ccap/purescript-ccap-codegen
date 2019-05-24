@@ -96,7 +96,7 @@ tyType _ =
 topType :: ParserT String Identity TopType
 topType =
   (tyType unit <#> Type)
-    <|> (braces $ commaSep1 recordProp <#> Record)
+    <|> (braces $ Array.many recordProp <#> Record)
     <|> (brackets $ pipeSep1 moduleOrTypeName <#> Sum)
     <|> (reserved "wrap" >>= tyType <#> (\t -> Wrap t Map.empty))
 
@@ -111,7 +111,7 @@ oneModule :: ParserT String Identity Module
 oneModule = ado
   reserved "module"
   name <- moduleOrTypeName
-  decls <- braces $ commaSep1 typeDecl
+  decls <- braces $ Array.many typeDecl
   in Module name decls
 
 typeDecl :: ParserT String Identity TypeDecl
@@ -129,7 +129,7 @@ errorMessage :: String -> ParseError -> String
 errorMessage fileName err =
   let Position pos = parseErrorPosition err
   in
-    "ERROR in "
+    "Could not parse "
       <> fileName
       <> ": line "
       <> show pos.line

@@ -23,20 +23,20 @@
 // TODO cross-module type references, types (domains) from database, PureScript, Scala
 
 module County {
-  type CountyNo: wrap int,
-  type CountyName: string,
-  type AssessFacilityId: wrap int,
+  type CountyNo: wrap int
+  type CountyName: string
+  type AssessFacilityId: wrap int
 
   type County: {
-    countyNo: CountyNo,
-    countyName: CountyName,
-    assessFacilityId: optional AssessFacilityId,
+    countyNo: CountyNo
+    countyName: CountyName
+    assessFacilityId: optional AssessFacilityId
     soapPort: int
-  },
+  }
 
   type Response: {
     counties: array County
-  },
+  }
 
   type CountyEnum: [
     | Adams
