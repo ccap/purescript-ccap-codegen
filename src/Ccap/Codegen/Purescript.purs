@@ -5,11 +5,34 @@ module Ccap.Codegen.Purescript
 import Prelude
 
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
-import Data.Array (drop, length, snoc, (:))
+import Data.Array (drop, length, snoc, union, (:))
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
+import Data.String (Pattern(..))
+import Data.String as String
+import Data.Traversable (traverse)
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (bottom, top) as Boxes
+
+data Emit box = Emit { imports :: Array String, out :: box }
+
+instance functorEmit :: Functor Emit where
+  map f (Emit { imports, out }) = Emit { imports, out: f out }
+
+instance applyEmit :: Apply Emit where
+  apply (Emit { imports: ib, out: f }) (Emit { imports: ia, out: a }) =
+    Emit { imports: ia `union` ib, out: f a }
+
+instance applicativeEmit :: Applicative Emit where
+  pure = emit mempty
+
+instance bindEmit :: Bind Emit where
+  bind (Emit { imports, out }) f =
+    let Emit { imports: ib, out: b } = f out
+    in Emit { imports: imports `union` ib, out: b }
+
+emit :: forall out. Array String -> out -> Emit out
+emit imports out = Emit { imports, out }
 
 prettyPrint :: String -> Array Module -> String
 prettyPrint module_ modules =
@@ -17,9 +40,12 @@ prettyPrint module_ modules =
 
 oneModule :: String -> Module -> Box
 oneModule module_ (Module name decls) = vsep 1 left do
+  let es = decls <#> typeDecl true
+  let is = es >>= \(Emit { imports }) -> imports
+  let os = es >>= \(Emit { out }) -> [ out ]
   text ("module " <> module_ <> "." <> name <> " where")
-    : text "import Data.Maybe (Maybe)"
-    : (decls <#> typeDecl true)
+    : vcat left (is <#> \i -> text ("import " <> i))
+    : os
 
 primitive :: Primitive -> Box
 primitive p = text
@@ -35,43 +61,60 @@ indent = emptyBox 0 2
 indented :: Box -> Box
 indented = (<<>>) indent
 
-typeDecl :: Boolean -> TypeDecl -> Box
+type Extern = { prefix :: String, t :: String}
+
+externalType :: Extern -> Emit Box
+externalType { prefix, t } = Emit
+  { imports: pure (prefix <> " (" <> t <> ")")
+  , out: text t
+  }
+
+splitType :: String -> Maybe Extern
+splitType s = do
+  i <- String.lastIndexOf (Pattern ".") s
+  let prefix = String.take i s
+  let t = String.drop (i + 1) s
+  pure $ { prefix, t }
+
+typeDecl :: Boolean -> TypeDecl -> Emit Box
 typeDecl last (TypeDecl name tt) =
   let dec kw = text kw <<+>> text name <<+>> char '='
   in case tt of
     Type t ->
-      dec "type" <<+>> tyType t
+      tyType t <#> (dec "type" <<+>> _)
     Wrap t wo ->
-      case Map.lookup "scala" wo of
+      case Map.lookup "purs" wo of
         Nothing ->
-          dec "newtype" <<+>> text name <<+>> tyType t
+          tyType t <#> ((dec "newtype" <<+>> text name) <<+>> _)
         Just { typ, wrap, unwrap } ->
-          dec "type" <<+>> text typ
-            // text "-- TODO: Emit import for above type when needed"
+          fromMaybe { prefix: "?missingPrefix", t: typ } (splitType typ)
+            # externalType <#> (dec "type" <<+>> _)
     Record props ->
-      dec "type" // indented (record props)
-    Sum vs ->
+      record props <#> \p -> dec "type" // indented p
+    Sum vs -> pure do
       dec "data" // indented
         (hsep 1 Boxes.bottom $ vcat left <$> [ drop 1 vs <#> \_ -> char '|',  vs <#> text ])
 
-tyType :: Type -> Box
+tyType :: Type -> Emit Box
 tyType =
-  let wrap tycon t = text tycon <<+>> char '(' <<>> tyType t <<>> char ')'
-  in case _ of
-  Primitive p -> primitive p
-  Ref _ s -> text s
-  Array t -> wrap "Array" t
-  Option t ->  wrap "Maybe" t
-
-record :: Array RecordProp -> Box
-record props =
   let
-    len = length props
-    space = emptyBox 0 1
-    columns =
-      [ snoc ('{' : (drop 1 props <#> const ',')) '}' <#> char
-      , props <#> \(RecordProp name _) -> text name
-      , props <#> const (text "::")
-      , props <#> \(RecordProp _ t) -> tyType t
-      ] <#> vcat left
-  in hsep 1 left columns
+    wrap tycon t =
+      tyType t <#> \ty -> text tycon <<+>> char '(' <<>> ty <<>> char ')'
+  in case _ of
+    Primitive p -> pure $ primitive p
+    Ref _ s -> fromMaybe (text s # pure) (splitType s <#> externalType)
+    Array t -> wrap "Array" t
+    Option t -> emit (pure "Data.Maybe (Maybe)") unit >>= const (wrap "Maybe" t)
+
+record :: Array RecordProp -> Emit Box
+record props = do
+  let len = length props
+  let space = emptyBox 0 1
+  types <- (\(RecordProp _ t) -> tyType t) `traverse` props
+  let columns =
+        [ snoc ('{' : (drop 1 props <#> const ',')) '}' <#> char
+        , props <#> \(RecordProp name _) -> text name
+        , props <#> const (text "::")
+        , types
+        ] <#> vcat left
+  pure (hsep 1 left columns)
