@@ -1,20 +1,32 @@
 module Ccap.Codegen.Database
-  ( domains
+  ( domainModule
+  , poolConfiguration
   ) where
 
 import Prelude
 
 import Ccap.Codegen.Types (Module(..), Primitive(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Monad.Except (ExceptT, withExceptT)
-import Database.PostgreSQL.PG (Pool, Query(..), query, withConnection)
+import Data.Map (empty) as Map
+import Data.Maybe (Maybe(..))
+import Database.PostgreSQL.PG (Pool, PoolConfiguration, Query(..), defaultPoolConfiguration, query, withConnection)
 import Database.PostgreSQL.Row (Row0(..), Row2(..))
 import Effect.Aff (Aff)
 
-domains :: Pool -> ExceptT String Aff Module
-domains pool = withExceptT show $ withConnection pool \conn -> do
+-- TODO should be configurable
+poolConfiguration :: PoolConfiguration
+poolConfiguration = (defaultPoolConfiguration "cc")
+  { host = Just "dev15-db.wicourts.gov"
+  , port = Just 5612
+  , user = Just "viewer"
+  , idleTimeoutMillis = Just 500
+  }
+
+domainModule :: Pool -> ExceptT String Aff Module
+domainModule pool = withExceptT show $ withConnection pool \conn -> do
   results <- query conn (Query domainsSql) Row0
   let types = results <#> (\(Row2 domainName dataType) ->
-                TypeDecl domainName (Type (Primitive (dbNameToPrimitive dataType))))
+                TypeDecl domainName (Wrap (Primitive (dbNameToPrimitive dataType)) Map.empty))
   pure $ Module "Domains" types
 
 dbNameToPrimitive :: String -> Primitive
