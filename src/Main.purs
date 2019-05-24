@@ -4,6 +4,7 @@ module Main
 
 import Prelude
 
+import Ccap.Codegen.Database (domainModule, poolConfiguration) as Database
 import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrintPrinter
 import Ccap.Codegen.Purescript (prettyPrint) as Purescript
@@ -11,11 +12,11 @@ import Ccap.Codegen.Scala (prettyPrint) as Scala
 import Ccap.Codegen.Types (Module)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (ExceptT(..), except, runExcept, runExceptT, withExceptT)
-import Control.Monad.Trans.Class (lift)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..))
 import Data.Traversable (traverse)
+import Database.PostgreSQL.PG (newPool)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
@@ -26,17 +27,21 @@ import Foreign.Generic (Foreign)
 import Node.Encoding (Encoding(..))
 import Node.FS.Sync (readTextFile) as Sync
 import Node.Process (exit) as Process
-import Node.Yargs.Applicative (rest, runY, yarg)
+import Node.Yargs.Applicative (flag, rest, runY, yarg)
 import Node.Yargs.Setup (usage)
 import Text.Parsing.Parser (runParser)
 
-app :: String -> String -> Array Foreign -> Effect Unit
-app strMode package fs = launchAff_ $ processResult do
+app :: String -> String -> Boolean -> Array Foreign -> Effect Unit
+app strMode package domains fs = launchAff_ $ processResult do
   config <- except do
         mode <- readMode strMode
         files <- readFiles fs
-        pure { mode, package, files }
+        pure { mode, package, files, domains }
   void $ traverse (processFile config) config.files
+  when config.domains do
+    pool <- liftEffect $ newPool Database.poolConfiguration
+    ds <- Database.domainModule pool
+    processModules config "(domains query)" [ ds ]
 
 processResult :: ExceptT String Aff Unit -> Aff Unit
 processResult r = do
@@ -46,11 +51,6 @@ processResult r = do
       Console.error $ "ERROR: " <> s
       Process.exit 1)
     pure
-
-type RunSpec =
-  { fileName :: String
-  , contents :: String
-  }
 
 data Mode
   = Pretty
@@ -63,6 +63,7 @@ type Config =
   { mode :: Mode
   , package :: String
   , files :: Array String
+  , domains :: Boolean
   }
 
 readMode :: String -> Either String Mode
@@ -84,30 +85,22 @@ processFile config fileName = do
                 <<< liftEffect
                 <<< try
                 $ Sync.readTextFile UTF8 fileName
-  let runSpec = { fileName, contents }
-  pure unit
-  case config.mode of
-    Pretty -> runParserAndProcess runSpec $
-      PrintPrinter.prettyPrint >>> Console.info >>> lift
-    Purs -> runParserAndProcess runSpec $
-      Purescript.prettyPrint config.package >>> Console.info >>> lift
-    Scala -> runParserAndProcess runSpec $
-      Scala.prettyPrint config.package >>> Console.info >>> lift
-    Show -> runParserAndProcess runSpec $
-      show >>> Console.info >>> lift
-    Test -> do
-      b <- except $ lmap (errorMessage fileName) (roundTrip contents)
-      if b
-        then lift $ Console.info "Round-trip passed"
-        else except $ Left "Round-trip failed"
+  modules <- except $ lmap (errorMessage fileName) (runParser contents wholeFile)
+  processModules config fileName modules
 
-runParserAndProcess
-  :: RunSpec
-  -> (Array Module -> ExceptT String Aff Unit)
-  -> ExceptT String Aff Unit
-runParserAndProcess { fileName, contents } process = do
-  ast <- except $ lmap (errorMessage fileName) (runParser contents wholeFile)
-  process ast
+processModules :: Config -> String -> Array Module -> ExceptT String Aff Unit
+processModules config fileName modules = do
+  output <- case config.mode of
+    Pretty -> pure $ PrintPrinter.prettyPrint modules
+    Purs -> pure $ Purescript.prettyPrint config.package modules
+    Scala -> pure $ Scala.prettyPrint config.package modules
+    Show -> pure $ show modules
+    Test -> do
+      b <- except $ lmap (errorMessage fileName) (roundTrip modules)
+      if b
+        then pure "Round-trip passed"
+        else except $ Left "Round-trip failed"
+  Console.info output
 
 main :: Effect Unit
 main = do
@@ -124,4 +117,8 @@ main = do
                         (Just "The package (Scala) or module prefix (PureScript) to use")
                         (Right "Package is required")
                         false
+                   <*> flag
+                        "d"
+                        [ "domains" ]
+                        (Just "Query database domains")
                   <*> rest

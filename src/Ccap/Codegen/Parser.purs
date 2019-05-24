@@ -138,9 +138,8 @@ errorMessage fileName err =
       <> ": "
       <> parseErrorMessage err
 
-roundTrip :: String -> Either ParseError Boolean
-roundTrip contents = do
-  modules1 <- runParser contents wholeFile
+roundTrip :: Array Module -> Either ParseError Boolean
+roundTrip modules1 = do
   let prettyPrinted1 = PrettyPrinter.prettyPrint modules1
   modules2 <- runParser prettyPrinted1 wholeFile
   let prettyPrinted2 = PrettyPrinter.prettyPrint modules2
