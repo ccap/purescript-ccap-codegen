@@ -5,7 +5,6 @@ module Ccap.Codegen.PrettyPrint
 import Prelude
 
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
-import Data.Array (length, mapWithIndex) as Array
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (top) as Boxes
 
@@ -16,7 +15,7 @@ prettyPrint modules =
 oneModule :: Module -> Box
 oneModule (Module name decls) =
   text ("module " <> name <> " {")
-    // commaList decls typeDecl
+    // indentedList (decls <#> typeDecl)
     // text "}"
 
 primitive :: Primitive -> Box
@@ -33,43 +32,26 @@ indented b = emptyBox 0 2 <<>> b
 indentedList :: Array Box -> Box
 indentedList = indented <<< vcat Boxes.top
 
-typeDecl :: Boolean -> TypeDecl -> Box
-typeDecl last (TypeDecl name tt) =
+typeDecl :: TypeDecl -> Box
+typeDecl (TypeDecl name tt) =
   let dec = text "type" <<+>> text name <<>> char ':'
   in case tt of
     Type t ->
-      dec <<+>> tyType t <<>> commaExceptLast last
+      dec <<+>> tyType t
     Wrap t wo ->
-      dec <<+>> text "wrap" <<+>> tyType t <<>> commaExceptLast last
+      dec <<+>> text "wrap" <<+>> tyType t
     Record props ->
       dec <<+>> char '{'
-        // commaList props recordProp
-        // (text "}" <<>> commaExceptLast last)
+        // indentedList (props <#> recordProp)
+        // text "}"
     Sum vs ->
       dec <<+>> char '['
         // indented (vcat left (vs <#> (\x -> text "| " <<+>> text x)))
         // char ']'
 
-commaList
-  :: forall a
-   . Array a
-  -> (Boolean -> a -> Box)
-  -> Box
-commaList as f =
-  let l = Array.length as
-  in indentedList $
-    flip Array.mapWithIndex as \i a ->
-      f (l == i + 1) a
-
-commaExceptLast :: Boolean -> Box
-commaExceptLast b =
-  if b
-    then emptyBox 0 0
-    else char ','
-
-recordProp :: Boolean -> RecordProp -> Box
-recordProp last (RecordProp s t) =
-  text s <<>> char ':' <<+>> tyType t <<>> commaExceptLast last
+recordProp :: RecordProp -> Box
+recordProp (RecordProp s t) =
+  text s <<>> char ':' <<+>> tyType t
 
 tyType :: Type -> Box
 tyType = case _ of
