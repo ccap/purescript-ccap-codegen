@@ -47,7 +47,7 @@ typeDecl last (TypeDecl name tt) =
           dec "newtype" <<+>> text name <<+>> tyType t
         Just { typ, wrap, unwrap } ->
           dec "type" <<+>> text typ
-          // text "-- TODO: Emit import for above type when needed"
+            // text "-- TODO: Emit import for above type when needed"
     Record props ->
       dec "type" // indented (record props)
     Sum vs ->

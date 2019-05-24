@@ -44,7 +44,7 @@ typeDecl last (TypeDecl name tt) =
     Wrap t wo ->
       case Map.lookup "scala" wo of
         Nothing ->
-          let tagname = text (name<>"T")
+          let tagname = text (name <> "T")
           in vcat left
             [ text "final abstract class" <<+>> tagname
             , text "type" <<+>> text name <<+>> char '='
@@ -53,7 +53,7 @@ typeDecl last (TypeDecl name tt) =
         Just { typ, wrap, unwrap } ->
           text "type" <<+>> text name <<+>> char '=' <<+>> text typ
     Record props ->
-       text "final case class" <<+>> text name <<>> char '('
+      text "final case class" <<+>> text name <<>> char '('
         // indented (recordFields props)
         // char ')'
     Sum vs ->
