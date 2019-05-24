@@ -116,7 +116,7 @@ processModules config fileName modules = do
 
 main :: Effect Unit
 main = do
-  let setup = usage "$0 --mode mode a.tmpl"
+  let setup = usage "$0 --package <package> --mode <mode> a.tmpl"
   runY setup $ app <$> yarg
                         "m"
                         [ "mode" ]
