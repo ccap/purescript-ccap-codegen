@@ -6,7 +6,9 @@
     "test": "pulp test"
   },
   "dependencies": {
-    "yargs": "^8.0.2"
+    "yargs": "^8.0.2",
+    "pg": "^7.11.0",
+    "decimal.js": "10.2.0"
   },
   "devDependencies": {
     "bower": "^1.8.8",

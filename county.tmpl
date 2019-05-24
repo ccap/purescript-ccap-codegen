@@ -5,24 +5,22 @@
 // - A template file consists of one or more modules.
 // - A module consists of one or more type declarations.
 // - Non-primitive type and module names are camel-case with an initial upper-case letter.
+// - Any type can be marked as optional (Maybe in PureScript, Option in Scala)
+// - Any type can be tagged with wrap (newtype in PureScript, Scalaz @@ in Scala)
 //
 // The following primitive types are supported:
 //   - boolean
-//   - date
-//   - dateTime
 //   - int
 //   - decimal
 //   - string
-//   - time
 //
 // Record types:
 //   - Contain one one or more properties.
 //   - Property names are camel-case with an initial lower-case letter.
-//   - Properties can be marked as optional.
 //   - Record types must be given a name to be nested within a record or used
 //     in an array type.
 //
-// TODO Enums, cross-module type references, types (domains) from database, PureScript, Scala
+// TODO cross-module type references, types (domains) from database, PureScript, Scala
 
 module County {
   type CountyNo: wrap int,
