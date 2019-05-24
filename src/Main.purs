@@ -4,7 +4,7 @@ module Main
 
 import Prelude
 
-import Ccap.Codegen.Database (domainModule, poolConfiguration) as Database
+import Ccap.Codegen.Database as Database
 import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrintPrinter
 import Ccap.Codegen.Purescript (prettyPrint) as Purescript
@@ -14,7 +14,8 @@ import Control.Monad.Error.Class (try)
 import Control.Monad.Except (ExceptT(..), except, runExcept, runExceptT, withExceptT)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..), either)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), isJust, maybe)
+import Data.String (length) as String
 import Data.Traversable (traverse)
 import Database.PostgreSQL.PG (newPool)
 import Effect (Effect)
@@ -31,17 +32,27 @@ import Node.Yargs.Applicative (flag, rest, runY, yarg)
 import Node.Yargs.Setup (usage)
 import Text.Parsing.Parser (runParser)
 
-app :: String -> String -> Boolean -> Array Foreign -> Effect Unit
-app strMode package domains fs = launchAff_ $ processResult do
+app :: String -> String -> Boolean -> String -> Array Foreign -> Effect Unit
+app strMode package domains tableParam fs = launchAff_ $ processResult do
+  let table =
+        if String.length tableParam > 0
+          then Just tableParam
+          else Nothing
   config <- except do
         mode <- readMode strMode
         files <- readFiles fs
-        pure { mode, package, files, domains }
+        pure { mode, package, files, domains, table }
   void $ traverse (processFile config) config.files
-  when config.domains do
+  when (config.domains || isJust config.table)  do
     pool <- liftEffect $ newPool Database.poolConfiguration
-    ds <- Database.domainModule pool
-    processModules config "(domains query)" [ ds ]
+    when config.domains do
+      ds <- Database.domainModule pool
+      processModules config "(domains query)" [ ds ]
+    config.table # maybe
+      (pure unit)
+      (\t -> do
+              ts <- Database.tableModule pool t
+              processModules config ("(" <> t <> " query)") [ ts ])
 
 processResult :: ExceptT String Aff Unit -> Aff Unit
 processResult r = do
@@ -64,6 +75,7 @@ type Config =
   , package :: String
   , files :: Array String
   , domains :: Boolean
+  , table :: Maybe String
   }
 
 readMode :: String -> Either String Mode
@@ -121,4 +133,10 @@ main = do
                         "d"
                         [ "domains" ]
                         (Just "Query database domains")
+                   <*> yarg
+                        "t"
+                        [ "table" ]
+                        (Just "Query the provided database table")
+                        (Left "")
+                        false
                   <*> rest
