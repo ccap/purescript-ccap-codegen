@@ -1,9 +1,11 @@
 module Ccap.Codegen.Purescript
-  ( prettyPrint
+  ( outputSpec
+  , prettyPrint
   ) where
 
 import Prelude
 
+import Ccap.Codegen.Shared (OutputSpec, indented)
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array (drop, length, snoc, (:))
 import Data.Map as Map
@@ -21,6 +23,12 @@ oneModule module_ (Module name decls) = vsep 1 left do
     : text "import Data.Maybe (Maybe)"
     : (decls <#> typeDecl true)
 
+outputSpec :: String -> OutputSpec
+outputSpec package =
+  { render: render <<< oneModule package
+  , fileName: \(Module n _) -> n <> ".purs"
+  }
+
 primitive :: Primitive -> Box
 primitive p = text
   case p of
@@ -28,12 +36,6 @@ primitive p = text
     PInt -> "Int"
     PDecimal -> "Number" -- ish
     PString -> "String"
-
-indent :: Box
-indent = emptyBox 0 2
-
-indented :: Box -> Box
-indented = (<<>>) indent
 
 typeDecl :: Boolean -> TypeDecl -> Box
 typeDecl last (TypeDecl name tt) =

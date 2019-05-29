@@ -1,9 +1,11 @@
 module Ccap.Codegen.PrettyPrint
-  ( prettyPrint
+  ( outputSpec
+  , prettyPrint
   ) where
 
 import Prelude
 
+import Ccap.Codegen.Shared (OutputSpec)
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (top) as Boxes
@@ -11,6 +13,12 @@ import Text.PrettyPrint.Boxes (top) as Boxes
 prettyPrint :: Array Module -> String
 prettyPrint modules =
   render $ vsep 1 Boxes.top (modules <#> oneModule)
+
+outputSpec :: OutputSpec
+outputSpec =
+  { render: render <<< oneModule
+  , fileName: \(Module n _) -> n <> ".tmpl"
+  }
 
 oneModule :: Module -> Box
 oneModule (Module name decls) =
