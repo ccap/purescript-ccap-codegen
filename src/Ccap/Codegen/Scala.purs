@@ -1,19 +1,27 @@
 module Ccap.Codegen.Scala
-  ( prettyPrint
+  ( outputSpec
+  , prettyPrint
   ) where
 
 import Prelude
 
+import Ccap.Codegen.Shared (OutputSpec, indented)
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array (snoc, (:))
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
-import Text.PrettyPrint.Boxes (Box, char, emptyBox, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
+import Text.PrettyPrint.Boxes (Box, char, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (top) as Boxes
 
 prettyPrint :: String -> Array Module -> String
 prettyPrint package modules =
   render $ vsep 1 Boxes.top (modules <#> oneModule package)
+
+outputSpec :: String -> OutputSpec
+outputSpec package =
+  { render: render <<< oneModule package
+  , fileName: \(Module n _) -> n <> ".scala"
+  }
 
 oneModule :: String -> Module -> Box
 oneModule package (Module name decls) = vsep 1 left do
@@ -29,12 +37,6 @@ primitive p = text
     PInt -> "Int"
     PDecimal -> "BigDecimal"
     PString -> "String"
-
-indent :: Box
-indent = emptyBox 0 2
-
-indented :: Box -> Box
-indented = (<<>>) indent
 
 typeDecl :: Boolean -> TypeDecl -> Box
 typeDecl last (TypeDecl name tt) =

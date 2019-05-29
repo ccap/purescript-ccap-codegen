@@ -1,9 +1,11 @@
 module Ccap.Codegen.Purescript
-  ( prettyPrint
+  ( outputSpec
+  , prettyPrint
   ) where
 
 import Prelude
 
+import Ccap.Codegen.Shared (OutputSpec, indented)
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Monad.Writer (Writer, WriterT(..), runWriter)
 import Data.Array ((:))
@@ -38,6 +40,12 @@ oneModule module_ (Module name decls) = vsep 1 left do
     : vcat left (is <#> \i -> text ("import " <> i))
     : os
 
+outputSpec :: String -> OutputSpec
+outputSpec package =
+  { render: render <<< oneModule package
+  , fileName: \(Module n _) -> n <> ".purs"
+  }
+
 primitive :: Primitive -> Box
 primitive p = text
   case p of
@@ -45,12 +53,6 @@ primitive p = text
     PInt -> "Int"
     PDecimal -> "Number" -- ish
     PString -> "String"
-
-indent :: Box
-indent = emptyBox 0 2
-
-indented :: Box -> Box
-indented = (<<>>) indent
 
 type Extern = { prefix :: String, t :: String}
 
@@ -66,7 +68,7 @@ splitType s = do
   pure $ { prefix, t }
 
 typeDecl :: Boolean -> TypeDecl -> Emit Box
-typeDecl last (TypeDecl name tt) =
+typeDecl last (TypeDecl name tt _) =
   let dec kw = text kw <<+>> text name <<+>> char '='
   in case tt of
     Type t ->
