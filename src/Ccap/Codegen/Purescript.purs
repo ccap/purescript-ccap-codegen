@@ -17,8 +17,8 @@ import Data.String (Pattern(..))
 import Data.String as String
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), fst, snd)
-import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
-import Text.PrettyPrint.Boxes (bottom, top) as Boxes
+import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
+import Text.PrettyPrint.Boxes (bottom, left) as Boxes
 
 type Imports = Array String
 
@@ -33,11 +33,11 @@ prettyPrint module_ modules =
 
 oneModule :: String -> Module -> Box
 oneModule module_ (Module name decls) = vsep 1 Boxes.left do
-  let es = decls <#> typeDecl true <#> runWriter
+  let es = decls <#> typeDecl <#> runWriter
       is = es >>= snd >>> Array.sort >>> Array.nub
       os = es >>= fst >>> pure
   text ("module " <> module_ <> "." <> name <> " where")
-    : vcat left (is <#> \i -> text ("import " <> i))
+    : vcat Boxes.left (is <#> \i -> text ("import " <> i))
     : os
 
 outputSpec :: String -> OutputSpec
@@ -67,7 +67,7 @@ splitType s = do
   let t = String.drop (i + 1) s
   pure $ { prefix, t }
 
-typeDecl :: TypeDecl -> Box
+typeDecl :: TypeDecl -> Emit Box
 typeDecl (TypeDecl name tt _) =
   let dec kw = text kw <<+>> text name <<+>> char '='
   in case tt of
@@ -76,15 +76,56 @@ typeDecl (TypeDecl name tt _) =
     Wrap t wo ->
       case Map.lookup "purs" wo of
         Nothing ->
-          tyType t <#> ((dec "newtype" <<+>> text name) <<+>> _)
+          tyType t <#> (\ty ->
+            dec "newtype" <<+>> text name <<+>> ty
+              // newtypeInstances name
+              // otherInstances name)
         Just { typ, wrap, unwrap } ->
           fromMaybe { prefix: "?missingPrefix", t: typ } (splitType typ)
             # externalType <#> (dec "type" <<+>> _)
     Record props ->
       record props <#> \p -> dec "type" // indented p
     Sum vs -> pure do
-      dec "data" // indented
-        (hsep 1 Boxes.bottom $ vcat Boxes.left <$> [ Array.drop 1 vs <#> \_ -> char '|',  vs <#> text ])
+      dec "data"
+        // indented (hsep 1 Boxes.bottom $ vcat Boxes.left <$> [ Array.drop 1 vs <#> \_ -> char '|',  vs <#> text ])
+        // otherInstances name
+        // encodeJsonSum name vs
+        // decodeJsonSum name vs
+
+encodeJsonSum :: String -> Array String -> Box
+encodeJsonSum name vs =
+  text ("instance encodeJson" <> name <> " :: EncodeJson " <> name <> " where")
+    // indented (text "encodeJson s = encodeJson $ case s of" // indented branches)
+  where
+    branches = vcat Boxes.left (vs <#> branch)
+    branch v = text v <<+>> text "->" <<+>> text (show v)
+
+decodeJsonSum :: String -> Array String -> Box
+decodeJsonSum name vs =
+  text ("instance decodeJson" <> name <> " :: DecodeJson " <> name <> " where")
+    // indented (text "decodeJson j = do" // indented (decodeString // decodeBranches))
+  where
+    decodeString = text "s <- decodeJson"
+    decodeBranches =
+      text "case s of"
+        // indented (branches // fallthrough)
+    branches = vcat Boxes.left (vs <#> branch)
+    branch v = text (show v) <<+>> text "-> Right" <<+>> text v
+    fallthrough = text $ "_ -> Left \"Invalid value \" <> show s <> \"for " <> name <> "\""
+
+newtypeInstances :: String -> Box
+newtypeInstances name =
+  text ("derive instance newtype" <> name <> " :: Newtype " <> name <> " _")
+    // text ("derive newtype instance decodeJson" <> name <> " :: DecodeJson " <> name <> " _")
+    // text ("derive newtype instance encodeJson" <> name <> " :: EncodeJson " <> name <> " _")
+
+otherInstances :: String -> Box
+otherInstances name =
+  text ("derive instance eq" <> name <> " :: Eq " <> name)
+    // text ("derive instance ord" <> name <> " :: Ord " <> name)
+    // text ("derive instance generic" <> name <> " :: Generic " <> name <> " _")
+    // text ("instance show" <> name <> " :: Show " <> name <> " where")
+    // indented (text "show a = genericShow a")
 
 tyType :: Type -> Emit Box
 tyType =
@@ -97,14 +138,14 @@ tyType =
     Array t -> wrap "Array" t
     Option t -> emit (pure "Data.Maybe (Maybe)") unit >>= const (wrap "Maybe" t)
 
-record :: Array RecordProp -> Box
+record :: Array RecordProp -> Emit Box
 record props = do
-  let len = length props
+  let len = Array.length props
       space = emptyBox 0 1
+  types <- (\(RecordProp _ t) -> tyType t) `traverse` props
+  let labels = props <#> \(RecordProp name _) -> text name <<+>> text "::"
       columns =
-        [ snoc ('{' : (drop 1 props <#> const ',')) '}' <#> char
-        , props <#> \(RecordProp name _) -> text name
-        , props <#> const (text "::")
-        , props <#> \(RecordProp _ t) -> tyType t
+        [ Array.snoc ('{' : (Array.drop 1 props <#> const ',')) '}' <#> char
+        , Array.zip labels types <#> \(Tuple l t) -> l <<+>> t
         ] <#> vcat Boxes.left
   pure (hsep 1 Boxes.left columns)
