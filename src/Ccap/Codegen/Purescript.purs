@@ -47,14 +47,54 @@ typeDecl last (TypeDecl name tt _) =
       case Map.lookup "scala" wo of
         Nothing ->
           dec "newtype" <<+>> text name <<+>> tyType t
+            // newtypeInstances name
+            // otherInstances name
         Just { typ, wrap, unwrap } ->
           dec "type" <<+>> text typ
-          // text "-- TODO: Emit import for above type when needed"
+            // text "-- TODO: Emit import for above type when needed"
     Record props ->
       dec "type" // indented (record props)
     Sum vs ->
-      dec "data" // indented
-        (hsep 1 Boxes.bottom $ vcat Boxes.left <$> [ drop 1 vs <#> \_ -> char '|',  vs <#> text ])
+      dec "data"
+        // indented (hsep 1 Boxes.bottom $ vcat Boxes.left <$> [ drop 1 vs <#> \_ -> char '|',  vs <#> text ])
+        // otherInstances name
+        // encodeJsonSum name vs
+        // decodeJsonSum name vs
+
+encodeJsonSum :: String -> Array String -> Box
+encodeJsonSum name vs =
+  text ("instance encodeJson" <> name <> " :: EncodeJson " <> name <> " where")
+    // indented (text "encodeJson s = encodeJson $ case s of" // indented branches)
+  where
+    branches = vcat Boxes.left (vs <#> branch)
+    branch v = text v <<+>> text "->" <<+>> text (show v)
+
+decodeJsonSum :: String -> Array String -> Box
+decodeJsonSum name vs =
+  text ("instance decodeJson" <> name <> " :: DecodeJson " <> name <> " where")
+    // indented (text "decodeJson j = do" // indented (decodeString // decodeBranches))
+  where
+    decodeString = text "s <- decodeJson"
+    decodeBranches =
+      text "case s of"
+        // indented (branches // fallthrough)
+    branches = vcat Boxes.left (vs <#> branch)
+    branch v = text (show v) <<+>> text "-> Right" <<+>> text v
+    fallthrough = text $ "_ -> Left \"Invalid value \" <> show s <> \"for " <> name <> "\""
+
+newtypeInstances :: String -> Box
+newtypeInstances name =
+  text ("derive instance newtype" <> name <> " :: Newtype " <> name <> " _")
+    // text ("derive newtype instance decodeJson" <> name <> " :: DecodeJson " <> name <> " _")
+    // text ("derive newtype instance encodeJson" <> name <> " :: EncodeJson " <> name <> " _")
+
+otherInstances :: String -> Box
+otherInstances name =
+  text ("derive instance eq" <> name <> " :: Eq " <> name)
+    // text ("derive instance ord" <> name <> " :: Ord " <> name)
+    // text ("derive instance generic" <> name <> " :: Generic " <> name <> " _")
+    // text ("instance show" <> name <> " :: Show " <> name <> " where")
+    // indented (text "show a = genericShow a")
 
 tyType :: Type -> Box
 tyType =
