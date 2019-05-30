@@ -5,35 +5,25 @@ module Ccap.Codegen.Purescript
 import Prelude
 
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Control.Monad.Writer (Writer, WriterT(..), runWriter)
 import Data.Array ((:))
 import Data.Array as Array
+import Data.Identity (Identity(..))
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..))
 import Data.String as String
 import Data.Traversable (traverse)
+import Data.Tuple (Tuple(..), fst, snd)
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (bottom, top) as Boxes
 
-data Emit box = Emit { imports :: Array String, out :: box }
+type Imports = Array String
 
-instance functorEmit :: Functor Emit where
-  map f (Emit { imports, out }) = Emit { imports, out: f out }
-
-instance applyEmit :: Apply Emit where
-  apply (Emit { imports: ib, out: f }) (Emit { imports: ia, out: a }) =
-    Emit { imports: Array.union ia ib, out: f a }
-
-instance applicativeEmit :: Applicative Emit where
-  pure = emit mempty
-
-instance bindEmit :: Bind Emit where
-  bind (Emit { imports, out }) f =
-    let Emit { imports: ib, out: b } = f out
-    in Emit { imports: Array.union imports ib, out: b }
+type Emit box = Writer Imports box
 
 emit :: forall out. Array String -> out -> Emit out
-emit imports out = Emit { imports, out }
+emit imports out = WriterT (Identity (Tuple out imports))
 
 prettyPrint :: String -> Array Module -> String
 prettyPrint module_ modules =
@@ -41,9 +31,9 @@ prettyPrint module_ modules =
 
 oneModule :: String -> Module -> Box
 oneModule module_ (Module name decls) = vsep 1 left do
-  let es = decls <#> typeDecl true
-  let is = es >>= \(Emit { imports }) -> imports
-  let os = es >>= \(Emit { out }) -> [ out ]
+  let es = decls <#> typeDecl true <#> runWriter
+  let is = es >>= snd >>> Array.sort >>> Array.nub
+  let os = es >>= fst >>> pure
   text ("module " <> module_ <> "." <> name <> " where")
     : vcat left (is <#> \i -> text ("import " <> i))
     : os
@@ -65,10 +55,8 @@ indented = (<<>>) indent
 type Extern = { prefix :: String, t :: String}
 
 externalType :: Extern -> Emit Box
-externalType { prefix, t } = Emit
-  { imports: pure (prefix <> " (" <> t <> ")")
-  , out: text t
-  }
+externalType { prefix, t } =
+  emit [ prefix <> " (" <> t <> ")" ] $ text t
 
 splitType :: String -> Maybe Extern
 splitType s = do
