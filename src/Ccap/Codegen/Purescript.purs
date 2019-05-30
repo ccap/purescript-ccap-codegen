@@ -7,25 +7,24 @@ import Prelude
 
 import Ccap.Codegen.Shared (OutputSpec, indented)
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
-import Control.Monad.Writer (Writer, WriterT(..), runWriter)
+import Control.Monad.Writer (Writer, runWriter, tell)
 import Data.Array ((:))
 import Data.Array as Array
-import Data.Identity (Identity(..))
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..))
 import Data.String as String
 import Data.Traversable (traverse)
-import Data.Tuple (Tuple(..), fst, snd)
+import Data.Tuple (Tuple(..))
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (bottom, left) as Boxes
 
 type Imports = Array String
 
-type Emit box = Writer Imports box
+type Emit = Writer Imports
 
-emit :: forall out. Array String -> out -> Emit out
-emit imports out = WriterT (Identity (Tuple out imports))
+emit :: forall a. Array String -> a -> Emit a
+emit imports a = map (const a) (tell imports)
 
 prettyPrint :: String -> Array Module -> String
 prettyPrint module_ modules =
@@ -33,12 +32,11 @@ prettyPrint module_ modules =
 
 oneModule :: String -> Module -> Box
 oneModule module_ (Module name decls) = vsep 1 Boxes.left do
-  let es = decls <#> typeDecl <#> runWriter
-      is = es >>= snd >>> Array.sort >>> Array.nub
-      os = es >>= fst >>> pure
+  let Tuple result imports = runWriter (traverse typeDecl decls)
+      is = imports # Array.sort >>> Array.nub
   text ("module " <> module_ <> "." <> name <> " where")
     : vcat Boxes.left (is <#> \i -> text ("import " <> i))
-    : os
+    : result
 
 outputSpec :: String -> OutputSpec
 outputSpec package =
@@ -136,7 +134,7 @@ tyType =
     Primitive p -> pure $ primitive p
     Ref _ s -> fromMaybe (text s # pure) (splitType s <#> externalType)
     Array t -> wrap "Array" t
-    Option t -> emit (pure "Data.Maybe (Maybe)") unit >>= const (wrap "Maybe" t)
+    Option t -> tell (pure "Data.Maybe (Maybe)") >>= const (wrap "Maybe" t)
 
 record :: Array RecordProp -> Emit Box
 record props = do
