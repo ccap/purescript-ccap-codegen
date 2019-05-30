@@ -29,13 +29,13 @@ emit imports out = WriterT (Identity (Tuple out imports))
 
 prettyPrint :: String -> Array Module -> String
 prettyPrint module_ modules =
-  render $ vsep 1 Boxes.top (modules <#> oneModule module_)
+  render $ vsep 1 Boxes.left (modules <#> oneModule module_)
 
 oneModule :: String -> Module -> Box
-oneModule module_ (Module name decls) = vsep 1 left do
+oneModule module_ (Module name decls) = vsep 1 Boxes.left do
   let es = decls <#> typeDecl true <#> runWriter
-  let is = es >>= snd >>> Array.sort >>> Array.nub
-  let os = es >>= fst >>> pure
+      is = es >>= snd >>> Array.sort >>> Array.nub
+      os = es >>= fst >>> pure
   text ("module " <> module_ <> "." <> name <> " where")
     : vcat left (is <#> \i -> text ("import " <> i))
     : os
@@ -84,7 +84,7 @@ typeDecl (TypeDecl name tt _) =
       record props <#> \p -> dec "type" // indented p
     Sum vs -> pure do
       dec "data" // indented
-        (hsep 1 Boxes.bottom $ vcat left <$> [ Array.drop 1 vs <#> \_ -> char '|',  vs <#> text ])
+        (hsep 1 Boxes.bottom $ vcat Boxes.left <$> [ Array.drop 1 vs <#> \_ -> char '|',  vs <#> text ])
 
 tyType :: Type -> Emit Box
 tyType =
@@ -97,15 +97,14 @@ tyType =
     Array t -> wrap "Array" t
     Option t -> emit (pure "Data.Maybe (Maybe)") unit >>= const (wrap "Maybe" t)
 
-record :: Array RecordProp -> Emit Box
+record :: Array RecordProp -> Box
 record props = do
-  let len = Array.length props
-  let space = emptyBox 0 1
-  types <- (\(RecordProp _ t) -> tyType t) `traverse` props
-  let columns =
-        [ Array.snoc ('{' : (Array.drop 1 props <#> const ',')) '}' <#> char
+  let len = length props
+      space = emptyBox 0 1
+      columns =
+        [ snoc ('{' : (drop 1 props <#> const ',')) '}' <#> char
         , props <#> \(RecordProp name _) -> text name
         , props <#> const (text "::")
-        , types
-        ] <#> vcat left
-  pure (hsep 1 left columns)
+        , props <#> \(RecordProp _ t) -> tyType t
+        ] <#> vcat Boxes.left
+  pure (hsep 1 Boxes.left columns)
