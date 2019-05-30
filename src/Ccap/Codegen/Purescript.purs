@@ -38,7 +38,7 @@ primitive p = text
     PString -> "String"
 
 typeDecl :: Boolean -> TypeDecl -> Box
-typeDecl last (TypeDecl name tt) =
+typeDecl last (TypeDecl name tt _) =
   let dec kw = text kw <<+>> text name <<+>> char '='
   in case tt of
     Type t ->

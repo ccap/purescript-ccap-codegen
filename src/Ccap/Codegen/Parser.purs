@@ -7,7 +7,7 @@ module Ccap.Codegen.Parser
 import Prelude
 
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
-import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Alt ((<|>))
 import Data.Array (fromFoldable, many, some) as Array
 import Data.Char.Unicode (isLower)
@@ -15,9 +15,10 @@ import Data.Either (Either)
 import Data.Identity (Identity)
 import Data.List (List)
 import Data.Map as Map
+import Data.Maybe (Maybe(..))
 import Data.String.CodeUnits (fromCharArray, singleton) as String
 import Text.Parsing.Parser (ParseError, ParserT, parseErrorMessage, parseErrorPosition, position, runParser)
-import Text.Parsing.Parser.Combinators (sepBy1, (<?>))
+import Text.Parsing.Parser.Combinators (option, sepBy1, (<?>))
 import Text.Parsing.Parser.Language (javaStyle)
 import Text.Parsing.Parser.Pos (Position(..))
 import Text.Parsing.Parser.String (char, satisfy)
@@ -39,6 +40,9 @@ tokenParser = makeTokenParser $
     , identStart = lower
     , identLetter = alphaNum
     }
+
+stringLiteral :: ParserT String Identity String
+stringLiteral = tokenParser.stringLiteral
 
 reserved :: String -> ParserT String Identity Unit
 reserved = tokenParser.reserved
@@ -120,7 +124,24 @@ typeDecl = ado
   name <- moduleOrTypeName
   lexeme $ char ':'
   ty <- topType
-  in TypeDecl name ty
+  annots <- Array.many annotation
+  in TypeDecl name ty annots
+
+annotation :: ParserT String Identity Annotation
+annotation = ado
+  pos <- position
+  lexeme $ char '<'
+  name <- identifier
+  params <- Array.many annotationParam
+  lexeme $ char '>'
+  in Annotation name pos params
+
+annotationParam :: ParserT String Identity AnnotationParam
+annotationParam = ado
+  pos <- position
+  name <- identifier
+  value <- option Nothing (lexeme (char '=') *> stringLiteral <#> Just)
+  in AnnotationParam name pos value
 
 wholeFile :: ParserT String Identity (Array Module)
 wholeFile = whiteSpace *> Array.some oneModule

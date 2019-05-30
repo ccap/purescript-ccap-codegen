@@ -39,7 +39,7 @@ primitive p = text
     PString -> "String"
 
 typeDecl :: Boolean -> TypeDecl -> Box
-typeDecl last (TypeDecl name tt) =
+typeDecl last (TypeDecl name tt _) =
   case tt of
     Type t ->
       text "type" <<+>> text name <<+>> char '=' <<+>> tyType t

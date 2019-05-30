@@ -6,12 +6,12 @@ module Ccap.Codegen.Database
 
 import Prelude
 
-import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Monad.Except (ExceptT, withExceptT)
 import Data.Map (empty) as Map
 import Data.Maybe (Maybe(..), maybe)
 import Database.PostgreSQL.PG (Pool, PoolConfiguration, Query(..), defaultPoolConfiguration, query, withConnection)
-import Database.PostgreSQL.Row (Row0(..), Row1(..), Row2(..), Row4(..))
+import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row4(..))
 import Effect.Aff (Aff)
 import Text.Parsing.Parser.Pos (Position(..))
 
@@ -24,16 +24,30 @@ poolConfiguration = (defaultPoolConfiguration "cc")
   , idleTimeoutMillis = Just 500
   }
 
+emptyPos :: Position
+emptyPos = Position { line: 0, column: 0 }
+
 domainModule :: Pool -> ExceptT String Aff Module
 domainModule pool = withExceptT show $ withConnection pool \conn -> do
   results <- query conn (Query sql) Row0
-  let types = results <#> (\(Row2 domainName dataType) ->
-                TypeDecl domainName (Wrap (Primitive (dbNameToPrimitive dataType)) Map.empty))
+  let types = results <#> (\(Row3 domainName dataType maxLen_) ->
+                let maxLen :: Maybe Int
+                    maxLen = maxLen_
+                    annots =
+                      maybe
+                        []
+                        (\l ->
+                          [ Annotation "validations" emptyPos
+                              [ AnnotationParam "maxLength" emptyPos (Just $ show l)
+                              ]
+                          ])
+                        maxLen
+                in TypeDecl domainName (Wrap (Primitive (dbNameToPrimitive dataType)) Map.empty) annots)
   pure $ Module "Domains" types
   where
     -- TODO Support other types (date/time types in particular)
     sql = """
-          select domain_name, data_type
+          select domain_name, data_type, character_maximum_length
           from information_schema.domains
           where domain_schema = 'public' and
                   data_type in ('numeric', 'character varying', 'integer', 'smallint', 'text', 'boolean')
@@ -44,9 +58,8 @@ tableModule pool tableName = withExceptT show $ withConnection pool \conn -> do
   results <- query conn (Query sql) (Row1 tableName)
   let props = results <#> (\(Row4 columnName dataType domainName isNullable) ->
                               mkRecordProp columnName dataType domainName isNullable)
-  pure $ Module ("Db" <> tableName) [ TypeDecl ("Db" <> tableName) (Record props) ]
+  pure $ Module ("Db" <> tableName) [ TypeDecl ("Db" <> tableName) (Record props) [] ]
   where
-    emptyPos = Position { line: 0, column: 0 }
     mkRecordProp :: String -> String -> Maybe String -> String -> RecordProp
     mkRecordProp columnName dataType domainName isNullable =
       let baseType = maybe

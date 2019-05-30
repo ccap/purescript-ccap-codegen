@@ -24,7 +24,7 @@
 
 module County {
   type CountyNo: wrap int
-  type CountyName: string
+  type CountyName: string <validations maxLength="32" xyz>
   type AssessFacilityId: wrap int
 
   type County: {

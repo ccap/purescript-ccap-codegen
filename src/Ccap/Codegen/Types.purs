@@ -1,5 +1,7 @@
 module Ccap.Codegen.Types
-  ( Module(..)
+  ( Annotation(..)
+  , AnnotationParam(..)
+  , Module(..)
   , Primitive(..)
   , Type(..)
   , RecordProp(..)
@@ -12,12 +14,17 @@ module Ccap.Codegen.Types
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Map (Map)
+import Data.Maybe (Maybe)
 import Prelude (class Eq, class Show)
 import Text.Parsing.Parser.Pos (Position)
 
 data Module = Module String (Array TypeDecl)
 
-data TypeDecl = TypeDecl String TopType
+data TypeDecl = TypeDecl String TopType (Array Annotation)
+
+data Annotation = Annotation String Position (Array AnnotationParam)
+
+data AnnotationParam = AnnotationParam String Position (Maybe String)
 
 data TopType
   = Type Type
@@ -67,6 +74,16 @@ instance showTopType :: Show TopType where
 derive instance eqTypeDecl :: Eq TypeDecl
 derive instance genericTypeDecl :: Generic TypeDecl _
 instance showTypeDecl :: Show TypeDecl where
+  show = genericShow
+
+derive instance eqAnnotation :: Eq Annotation
+derive instance genericAnnotation :: Generic Annotation _
+instance showAnnotation :: Show Annotation where
+  show = genericShow
+
+derive instance eqAnnotationParam :: Eq AnnotationParam
+derive instance genericAnnotationParam :: Generic AnnotationParam _
+instance showAnnotationParam :: Show AnnotationParam where
   show = genericShow
 
 derive instance eqRecordProp :: Eq RecordProp
