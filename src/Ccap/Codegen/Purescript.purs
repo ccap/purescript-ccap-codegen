@@ -5,7 +5,8 @@ module Ccap.Codegen.Purescript
 import Prelude
 
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
-import Data.Array (drop, length, snoc, union, (:))
+import Data.Array ((:))
+import Data.Array as Array
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..))
@@ -21,7 +22,7 @@ instance functorEmit :: Functor Emit where
 
 instance applyEmit :: Apply Emit where
   apply (Emit { imports: ib, out: f }) (Emit { imports: ia, out: a }) =
-    Emit { imports: ia `union` ib, out: f a }
+    Emit { imports: Array.union ia ib, out: f a }
 
 instance applicativeEmit :: Applicative Emit where
   pure = emit mempty
@@ -29,7 +30,7 @@ instance applicativeEmit :: Applicative Emit where
 instance bindEmit :: Bind Emit where
   bind (Emit { imports, out }) f =
     let Emit { imports: ib, out: b } = f out
-    in Emit { imports: imports `union` ib, out: b }
+    in Emit { imports: Array.union imports ib, out: b }
 
 emit :: forall out. Array String -> out -> Emit out
 emit imports out = Emit { imports, out }
@@ -93,7 +94,7 @@ typeDecl last (TypeDecl name tt) =
       record props <#> \p -> dec "type" // indented p
     Sum vs -> pure do
       dec "data" // indented
-        (hsep 1 Boxes.bottom $ vcat left <$> [ drop 1 vs <#> \_ -> char '|',  vs <#> text ])
+        (hsep 1 Boxes.bottom $ vcat left <$> [ Array.drop 1 vs <#> \_ -> char '|',  vs <#> text ])
 
 tyType :: Type -> Emit Box
 tyType =
@@ -108,11 +109,11 @@ tyType =
 
 record :: Array RecordProp -> Emit Box
 record props = do
-  let len = length props
+  let len = Array.length props
   let space = emptyBox 0 1
   types <- (\(RecordProp _ t) -> tyType t) `traverse` props
   let columns =
-        [ snoc ('{' : (drop 1 props <#> const ',')) '}' <#> char
+        [ Array.snoc ('{' : (Array.drop 1 props <#> const ',')) '}' <#> char
         , props <#> \(RecordProp name _) -> text name
         , props <#> const (text "::")
         , types
