@@ -67,8 +67,8 @@ splitType s = do
   let t = String.drop (i + 1) s
   pure $ { prefix, t }
 
-typeDecl :: Boolean -> TypeDecl -> Emit Box
-typeDecl last (TypeDecl name tt _) =
+typeDecl :: TypeDecl -> Box
+typeDecl (TypeDecl name tt _) =
   let dec kw = text kw <<+>> text name <<+>> char '='
   in case tt of
     Type t ->
