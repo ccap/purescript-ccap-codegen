@@ -22,8 +22,7 @@ import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Class.Console (error, info) as Console
 import Effect.Exception (message) as Error
-import Foreign (readString)
-import Foreign.Generic (Foreign)
+import Foreign (Foreign, readString)
 import Node.Encoding (Encoding(..))
 import Node.FS.Sync (readTextFile) as Sync
 import Node.Process (exit) as Process

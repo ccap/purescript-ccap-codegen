@@ -5,7 +5,22 @@ You can edit this file as you like.
 { name =
     "my-project"
 , dependencies =
-    [ "effect", "console", "psci-support" ]
+    [ "boxes"
+    , "console"
+    , "debug"
+    , "effect"
+    , "generics-rep"
+    , "node-fs"
+    , "node-process"
+    , "parsing"
+    , "postgresql-client"
+    , "prelude"
+    , "psci-support"
+    , "record"
+    , "strings"
+    , "transformers"
+    , "yargs"
+    ]
 , packages =
     ./packages.dhall
 }
