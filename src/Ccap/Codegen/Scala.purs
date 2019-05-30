@@ -7,15 +7,16 @@ import Prelude
 
 import Ccap.Codegen.Shared (OutputSpec, indented)
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
-import Data.Array (snoc, (:))
+import Data.Array ((:))
+import Data.Array as Array
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
-import Text.PrettyPrint.Boxes (Box, char, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
-import Text.PrettyPrint.Boxes (top) as Boxes
+import Text.PrettyPrint.Boxes (Box, char, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
+import Text.PrettyPrint.Boxes (left) as Boxes
 
 prettyPrint :: String -> Array Module -> String
 prettyPrint package modules =
-  render $ vsep 1 Boxes.top (modules <#> oneModule package)
+  render $ vsep 1 Boxes.left (modules <#> oneModule package)
 
 outputSpec :: String -> OutputSpec
 outputSpec package =
@@ -24,11 +25,11 @@ outputSpec package =
   }
 
 oneModule :: String -> Module -> Box
-oneModule package (Module name decls) = vsep 1 left do
+oneModule package (Module name decls) = vsep 1 Boxes.left do
   text ("package " <> package)
     : text ("object " <> name <> " {")
     : (decls <#> typeDecl true >>> indented)
-    `snoc` text "}"
+    `Array.snoc` text "}"
 
 primitive :: Primitive -> Box
 primitive p = text
@@ -47,7 +48,7 @@ typeDecl last (TypeDecl name tt _) =
       case Map.lookup "scala" wo of
         Nothing ->
           let tagname = text (name<>"T")
-          in vcat left
+          in vcat Boxes.left
             [ text "final abstract class" <<+>> tagname
             , text "type" <<+>> text name <<+>> char '='
               <<+>> text "scalaz.@@[" <<>> tyType t <<>> char ',' <<+>> tagname <<>> char ']'
@@ -60,7 +61,7 @@ typeDecl last (TypeDecl name tt _) =
         // char ')'
     Sum vs ->
       let
-        variants = vcat left do
+        variants = vcat Boxes.left do
           v <- vs
           pure $ text ("case object " <> v <> " extends " <> name)
       in
@@ -79,7 +80,7 @@ tyType =
     Option t ->  wrap "Option" t
 
 recordFields :: Array RecordProp -> Box
-recordFields props = vcat left (props <#> field)
+recordFields props = vcat Boxes.left (props <#> field)
 
 field :: RecordProp -> Box
 field (RecordProp n t) = text n <<>> char ':' <<+>> tyType t <<>> char ','

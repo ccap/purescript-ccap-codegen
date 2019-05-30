@@ -9,12 +9,12 @@ import Ccap.Codegen.Shared (OutputSpec)
 import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array as Array
 import Data.Maybe (maybe)
-import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
-import Text.PrettyPrint.Boxes (top) as Boxes
+import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
+import Text.PrettyPrint.Boxes (left, top) as Boxes
 
 prettyPrint :: Array Module -> String
 prettyPrint modules =
-  render $ vsep 1 Boxes.top (modules <#> oneModule)
+  render $ vsep 1 Boxes.left (modules <#> oneModule)
 
 outputSpec :: OutputSpec
 outputSpec =
@@ -40,7 +40,7 @@ indented :: Box -> Box
 indented b = emptyBox 0 2 <<>> b
 
 indentedList :: Array Box -> Box
-indentedList = indented <<< vcat Boxes.top
+indentedList = indented <<< vcat Boxes.left
 
 typeDecl :: TypeDecl -> Box
 typeDecl (TypeDecl name tt annots) =
@@ -57,7 +57,7 @@ typeDecl (TypeDecl name tt annots) =
           // text "}"
       Sum vs ->
         dec <<+>> char '['
-          // indented (vcat left (vs <#> (\x -> text "| " <<+>> text x)))
+          // indented (vcat Boxes.left (vs <#> (\x -> text "| " <<+>> text x)))
           // char ']'
   in ty // indentedList (annots <#> annotation)
 

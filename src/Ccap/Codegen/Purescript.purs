@@ -10,15 +10,15 @@ import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..
 import Data.Array (drop, length, snoc, (:))
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
-import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, left, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
-import Text.PrettyPrint.Boxes (bottom, top) as Boxes
+import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
+import Text.PrettyPrint.Boxes (bottom, left) as Boxes
 
 prettyPrint :: String -> Array Module -> String
 prettyPrint module_ modules =
-  render $ vsep 1 Boxes.top (modules <#> oneModule module_)
+  render $ vsep 1 Boxes.left (modules <#> oneModule module_)
 
 oneModule :: String -> Module -> Box
-oneModule module_ (Module name decls) = vsep 1 left do
+oneModule module_ (Module name decls) = vsep 1 Boxes.left do
   text ("module " <> module_ <> "." <> name <> " where")
     : text "import Data.Maybe (Maybe)"
     : (decls <#> typeDecl true)
@@ -54,7 +54,7 @@ typeDecl last (TypeDecl name tt _) =
       dec "type" // indented (record props)
     Sum vs ->
       dec "data" // indented
-        (hsep 1 Boxes.bottom $ vcat left <$> [ drop 1 vs <#> \_ -> char '|',  vs <#> text ])
+        (hsep 1 Boxes.bottom $ vcat Boxes.left <$> [ drop 1 vs <#> \_ -> char '|',  vs <#> text ])
 
 tyType :: Type -> Box
 tyType =
@@ -75,5 +75,5 @@ record props =
       , props <#> \(RecordProp name _) -> text name
       , props <#> const (text "::")
       , props <#> \(RecordProp _ t) -> tyType t
-      ] <#> vcat left
-  in hsep 1 left columns
+      ] <#> vcat Boxes.left
+  in hsep 1 Boxes.left columns
