@@ -14,8 +14,8 @@
   "dependencies": {
     "purescript-boxes": "^1.0.1",
     "purescript-debug": "^4.0.0",
-    "purescript-heterogenous": "^0.4.0",
     "purescript-generics-rep": "^6.1.1",
+    "purescript-heterogenous": "^0.4.0",
     "purescript-node-fs": "^5.0.0",
     "purescript-node-process": "^7.0.0",
     "purescript-parsing": "^5.0.2",
@@ -24,6 +24,7 @@
     "purescript-record": "^2.0.0",
     "purescript-strings": "^4.0.1",
     "purescript-transformers": "^4.2.0",
+    "purescript-typelevel-prelude": "^4.0.2",
     "purescript-yargs": "^4.0.0"
   },
   "devDependencies": {
