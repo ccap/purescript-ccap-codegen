@@ -39,6 +39,10 @@ primitive p = text
     PDecimal -> "BigDecimal"
     PString -> "String"
 
+curly :: Box -> Array Box -> Box
+curly pref inner =
+  vcat Boxes.left (pref <<+>> char '{' : (indented <$> inner) `Array.snoc` char '}')
+
 typeDecl :: Boolean -> TypeDecl -> Box
 typeDecl last (TypeDecl name tt _) =
   case tt of
@@ -61,14 +65,16 @@ typeDecl last (TypeDecl name tt _) =
         // char ')'
     Sum vs ->
       let
-        variants = vcat Boxes.left do
-          v <- vs
-          pure $ text ("case object " <> v <> " extends " <> name)
+        trait = (text "sealed trait" <<+>> text name) `curly` [ text "def tag: String"]
+        variants = vs <#> \v ->
+          text ("case object " <> v <> " extends " <> name)
+            `curly` [ text ("override def tag: String = \"" <> v <> "\"")]
+        encoder = text (
+          "implicit def encodeJson" <> name <> ": argonaut.EncodeJson[" <> name <> "] = \n"
+          <> "  argonaut.EncodeJson(x => argonaut.Argonaut.jString(x.tag))" )
       in
-        text "sealed trait" <<+>> text name
-          // (text "object" <<+>> text name <<+>> char '{')
-          // indented variants
-          // char '}'
+        trait // ((text "object" <<+>> text name) `curly` (variants <> [ encoder ]))
+
 
 tyType :: Type -> Box
 tyType =
