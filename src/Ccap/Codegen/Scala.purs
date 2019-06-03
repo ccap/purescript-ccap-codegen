@@ -44,22 +44,30 @@ defEncoder name fun =
   text ("implicit def encodeJson" <> name <> ": argonaut.EncodeJson[" <> name <> "] =")
     // indented (text "argonaut.EncodeJson" `paren` [ fun ])
 
+wrapEncoder :: String -> Type -> String -> Box
+wrapEncoder name t unwrap = defEncoder name do
+  text "x =>" <<+>> encodeType t (text (unwrap <> "(x)"))
+
 typeDecl :: Boolean -> TypeDecl -> Box
 typeDecl last (TypeDecl name tt _) =
   case tt of
     Type t ->
       text "type" <<+>> text name <<+>> char '=' <<+>> tyType t
+      // defEncoder name (text "x => " <<>> encodeType t (text "x"))
     Wrap t wo ->
       case Map.lookup "scala" wo of
         Nothing ->
-          let tagname = text (name <> "T")
+          let
+            tagname = text (name <> "T")
+            scalatyp = text"scalaz.@@[" <<>> tyType t <<>> char ',' <<+>> tagname <<>> char ']'
           in vcat Boxes.left
             [ text "final abstract class" <<+>> tagname
-            , text "type" <<+>> text name <<+>> char '='
-              <<+>> text "scalaz.@@[" <<>> tyType t <<>> char ',' <<+>> tagname <<>> char ']'
+            , text "type" <<+>> text name <<+>> char '=' <<+>> scalatyp
+            , wrapEncoder name t "scalaz.Tag.unwrap"
             ]
         Just { typ, wrap, unwrap } ->
           text "type" <<+>> text name <<+>> char '=' <<+>> text typ
+          // wrapEncoder name t unwrap
     Record props ->
       let
         cls = (text "final case class" <<+>> text name) `paren` (recordFieldType <$> props)
