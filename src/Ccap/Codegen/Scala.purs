@@ -31,17 +31,18 @@ oneModule package (Module name decls) = vsep 1 Boxes.left do
     : (decls <#> typeDecl true >>> indented)
     `Array.snoc` text "}"
 
-primitive :: Primitive -> Box
-primitive p = text
-  case p of
-    PBoolean -> "Boolean"
-    PInt -> "Int"
-    PDecimal -> "BigDecimal"
-    PString -> "String"
-
 curly :: Box -> Array Box -> Box
 curly pref inner =
   vcat Boxes.left (pref <<+>> char '{' : (indented <$> inner) `Array.snoc` char '}')
+
+paren :: Box -> Array Box -> Box
+paren pref inner =
+  vcat Boxes.left (pref <<>> char '(' : (indented <$> inner) `Array.snoc` char ')')
+
+defEncoder :: String -> Box -> Box
+defEncoder name fun =
+  text ("implicit def encodeJson" <> name <> ": argonaut.EncodeJson[" <> name <> "] =")
+    // indented (text "argonaut.EncodeJson" `paren` [ fun ])
 
 typeDecl :: Boolean -> TypeDecl -> Box
 typeDecl last (TypeDecl name tt _) =
@@ -60,18 +61,20 @@ typeDecl last (TypeDecl name tt _) =
         Just { typ, wrap, unwrap } ->
           text "type" <<+>> text name <<+>> char '=' <<+>> text typ
     Record props ->
-      text "final case class" <<+>> text name <<>> char '('
-        // indented (recordFields props)
-        // char ')'
+      let
+        cls = (text "final case class" <<+>> text name) `paren` (recordFieldType <$> props)
+
+        obj = text ("object " <> name) `curly` [
+          defEncoder name (text "x => argonaut.Json.obj" `paren` (recordFieldEncoder <$> props))
+          ]
+      in cls // obj
     Sum vs ->
       let
         trait = (text "sealed trait" <<+>> text name) `curly` [ text "def tag: String"]
         variants = vs <#> \v ->
           text ("case object " <> v <> " extends " <> name)
             `curly` [ text ("override def tag: String = \"" <> v <> "\"")]
-        encoder = text (
-          "implicit def encodeJson" <> name <> ": argonaut.EncodeJson[" <> name <> "] = \n"
-          <> "  argonaut.EncodeJson(x => argonaut.Argonaut.jString(x.tag))" )
+        encoder = defEncoder name (text "x => argonaut.Argonaut.jString(x.tag)")
       in
         trait // ((text "object" <<+>> text name) `curly` (variants <> [ encoder ]))
 
@@ -80,13 +83,38 @@ tyType :: Type -> Box
 tyType =
   let wrap tycon t = text tycon <<>> char '[' <<>> tyType t <<>> char ']'
   in case _ of
-    Primitive p -> primitive p
     Ref _ s -> text s
-    Array t -> wrap "Array" t
+    Array t -> wrap "List" t
     Option t ->  wrap "Option" t
+    Primitive p -> text (case p of
+      PBoolean -> "Boolean"
+      PInt -> "Int"
+      PDecimal -> "BigDecimal"
+      PString -> "String"
+    )
 
-recordFields :: Array RecordProp -> Box
-recordFields props = vcat Boxes.left (props <#> field)
+encoderType :: Type -> Box
+encoderType =
+  let call fun e = text fun `paren` [ e ]
+  in case _ of
+    Ref _ s -> text ("encodeJson" <> s)
+    Array t -> call "argonaut.EncodeJson.ListEncodeJson" (encoderType t)
+    Option t -> call "argonaut.EncodeJson.OptionEncodeJson" (encoderType t)
+    Primitive p -> text (case p of
+      PBoolean -> "argonaut.Json.jBool"
+      PInt -> "argonaut.Json.jNumber"
+      PDecimal -> "argonaut.EncodeJson.BigDecimalEncodeJson"
+      PString -> "argonaut.Json.jString"
+    )
 
-field :: RecordProp -> Box
-field (RecordProp n t) = text n <<>> char ':' <<+>> tyType t <<>> char ','
+encodeType :: Type -> Box -> Box
+encodeType t e =
+  encoderType t `paren` [ e ]
+
+recordFieldType :: RecordProp -> Box
+recordFieldType (RecordProp n t) =
+  text n <<>> char ':' <<+>> tyType t <<>> char ','
+
+recordFieldEncoder :: RecordProp -> Box
+recordFieldEncoder (RecordProp n t) =
+  text ("\"" <> n <> "\" ->") <<+>> encodeType t (text ("x."<>n)) <<>> char ','
