@@ -11,8 +11,8 @@ import Data.Array ((:))
 import Data.Array as Array
 import Data.Map as Map
 import Data.Maybe (Maybe(..))
-import Text.PrettyPrint.Boxes (Box, char, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
-import Text.PrettyPrint.Boxes (left) as Boxes
+import Text.PrettyPrint.Boxes (Box, char, hcat, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
+import Text.PrettyPrint.Boxes (left, top) as Boxes
 
 prettyPrint :: String -> Array Module -> String
 prettyPrint package modules =
@@ -38,6 +38,12 @@ curly pref inner =
 paren :: Box -> Array Box -> Box
 paren pref inner =
   vcat Boxes.left (pref <<>> char '(' : (indented <$> inner) `Array.snoc` char ')')
+
+-- TODO: Clean up when we switch to a proper pretty printer.
+-- Like `paren`, but outputs on a sigle line.
+paren1 :: Box -> Array Box -> Box
+paren1 pref inner =
+  hcat Boxes.top (pref <<>> char '(' : inner `Array.snoc` char ')')
 
 defEncoder :: String -> Box -> Box
 defEncoder name fun =
@@ -72,10 +78,8 @@ typeDecl last (TypeDecl name tt _) =
       let
         cls = (text "final case class" <<+>> text name) `paren` (recordFieldType <$> props)
 
-        obj = text ("object " <> name) `curly` [
-          defEncoder name (text "x => argonaut.Json.obj" `paren` (recordFieldEncoder <$> props))
-          ]
-      in cls // obj
+        enc = defEncoder name (text "x => argonaut.Json.obj" `paren` (recordFieldEncoder <$> props))
+      in cls // enc
     Sum vs ->
       let
         trait = (text "sealed trait" <<+>> text name) `curly` [ text "def tag: String"]
@@ -84,7 +88,7 @@ typeDecl last (TypeDecl name tt _) =
             `curly` [ text ("override def tag: String = \"" <> v <> "\"")]
         encoder = defEncoder name (text "x => argonaut.Argonaut.jString(x.tag)")
       in
-        trait // ((text "object" <<+>> text name) `curly` (variants <> [ encoder ]))
+       trait // ((text "object" <<+>> text name) `curly` variants ) // encoder
 
 
 tyType :: Type -> Box
@@ -103,7 +107,7 @@ tyType =
 
 encoderType :: Type -> Box
 encoderType =
-  let call fun e = text fun `paren` [ e ]
+  let call fun e = text fun `paren1` [ e ]
   in case _ of
     Ref _ s -> text ("encodeJson" <> s)
     Array t -> call "argonaut.EncodeJson.ListEncodeJson" (encoderType t)
@@ -117,7 +121,7 @@ encoderType =
 
 encodeType :: Type -> Box -> Box
 encodeType t e =
-  encoderType t `paren` [ e ]
+  encoderType t `paren1` [ e ]
 
 recordFieldType :: RecordProp -> Box
 recordFieldType (RecordProp n t) =
@@ -125,4 +129,4 @@ recordFieldType (RecordProp n t) =
 
 recordFieldEncoder :: RecordProp -> Box
 recordFieldEncoder (RecordProp n t) =
-  text ("\"" <> n <> "\" ->") <<+>> encodeType t (text ("x."<>n)) <<>> char ','
+  text ("\"" <> n <> "\" ->") <<+>> encodeType t (text ("x." <> n)) <<>> char ','
