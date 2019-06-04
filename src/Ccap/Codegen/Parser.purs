@@ -14,7 +14,6 @@ import Data.Char.Unicode (isLower)
 import Data.Either (Either)
 import Data.Identity (Identity)
 import Data.List (List)
-import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.String.CodeUnits (fromCharArray, singleton) as String
 import Text.Parsing.Parser (ParseError, ParserT, parseErrorMessage, parseErrorPosition, position, runParser)
@@ -35,7 +34,6 @@ tokenParser = makeTokenParser $
         , "optional"
         , "string"
         , "type"
-        , "wrap"
         ]
     , identStart = lower
     , identLetter = alphaNum
@@ -102,7 +100,7 @@ topType =
   (tyType unit <#> Type)
     <|> (braces $ Array.many recordProp <#> Record)
     <|> (brackets $ pipeSep1 moduleOrTypeName <#> Sum)
-    <|> (reserved "wrap" >>= tyType <#> (\t -> Wrap t Map.empty))
+    <|> (reserved "wrap" >>= tyType <#> Wrap)
 
 recordProp :: ParserT String Identity RecordProp
 recordProp = ado

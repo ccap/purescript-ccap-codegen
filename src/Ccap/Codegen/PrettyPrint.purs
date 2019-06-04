@@ -49,7 +49,7 @@ typeDecl (TypeDecl name tt annots) =
     ty = case tt of
       Type t ->
         dec <<+>> tyType t
-      Wrap t wo ->
+      Wrap t ->
         dec <<+>> text "wrap" <<+>> tyType t
       Record props ->
         dec <<+>> char '{'

@@ -5,13 +5,13 @@ module Ccap.Codegen.Purescript
 
 import Prelude
 
+import Ccap.Codegen.Annotations (getWrapOpts)
 import Ccap.Codegen.Shared (OutputSpec, indented)
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Monad.Writer (Writer, WriterT(..), runWriter)
 import Data.Array ((:))
 import Data.Array as Array
 import Data.Identity (Identity(..))
-import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..))
 import Data.String as String
@@ -68,13 +68,13 @@ splitType s = do
   pure $ { prefix, t }
 
 typeDecl :: TypeDecl -> Emit Box
-typeDecl (TypeDecl name tt _) =
+typeDecl (TypeDecl name tt an) =
   let dec kw = text kw <<+>> text name <<+>> char '='
   in case tt of
     Type t ->
       tyType t <#> (dec "type" <<+>> _)
-    Wrap t wo ->
-      case Map.lookup "purs" wo of
+    Wrap t ->
+      case getWrapOpts "purs" an of
         Nothing ->
           tyType t <#> (\ty ->
             dec "newtype" <<+>> text name <<+>> ty
