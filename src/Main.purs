@@ -4,7 +4,6 @@ module Main
 
 import Prelude
 
-import Ccap.Codegen.Database as Database
 import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
 import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Purescript as Purescript
@@ -17,14 +16,13 @@ import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..), either)
 import Data.Functor.Compose (Compose(..))
-import Data.Maybe (Maybe(..), isJust, maybe)
+import Data.Maybe (Maybe(..), maybe)
 import Data.String as String
 import Data.String.Regex (regex)
 import Data.String.Regex (replace) as Regex
 import Data.String.Regex.Flags (global, multiline) as Regex.Flags
 import Data.Traversable (for_, scanl, traverse)
 import Data.Tuple (Tuple(..))
-import Database.PostgreSQL.PG (newPool)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
@@ -35,26 +33,24 @@ import Foreign.Generic (Foreign)
 import Node.Encoding (Encoding(..))
 import Node.FS.Sync as Sync
 import Node.Process as Process
-import Node.Yargs.Applicative (flag, rest, runY, yarg)
+import Node.Yargs.Applicative (rest, runY, yarg)
 import Node.Yargs.Setup (usage)
 import Text.Parsing.Parser (runParser)
 
-app :: String -> String -> Boolean -> String -> String -> Array Foreign -> Effect Unit
-app strMode package domains tableParam outputDirectoryParam fs = launchAff_ $ processResult do
+app :: String -> String -> String -> Array Foreign -> Effect Unit
+app strMode package outputDirectoryParam fs = launchAff_ $ processResult do
   let checkString s =
         if String.length s > 0
           then Just s
           else Nothing
-      table = checkString tableParam
       outputDirectory = checkString outputDirectoryParam
 
   config <- except do
         mode <- readMode strMode
         files <- readFiles fs
-        pure { mode, package, files, domains, table, outputDirectory }
+        pure { mode, package, files, outputDirectory }
 
   fileModules <- traverse (processFile config) config.files
-  fromDb <- dbModules config
 
   for_ (Compose $ map outputDirectories (outputPath config)) \d ->
     liftEffectSafely do
@@ -62,28 +58,8 @@ app strMode package domains tableParam outputDirectoryParam fs = launchAff_ $ pr
         (pure unit)
         (Sync.mkdir d)
 
-  for_ (fileModules <> fromDb) \(Tuple fileName modules) ->
+  for_ fileModules \(Tuple fileName modules) ->
     processModules config fileName modules
-
-dbModules :: Config -> ExceptT String Aff (Array (Tuple String (Array Module)))
-dbModules config =
-  if config.domains || isJust config.table
-    then do
-      pool <- liftEffect $ newPool Database.poolConfiguration
-      ds <-
-        if config.domains
-          then do
-            d <- Database.domainModule pool
-            pure $ [ Tuple "(domains query)" [ d ] ]
-          else pure []
-      ts <-
-        config.table # maybe
-          (pure [])
-          (\t -> do
-            t_ <- Database.tableModule pool t
-            pure $ [ Tuple ("(" <> t <> " table query)") [ t_ ] ])
-      pure $ ds <> ts
-    else pure []
 
 processResult :: ExceptT String Aff Unit -> Aff Unit
 processResult r = do
@@ -105,8 +81,6 @@ type Config =
   { mode :: Mode
   , package :: String
   , files :: Array String
-  , domains :: Boolean
-  , table :: Maybe String
   , outputDirectory :: Maybe String
   }
 
@@ -196,16 +170,6 @@ main = do
                         [ "package" ]
                         (Just "The package (Scala) or module prefix (PureScript) to use")
                         (Right "Package is required")
-                        true
-                   <*> flag
-                        "d"
-                        [ "domains" ]
-                        (Just "Query database domains")
-                   <*> yarg
-                        "t"
-                        [ "table" ]
-                        (Just "Query the provided database table")
-                        (Left "")
                         true
                    <*> yarg
                         "o"
