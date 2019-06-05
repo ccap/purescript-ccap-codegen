@@ -5,27 +5,18 @@ module Ccap.Codegen.Purescript
 
 import Prelude
 
-import Ccap.Codegen.Annotations (getWrapOpts)
-import Ccap.Codegen.Shared (OutputSpec, indented)
+import Ccap.Codegen.Shared (Emit, OutputSpec, emit, indented)
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
-import Control.Monad.Writer (Writer, WriterT(..), runWriter)
+import Control.Monad.Writer (runWriter, tell)
 import Data.Array ((:))
 import Data.Array as Array
-import Data.Identity (Identity(..))
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe, fromMaybe)
 import Data.String (Pattern(..))
 import Data.String as String
-import Data.Traversable (traverse)
-import Data.Tuple (Tuple(..), fst, snd)
-import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
-import Text.PrettyPrint.Boxes (bottom, left) as Boxes
-
-type Imports = Array String
-
-type Emit box = Writer Imports box
-
-emit :: forall out. Array String -> out -> Emit out
-emit imports out = WriterT (Identity (Tuple out imports))
+import Data.Traversable (for, traverse)
+import Data.Tuple (Tuple(..))
+import Text.PrettyPrint.Boxes (Box, char, hcat, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
+import Text.PrettyPrint.Boxes (bottom, left, top) as Boxes
 
 prettyPrint :: String -> Array Module -> String
 prettyPrint module_ modules =
@@ -33,12 +24,11 @@ prettyPrint module_ modules =
 
 oneModule :: String -> Module -> Box
 oneModule module_ (Module name decls) = vsep 1 Boxes.left do
-  let es = decls <#> typeDecl <#> runWriter
-      is = es >>= snd >>> Array.sort >>> Array.nub
-      os = es >>= fst >>> pure
+  let Tuple result imports = runWriter (traverse typeDecl decls)
+      is = imports # Array.sort >>> Array.nub
   text ("module " <> module_ <> "." <> name <> " where")
     : vcat Boxes.left (is <#> \i -> text ("import " <> i))
-    : os
+    : result
 
 outputSpec :: String -> OutputSpec
 outputSpec package =
@@ -68,64 +58,80 @@ splitType s = do
   pure $ { prefix, t }
 
 typeDecl :: TypeDecl -> Emit Box
-typeDecl (TypeDecl name tt an) =
+typeDecl (TypeDecl name tt annots) =
   let dec kw = text kw <<+>> text name <<+>> char '='
   in case tt of
-    Type t ->
-      tyType t <#> (dec "type" <<+>> _)
-    Wrap t ->
-      case getWrapOpts "purs" an of
-        Nothing ->
-          tyType t <#> (\ty ->
-            dec "newtype" <<+>> text name <<+>> ty
-              // newtypeInstances name
-              // otherInstances name)
-        Just { typ, wrap, unwrap } ->
-          fromMaybe { prefix: "?missingPrefix", t: typ } (splitType typ)
-            # externalType <#> (dec "type" <<+>> _)
-    Record props ->
-      record props <#> \p -> dec "type" // indented p
-    Sum vs -> pure do
-      dec "data"
-        // indented (hsep 1 Boxes.bottom $ vcat Boxes.left <$> [ Array.drop 1 vs <#> \_ -> char '|',  vs <#> text ])
-        // otherInstances name
-        // encodeJsonSum name vs
-        // decodeJsonSum name vs
+    Type t -> do
+      ty <- tyType t
+      j <- jsonCodec t
+      pure $ (dec "type" <<+>> ty)
+        // jsonCodecTypeDecl name
+        // (text "jsonCodec_" <<>> text name <<>> text " = " <<>> j)
+    Wrap t -> do
+      other <- otherInstances name
+      ty <- tyType t
+      j <- topTypeJsonCodec name tt
+      newtype_ <- newtypeInstances name
+      pure $
+        dec "newtype" <<+>> text name <<+>> ty
+          // newtype_
+          // jsonCodecTypeDecl name
+          // (text "jsonCodec_" <<>> text name <<>> text " = " <<>> j)
+          // other
+    Record props -> do
+      recordDecl <- record props <#> \p -> dec "type" // indented p
+      codec <- topTypeJsonCodec name tt
+      pure $
+        recordDecl
+          // jsonCodecTypeDecl name
+          // (text "jsonCodec_" <<>> text name <<>> text " = ")
+          // indented codec
+    Sum vs -> do
+      other <- otherInstances name
+      codec <- topTypeJsonCodec name tt
+      pure $
+        dec "data"
+          // indented (hsep 1 Boxes.bottom $ vcat Boxes.left <$> [ Array.drop 1 vs <#> \_ -> char '|',  vs <#> text ])
+          // other
+          // jsonCodecTypeDecl name
+          // (text "jsonCodec_" <<>> text name <<>> text " = ")
+          // indented codec
 
-encodeJsonSum :: String -> Array String -> Box
-encodeJsonSum name vs =
-  text ("instance encodeJson" <> name <> " :: EncodeJson " <> name <> " where")
-    // indented (text "encodeJson s = encodeJson $ case s of" // indented branches)
+sumJsonCodec :: String -> Array String -> Emit Box
+sumJsonCodec name vs = do
+  tell
+    [ "Data.Either (Either(..))"
+    ]
+  let write = text "write: case _ of"
+                // indented (branches writeBranch)
+      read = text "read: case _ of"
+                // indented (branches readBranch // fallthrough)
+  pure $ text "Runtime.composeCodec"
+          // indented (delimitedLiteral Vert '{' '}' [ read, write ] // text "Runtime.jsonCodec_string")
   where
-    branches = vcat Boxes.left (vs <#> branch)
-    branch v = text v <<+>> text "->" <<+>> text (show v)
+    branches branch = vcat Boxes.left (vs <#> branch)
+    writeBranch v = text v <<+>> text "->" <<+>> text (show v)
+    readBranch v = text (show v) <<+>> text "-> Right" <<+>> text v
+    fallthrough = text $ "s -> Left $ \"Invalid value \" <> show s <> \" for " <> name <> "\""
 
-decodeJsonSum :: String -> Array String -> Box
-decodeJsonSum name vs =
-  text ("instance decodeJson" <> name <> " :: DecodeJson " <> name <> " where")
-    // indented (text "decodeJson j = do" // indented (decodeString // decodeBranches))
-  where
-    decodeString = text "s <- decodeJson"
-    decodeBranches =
-      text "case s of"
-        // indented (branches // fallthrough)
-    branches = vcat Boxes.left (vs <#> branch)
-    branch v = text (show v) <<+>> text "-> Right" <<+>> text v
-    fallthrough = text $ "_ -> Left \"Invalid value \" <> show s <> \"for " <> name <> "\""
-
-newtypeInstances :: String -> Box
+newtypeInstances :: String -> Emit Box
 newtypeInstances name =
-  text ("derive instance newtype" <> name <> " :: Newtype " <> name <> " _")
-    // text ("derive newtype instance decodeJson" <> name <> " :: DecodeJson " <> name <> " _")
-    // text ("derive newtype instance encodeJson" <> name <> " :: EncodeJson " <> name <> " _")
+  emit
+    [ "Data.Newtype (class Newtype)" ]
+    $ text ("derive instance newtype" <> name <> " :: Newtype " <> name <> " _")
 
-otherInstances :: String -> Box
+otherInstances :: String -> Emit Box
 otherInstances name =
-  text ("derive instance eq" <> name <> " :: Eq " <> name)
-    // text ("derive instance ord" <> name <> " :: Ord " <> name)
-    // text ("derive instance generic" <> name <> " :: Generic " <> name <> " _")
-    // text ("instance show" <> name <> " :: Show " <> name <> " where")
-    // indented (text "show a = genericShow a")
+  emit
+    [ "Prelude"
+    , "Data.Generic.Rep (class Generic)"
+    , "Data.Generic.Rep.Show (genericShow)"
+    ]
+    $ text ("derive instance eq" <> name <> " :: Eq " <> name)
+        // text ("derive instance ord" <> name <> " :: Ord " <> name)
+        // text ("derive instance generic" <> name <> " :: Generic " <> name <> " _")
+        // text ("instance show" <> name <> " :: Show " <> name <> " where")
+        // indented (text "show a = genericShow a")
 
 tyType :: Type -> Emit Box
 tyType =
@@ -136,16 +142,99 @@ tyType =
     Primitive p -> pure $ primitive p
     Ref _ s -> fromMaybe (text s # pure) (splitType s <#> externalType)
     Array t -> wrap "Array" t
-    Option t -> emit (pure "Data.Maybe (Maybe)") unit >>= const (wrap "Maybe" t)
+    Option t -> tell (pure "Data.Maybe (Maybe)") >>= const (wrap "Maybe" t)
+
+emitRuntime :: Box -> Emit Box
+emitRuntime b = emit [ "Ccap.Codegen.Runtime as Runtime" ] b
+
+topTypeJsonCodec :: String -> TopType -> Emit Box
+topTypeJsonCodec name =
+  case _ of
+    Type ty -> jsonCodec ty
+    Wrap ty -> do
+      i <- jsonCodec ty
+      emitRuntime $ text "Runtime.codec_newtype" <<+>> char '(' <<>> i <<>> text ")"
+    Record props -> recordJsonCodec props
+    Sum vs -> sumJsonCodec name vs
+
+jsonCodec :: Type -> Emit Box
+jsonCodec ty =
+  case ty of
+    Primitive p ->
+      case p of
+        PBoolean -> emitRuntime (text "Runtime.jsonCodec_boolean")
+        PInt -> emitRuntime (text "Runtime.jsonCodec_int")
+        PDecimal -> emitRuntime (text "Runtime.jsonCodec_decimal")
+        PString -> emitRuntime (text "Runtime.jsonCodec_string")
+    Array t_ -> map parens (tycon "array" t_)
+    Option t_ -> map parens (tycon "maybe" t_)
+    Ref _ s -> pure $ text ("jsonCodec_" <> s)
+  where
+    tycon which t_ = do
+      inner <- jsonCodec t_
+      emitRuntime $ text "Runtime.jsonCodec_" <<>> text which <<+>> inner
+
+parens :: Box -> Box
+parens b = char '(' <<>> b <<>> char ')'
+
+jsonCodecTypeDecl :: String -> Box
+jsonCodecTypeDecl name =
+  text "jsonCodec_" <<>> text name <<+>> text ":: Runtime.JsonCodec" <<+>> text name
+
+data DelimitedLiteralDir = Vert | Horiz
+
+delimitedLiteral
+  :: DelimitedLiteralDir
+  -> Char
+  -> Char
+  -> Array Box
+  -> Box
+delimitedLiteral dir l r boxes =
+  let all = (Array.take 1 boxes <#> (char l <<+>> _))
+                  <> (Array.drop 1 boxes <#> (char ',' <<+>> _))
+  in case dir of
+       Vert -> vcat Boxes.left (all <> [ char r ])
+       Horiz -> hcat Boxes.top (all <> [ char ' ' <<>> char r ])
 
 record :: Array RecordProp -> Emit Box
 record props = do
-  let len = Array.length props
-      space = emptyBox 0 1
+  tell [ "Data.Tuple (Tuple(..))" ]
   types <- (\(RecordProp _ t) -> tyType t) `traverse` props
   let labels = props <#> \(RecordProp name _) -> text name <<+>> text "::"
-      columns =
-        [ Array.snoc ('{' : (Array.drop 1 props <#> const ',')) '}' <#> char
-        , Array.zip labels types <#> \(Tuple l t) -> l <<+>> t
-        ] <#> vcat Boxes.left
-  pure (hsep 1 Boxes.left columns)
+  pure $ delimitedLiteral Vert '{' '}' (Array.zip labels types <#> \(Tuple l t) -> l <<+>> t)
+
+recordJsonCodec :: Array RecordProp -> Emit Box
+recordJsonCodec props = do
+  tell
+    [ "Data.Argonaut.Core as Argonaut"
+    , "Ccap.Codegen.Runtime as Runtime"
+    , "Foreign.Object as FO"
+    ]
+  writeProps <- recordWriteProps props
+  readProps <- recordReadProps props
+  let write = text "write: \\p -> Argonaut.fromObject $"
+                // indented
+                      (text "FO.fromFoldable"
+                        // indented writeProps)
+      names = props <#> \(RecordProp name _) -> text name
+      read = text "read: \\j -> do"
+              // indented
+                    (text "o <- Runtime.obj j"
+                      // readProps
+                      // (text "pure" <<+>> delimitedLiteral Horiz '{' '}' names))
+  pure $ delimitedLiteral Vert '{' '}' [ read, write ]
+
+recordWriteProps :: Array RecordProp -> Emit Box
+recordWriteProps props = do
+  types <- for props (\(RecordProp name t) -> do
+    x <- jsonCodec t
+    pure $ text "Tuple" <<+>> text (show name) <<+>> parens (x <<>> text ".write p." <<>> text name))
+  pure $ delimitedLiteral Vert '[' ']' types
+
+recordReadProps :: Array RecordProp -> Emit Box
+recordReadProps props = do
+  lines <- for props (\(RecordProp name t) -> do
+    x <- jsonCodec t
+    pure $ text name <<+>> text "<- Runtime.readProperty"
+              <<+>> text (show name) <<+>> x <<+>> text "o")
+  pure $ vcat Boxes.left lines
