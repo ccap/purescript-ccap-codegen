@@ -12,6 +12,7 @@
     "url": "git://github.com/ccap/purescript-ccap-codegen.git"
   },
   "dependencies": {
+    "purescript-argonaut-codecs": "^6.0.0",
     "purescript-boxes": "^1.0.1",
     "purescript-debug": "^4.0.0",
     "purescript-generics-rep": "^6.1.1",
