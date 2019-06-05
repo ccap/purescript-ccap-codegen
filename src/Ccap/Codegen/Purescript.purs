@@ -5,12 +5,13 @@ module Ccap.Codegen.Purescript
 
 import Prelude
 
+import Ccap.Codegen.Annotations (getWrapOpts)
 import Ccap.Codegen.Shared (Emit, OutputSpec, emit, indented)
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Monad.Writer (runWriter, tell)
 import Data.Array ((:))
 import Data.Array as Array
-import Data.Maybe (Maybe, fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..))
 import Data.String as String
 import Data.Traversable (for, traverse)
@@ -67,17 +68,27 @@ typeDecl (TypeDecl name tt annots) =
       pure $ (dec "type" <<+>> ty)
         // jsonCodecTypeDecl name
         // (text "jsonCodec_" <<>> text name <<>> text " = " <<>> j)
-    Wrap t -> do
-      other <- otherInstances name
-      ty <- tyType t
-      j <- newtypeJsonCodec name t
-      newtype_ <- newtypeInstances name
-      pure $
-        dec "newtype" <<+>> text name <<+>> ty
-          // newtype_
-          // other
-          // jsonCodecTypeDecl name
-          // (text "jsonCodec_" <<>> text name <<>> text " = " <<>> j)
+    Wrap t ->
+      case getWrapOpts "purs" annots of
+        Nothing -> do
+          other <- otherInstances name
+          ty <- tyType t
+          j <- newtypeJsonCodec name t
+          newtype_ <- newtypeInstances name
+          pure $
+            dec "newtype" <<+>> text name <<+>> ty
+              // newtype_
+              // other
+              // jsonCodecTypeDecl name
+              // (text "jsonCodec_" <<>> text name <<>> text " = " <<>> j)
+        Just { typ, wrap, unwrap } -> do
+          ty <- typeRef typ
+          j <- externalJsonCodec name t wrap unwrap
+          pure $
+            dec "type" <<+>> ty
+              // jsonCodecTypeDecl name
+              // (text "jsonCodec_" <<>> text name <<>> text " = " <<>> j)
+
     Record props -> do
       recordDecl <- record props <#> \p -> dec "type" // indented p
       codec <- recordJsonCodec props
@@ -137,20 +148,30 @@ tyType :: Type -> Emit Box
 tyType =
   let
     wrap tycon t =
-      tyType t <#> \ty -> text tycon <<+>> char '(' <<>> ty <<>> char ')'
+      tyType t <#> \ty -> text tycon <<+>> parens ty
   in case _ of
     Primitive p -> pure $ primitive p
-    Ref _ s -> fromMaybe (text s # pure) (splitType s <#> externalType)
+    Ref _ s -> typeRef s
     Array t -> wrap "Array" t
     Option t -> tell (pure "Data.Maybe (Maybe)") >>= const (wrap "Maybe" t)
+
+typeRef :: String -> Emit Box
+typeRef s = fromMaybe (text s # pure) (splitType s <#> externalType)
 
 emitRuntime :: Box -> Emit Box
 emitRuntime b = emit [ "Ccap.Codegen.Runtime as Runtime" ] b
 
 newtypeJsonCodec :: String -> Type -> Emit Box
-newtypeJsonCodec name ty = do
-  i <- jsonCodec ty
-  emitRuntime $ text "Runtime.codec_newtype" <<+>> char '(' <<>> i <<>> text ")"
+newtypeJsonCodec name t = do
+  i <- jsonCodec t
+  emitRuntime $ text "Runtime.codec_newtype" <<+>> parens i
+
+externalJsonCodec :: String -> Type -> String -> String -> Emit Box
+externalJsonCodec name t wrap unwrap = do
+  i <- jsonCodec t
+  read <- typeRef wrap -- TODO Naming
+  write <- typeRef unwrap
+  emitRuntime $ text "Runtime.custom_codec" <<+>> read <<+>> write <<+>> parens i
 
 jsonCodec :: Type -> Emit Box
 jsonCodec ty =
