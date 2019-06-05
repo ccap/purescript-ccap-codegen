@@ -10,17 +10,15 @@ import Ccap.Codegen.Purescript as Purescript
 import Ccap.Codegen.Scala as Scala
 import Ccap.Codegen.Shared (OutputSpec)
 import Ccap.Codegen.Types (Module)
+import Ccap.Codegen.Util (liftEffectSafely, processResult, scrubEolSpaces)
 import Control.Monad.Error.Class (try)
-import Control.Monad.Except (ExceptT(..), except, runExcept, runExceptT, withExceptT)
+import Control.Monad.Except (ExceptT(..), except, runExcept, withExceptT)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
-import Data.Either (Either(..), either)
+import Data.Either (Either(..))
 import Data.Functor.Compose (Compose(..))
 import Data.Maybe (Maybe(..), maybe)
 import Data.String as String
-import Data.String.Regex (regex)
-import Data.String.Regex (replace) as Regex
-import Data.String.Regex.Flags (global, multiline) as Regex.Flags
 import Data.Traversable (for_, scanl, traverse)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
@@ -32,7 +30,6 @@ import Foreign (readString)
 import Foreign.Generic (Foreign)
 import Node.Encoding (Encoding(..))
 import Node.FS.Sync as Sync
-import Node.Process as Process
 import Node.Yargs.Applicative (rest, runY, yarg)
 import Node.Yargs.Setup (usage)
 import Text.Parsing.Parser (runParser)
@@ -60,15 +57,6 @@ app strMode package outputDirectoryParam fs = launchAff_ $ processResult do
 
   for_ fileModules \(Tuple fileName modules) ->
     processModules config fileName modules
-
-processResult :: ExceptT String Aff Unit -> Aff Unit
-processResult r = do
-  e <- runExceptT r
-  e # either
-    (\s -> liftEffect $ do
-      Console.error $ "ERROR: " <> s
-      Process.exit 1)
-    pure
 
 data Mode
   = Pretty
@@ -118,9 +106,6 @@ processModules config fileName modules = do
         then Console.info "Round-trip passed"
         else except $ Left "Round-trip failed"
 
-liftEffectSafely :: forall a. Effect a -> ExceptT String Aff a
-liftEffectSafely = ExceptT <<< liftEffect <<< map (lmap Error.message) <<< try
-
 outputPath :: Config -> Maybe (Array String)
 outputPath config =
   config.outputDirectory <#> \o ->
@@ -142,11 +127,6 @@ writeOutput config modules outputSpec = liftEffectSafely do
       (Console.info <<< scrubEolSpaces <<< outputSpec.render $ mod)
       (writeOutput_ mod))
   where
-    scrubEolSpaces :: String -> String
-    scrubEolSpaces i =
-      regex " +$" (Regex.Flags.multiline <> Regex.Flags.global) # either
-        (const i)
-        (\r -> Regex.replace r "" i)
     writeOutput_ :: Module -> Array String -> Effect Unit
     writeOutput_ mod dir =
       Sync.writeTextFile
