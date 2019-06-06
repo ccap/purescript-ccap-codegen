@@ -8,7 +8,6 @@ import Prelude
 
 import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Monad.Except (ExceptT, withExceptT)
-import Data.Map (empty) as Map
 import Data.Maybe (Maybe(..), maybe)
 import Database.PostgreSQL.PG (Pool, PoolConfiguration, Query(..), defaultPoolConfiguration, query, withConnection)
 import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row4(..))
@@ -42,7 +41,7 @@ domainModule pool = withExceptT show $ withConnection pool \conn -> do
                               ]
                           ])
                         maxLen
-                in TypeDecl domainName (Wrap (Primitive (dbNameToPrimitive dataType)) Map.empty) annots)
+                in TypeDecl domainName (Wrap (Primitive (dbNameToPrimitive dataType))) annots)
   pure $ Module "Domains" types
   where
     -- TODO Support other types (date/time types in particular)

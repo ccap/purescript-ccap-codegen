@@ -91,6 +91,14 @@ composeCodec codec1 codec2 =
 obj :: Json -> Either String (Object Json)
 obj = maybe (Left "This value must be an object") Right <<< Argonaut.toObject
 
+codec_custom
+  :: forall t a b
+   . (b -> Either String t)
+  -> (t -> b)
+  -> Codec a b
+  -> Codec a t
+codec_custom read write = composeCodec { read, write }
+
 codec_newtype
   :: forall t a b
    . Newtype t b

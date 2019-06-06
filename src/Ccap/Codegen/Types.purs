@@ -1,5 +1,6 @@
 module Ccap.Codegen.Types
   ( Annotation(..)
+  , Annotations
   , AnnotationParam(..)
   , Module(..)
   , Primitive(..)
@@ -8,19 +9,19 @@ module Ccap.Codegen.Types
   , TopType(..)
   , TypeDecl(..)
   , Variant
-  , WrapOpts
   ) where
 
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
-import Data.Map (Map)
 import Data.Maybe (Maybe)
 import Prelude (class Eq, class Show)
 import Text.Parsing.Parser.Pos (Position)
 
 data Module = Module String (Array TypeDecl)
 
-data TypeDecl = TypeDecl String TopType (Array Annotation)
+data TypeDecl = TypeDecl String TopType Annotations
+
+type Annotations = Array Annotation -- TODO: Consider using a Map?
 
 data Annotation = Annotation String Position (Array AnnotationParam)
 
@@ -28,7 +29,7 @@ data AnnotationParam = AnnotationParam String Position (Maybe String)
 
 data TopType
   = Type Type
-  | Wrap Type (Map String WrapOpts)
+  | Wrap Type
   | Record (Array RecordProp)
   | Sum (Array Variant)
 
@@ -47,12 +48,6 @@ data Primitive
   | PInt
   | PDecimal
   | PString
-
-type WrapOpts =
-  { typ :: String
-  , wrap :: String
-  , unwrap :: String
-  }
 
 -- Instances here to avoid cluttering the above
 

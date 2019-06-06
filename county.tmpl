@@ -44,4 +44,15 @@ module County {
     | Baron
     | Etc
   ]
+
+  // A date, encoded per RFC 3339.
+  type Date: wrap string
+    <scala
+      t="org.joda.time.LocalDate"
+      wrap="gov.wicourts.common.LocalDateOps.TODO:R-16899"
+      unwrap="gov.wicourts.common.LocalDateOps.sortableDateFormat.print">
+    <purs
+      t="Ccap.Common.DateTime.Date"
+      wrap="Ccap.Common.DateTime.Date.fromIsoMadison"
+      unwrap="Ccap.Common.DateTime.Date.inIso8601ExtendedDateFormat">
 }

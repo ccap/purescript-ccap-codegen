@@ -5,12 +5,13 @@ module Ccap.Codegen.Purescript
 
 import Prelude
 
+import Ccap.Codegen.Annotations (getWrapOpts)
 import Ccap.Codegen.Shared (Emit, OutputSpec, emit, indented)
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Monad.Writer (runWriter, tell)
 import Data.Array ((:))
 import Data.Array as Array
-import Data.Maybe (Maybe, fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (Pattern(..))
 import Data.String as String
 import Data.Traversable (for, traverse)
@@ -67,20 +68,30 @@ typeDecl (TypeDecl name tt annots) =
       pure $ (dec "type" <<+>> ty)
         // jsonCodecTypeDecl name
         // (text "jsonCodec_" <<>> text name <<>> text " = " <<>> j)
-    Wrap t _ -> do
-      other <- otherInstances name
-      ty <- tyType t
-      j <- topTypeJsonCodec name tt
-      newtype_ <- newtypeInstances name
-      pure $
-        dec "newtype" <<+>> text name <<+>> ty
-          // newtype_
-          // jsonCodecTypeDecl name
-          // (text "jsonCodec_" <<>> text name <<>> text " = " <<>> j)
-          // other
+    Wrap t ->
+      case getWrapOpts "purs" annots of
+        Nothing -> do
+          other <- otherInstances name
+          ty <- tyType t
+          j <- newtypeJsonCodec name t
+          newtype_ <- newtypeInstances name
+          pure $
+            dec "newtype" <<+>> text name <<+>> ty
+              // newtype_
+              // other
+              // jsonCodecTypeDecl name
+              // (text "jsonCodec_" <<>> text name <<>> text " = " <<>> j)
+        Just { typ, wrap, unwrap } -> do
+          ty <- typeRef typ
+          j <- externalJsonCodec name t wrap unwrap
+          pure $
+            dec "type" <<+>> ty
+              // jsonCodecTypeDecl name
+              // (text "jsonCodec_" <<>> text name <<>> text " = " <<>> j)
+
     Record props -> do
       recordDecl <- record props <#> \p -> dec "type" // indented p
-      codec <- topTypeJsonCodec name tt
+      codec <- recordJsonCodec props
       pure $
         recordDecl
           // jsonCodecTypeDecl name
@@ -88,7 +99,7 @@ typeDecl (TypeDecl name tt annots) =
           // indented codec
     Sum vs -> do
       other <- otherInstances name
-      codec <- topTypeJsonCodec name tt
+      codec <- sumJsonCodec name vs
       pure $
         dec "data"
           // indented (hsep 1 Boxes.bottom $ vcat Boxes.left <$> [ Array.drop 1 vs <#> \_ -> char '|',  vs <#> text ])
@@ -137,25 +148,30 @@ tyType :: Type -> Emit Box
 tyType =
   let
     wrap tycon t =
-      tyType t <#> \ty -> text tycon <<+>> char '(' <<>> ty <<>> char ')'
+      tyType t <#> \ty -> text tycon <<+>> parens ty
   in case _ of
     Primitive p -> pure $ primitive p
-    Ref _ s -> fromMaybe (text s # pure) (splitType s <#> externalType)
+    Ref _ s -> typeRef s
     Array t -> wrap "Array" t
     Option t -> tell (pure "Data.Maybe (Maybe)") >>= const (wrap "Maybe" t)
+
+typeRef :: String -> Emit Box
+typeRef s = fromMaybe (text s # pure) (splitType s <#> externalType)
 
 emitRuntime :: Box -> Emit Box
 emitRuntime b = emit [ "Ccap.Codegen.Runtime as Runtime" ] b
 
-topTypeJsonCodec :: String -> TopType -> Emit Box
-topTypeJsonCodec name =
-  case _ of
-    Type ty -> jsonCodec ty
-    Wrap ty _ -> do
-      i <- jsonCodec ty
-      emitRuntime $ text "Runtime.codec_newtype" <<+>> char '(' <<>> i <<>> text ")"
-    Record props -> recordJsonCodec props
-    Sum vs -> sumJsonCodec name vs
+newtypeJsonCodec :: String -> Type -> Emit Box
+newtypeJsonCodec name t = do
+  i <- jsonCodec t
+  emitRuntime $ text "Runtime.codec_newtype" <<+>> parens i
+
+externalJsonCodec :: String -> Type -> String -> String -> Emit Box
+externalJsonCodec name t wrap unwrap = do
+  i <- jsonCodec t
+  read <- typeRef wrap -- TODO Naming
+  write <- typeRef unwrap
+  emitRuntime $ text "Runtime.custom_codec" <<+>> read <<+>> write <<+>> parens i
 
 jsonCodec :: Type -> Emit Box
 jsonCodec ty =
@@ -166,12 +182,12 @@ jsonCodec ty =
         PInt -> emitRuntime (text "Runtime.jsonCodec_int")
         PDecimal -> emitRuntime (text "Runtime.jsonCodec_decimal")
         PString -> emitRuntime (text "Runtime.jsonCodec_string")
-    Array t_ -> map parens (tycon "array" t_)
-    Option t_ -> map parens (tycon "maybe" t_)
+    Array t -> map parens (tycon "array" t)
+    Option t -> map parens (tycon "maybe" t)
     Ref _ s -> pure $ text ("jsonCodec_" <> s)
   where
-    tycon which t_ = do
-      inner <- jsonCodec t_
+    tycon which t = do
+      inner <- jsonCodec t
       emitRuntime $ text "Runtime.jsonCodec_" <<>> text which <<+>> inner
 
 parens :: Box -> Box

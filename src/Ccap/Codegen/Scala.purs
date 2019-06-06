@@ -5,11 +5,11 @@ module Ccap.Codegen.Scala
 
 import Prelude
 
+import Ccap.Codegen.Annotations (getWrapOpts)
 import Ccap.Codegen.Shared (OutputSpec, indented)
 import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array ((:))
 import Data.Array as Array
-import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Text.PrettyPrint.Boxes (Box, char, hcat, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
@@ -55,13 +55,13 @@ wrapEncoder name t unwrap = defEncoder name do
   text "x =>" <<+>> encodeType t (text (unwrap <> "(x)"))
 
 typeDecl :: Boolean -> TypeDecl -> Box
-typeDecl last (TypeDecl name tt _) =
+typeDecl last (TypeDecl name tt an) =
   case tt of
     Type t ->
       text "type" <<+>> text name <<+>> char '=' <<+>> tyType t
       // defEncoder name (text "x => " <<>> encodeType t (text "x"))
-    Wrap t wo ->
-      case Map.lookup "scala" wo of
+    Wrap t ->
+      case getWrapOpts "scala" an of
         Nothing ->
           let
             tagname = text (name <> "T")
@@ -89,7 +89,6 @@ typeDecl last (TypeDecl name tt _) =
         encoder = defEncoder name (text "x => argonaut.Argonaut.jString(x.tag)")
       in
        trait // ((text "object" <<+>> text name) `curly` variants ) // encoder
-
 
 tyType :: Type -> Box
 tyType =
