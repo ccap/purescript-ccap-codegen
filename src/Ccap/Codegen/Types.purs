@@ -2,7 +2,10 @@ module Ccap.Codegen.Types
   ( Annotation(..)
   , Annotations
   , AnnotationParam(..)
+  , Import
+  , Imports
   , Module(..)
+  , ModuleName
   , Primitive(..)
   , Type(..)
   , RecordProp(..)
@@ -17,7 +20,13 @@ import Data.Maybe (Maybe)
 import Prelude (class Eq, class Show)
 import Text.Parsing.Parser.Pos (Position)
 
-data Module = Module String (Array TypeDecl)
+data Module = Module ModuleName Imports (Array TypeDecl)
+
+type ModuleName = String
+
+type Imports = Array Import -- TODO: Consider using a Set?
+
+data Import = Import { mod :: ModuleName, typ :: String }
 
 data TypeDecl = TypeDecl String TopType Annotations
 
@@ -54,6 +63,11 @@ data Primitive
 derive instance eqModule :: Eq Module
 derive instance genericModule :: Generic Module _
 instance showModule :: Show Module where
+  show = genericShow
+
+derive instance eqImport :: Eq Import
+derive instance genericImport :: Generic Import _
+instance showImport :: Show Import where
   show = genericShow
 
 derive instance eqType :: Eq Type

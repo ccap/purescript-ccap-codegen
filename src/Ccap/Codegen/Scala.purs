@@ -21,11 +21,11 @@ prettyPrint package modules =
 outputSpec :: String -> OutputSpec
 outputSpec package =
   { render: render <<< oneModule package
-  , fileName: \(Module n _) -> n <> ".scala"
+  , fileName: \(Module n _ _) -> n <> ".scala"
   }
 
 oneModule :: String -> Module -> Box
-oneModule package (Module name decls) = vsep 1 Boxes.left do
+oneModule package (Module name imps decls) = vsep 1 Boxes.left do
   text ("package " <> package)
     : text ("object " <> name <> " {")
     : (decls <#> typeDecl true >>> indented)

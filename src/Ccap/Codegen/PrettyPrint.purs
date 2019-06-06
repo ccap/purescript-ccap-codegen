@@ -19,12 +19,13 @@ prettyPrint modules =
 outputSpec :: OutputSpec
 outputSpec =
   { render: render <<< oneModule
-  , fileName: \(Module n _) -> n <> ".tmpl"
+  , fileName: \(Module n _ _) -> n <> ".tmpl"
   }
 
 oneModule :: Module -> Box
-oneModule (Module name decls) =
+oneModule (Module name imps decls) =
   text ("module " <> name <> " {")
+    // indentedList (imps <#> \i -> text ("// FIXME: import " <> show i))
     // indentedList (decls <#> typeDecl)
     // text "}"
 

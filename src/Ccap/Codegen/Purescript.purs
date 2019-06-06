@@ -24,7 +24,7 @@ prettyPrint module_ modules =
   render $ vsep 1 Boxes.left (modules <#> oneModule module_)
 
 oneModule :: String -> Module -> Box
-oneModule module_ (Module name decls) = vsep 1 Boxes.left do
+oneModule module_ (Module name imps decls) = vsep 1 Boxes.left do
   let Tuple result imports = runWriter (traverse typeDecl decls)
       is = imports # Array.sort >>> Array.nub
   text ("module " <> module_ <> "." <> name <> " where")
@@ -34,7 +34,7 @@ oneModule module_ (Module name decls) = vsep 1 Boxes.left do
 outputSpec :: String -> OutputSpec
 outputSpec package =
   { render: render <<< oneModule package
-  , fileName: \(Module n _) -> n <> ".purs"
+  , fileName: \(Module n _ _) -> n <> ".purs"
   }
 
 primitive :: Primitive -> Emit Box

@@ -114,7 +114,7 @@ oneModule = ado
   reserved "module"
   name <- moduleOrTypeName
   decls <- braces $ Array.many typeDecl
-  in Module name decls
+  in Module name [ {-FIXME-}] decls
 
 typeDecl :: ParserT String Identity TypeDecl
 typeDecl = ado
