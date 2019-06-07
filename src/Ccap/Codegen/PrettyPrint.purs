@@ -6,9 +6,12 @@ module Ccap.Codegen.PrettyPrint
 import Prelude
 
 import Ccap.Codegen.Shared (OutputSpec)
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import(..), Imports, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array as Array
+import Data.Array.NonEmpty (head)
+import Data.Array.NonEmpty as NonEmpty
 import Data.Maybe (maybe)
+import Data.Tuple (Tuple(..))
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
 
@@ -25,9 +28,21 @@ outputSpec =
 oneModule :: Module -> Box
 oneModule (Module name imps decls) =
   text ("module " <> name <> " {")
-    // indentedList (imps <#> \i -> text ("// FIXME: import " <> show i))
+    // indented (imports imps)
+    // text ""
     // indentedList (decls <#> typeDecl)
     // text "}"
+
+imports :: Imports -> Box
+imports imps = vcat Boxes.left do
+  group <- imps <#> (\(Import i) -> i) # Array.sortWith _.mod >>> Array.nub
+             >>> Array.groupBy (\{ mod: a } ({ mod: b }) -> a == b)
+  let mod = (head group).mod
+  let types = group <#> _.typ # NonEmpty.sort >>> NonEmpty.nub
+  pure $ text ("// TODO: PARSE ME: import " <> mod <> " (" <> commaTypes types <> ")")
+  where
+    commaTypes = NonEmpty.uncons >>> \{ head, tail } ->
+      Array.foldl (\s t -> s <> ", " <> t) head tail
 
 primitive :: Primitive -> Box
 primitive p = text
