@@ -2,7 +2,7 @@ module Ccap.Codegen.Types
   ( Annotation(..)
   , Annotations
   , AnnotationParam(..)
-  , Import
+  , Import(..)
   , Imports
   , Module(..)
   , ModuleName
@@ -17,6 +17,7 @@ module Ccap.Codegen.Types
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe)
+import Data.Ord (class Ord)
 import Prelude (class Eq, class Show)
 import Text.Parsing.Parser.Pos (Position)
 
@@ -67,6 +68,7 @@ instance showModule :: Show Module where
 
 derive instance eqImport :: Eq Import
 derive instance genericImport :: Generic Import _
+derive instance ordImport :: Ord Import
 instance showImport :: Show Import where
   show = genericShow
 

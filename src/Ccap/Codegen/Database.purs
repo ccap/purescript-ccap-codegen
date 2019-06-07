@@ -6,9 +6,13 @@ module Ccap.Codegen.Database
 
 import Prelude
 
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import(..), Imports, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Monad.Except (ExceptT, withExceptT)
+import Control.Monad.Writer (Writer, runWriter, tell)
+import Data.Array as Array
 import Data.Maybe (Maybe(..), maybe)
+import Data.Traversable (for)
+import Data.Tuple (Tuple(..))
 import Database.PostgreSQL (Connection, PGError)
 import Database.PostgreSQL.PG (Pool, PoolConfiguration, Query(..), defaultPoolConfiguration, query, withConnection)
 import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row4(..))
@@ -61,7 +65,8 @@ type DbColumn =
 tableModule :: Pool -> String -> ExceptT String Aff Module
 tableModule pool tableName = withExceptT show $ withConnection pool \conn -> do
   columns <- queryColumns tableName conn
-  pure $ Module ("Db" <> tableName) [ {-FIXME-} ] [ tableType tableName columns ]
+  let Tuple decl imps = runWriter $ tableType tableName columns
+  pure $ Module ("Db" <> tableName) (imps # Array.sort >>> Array.nub) [ decl ]
 
 queryColumns :: String -> Connection -> ExceptT PGError Aff (Array DbColumn)
 queryColumns tableName conn = do
@@ -78,21 +83,25 @@ queryColumns tableName conn = do
           order by ordinal_position ;
           """
 
-tableType :: String -> Array DbColumn -> TypeDecl
-tableType tableName columns =
-  TypeDecl ("Db" <> tableName) (Record props) []
+tableType :: String -> Array DbColumn -> Writer Imports TypeDecl
+tableType tableName columns = do
+  props <- for columns col
+  pure $ TypeDecl ("Db" <> tableName) (Record props) []
   where
-    props = columns <#> \{ columnName, dataType, domainName, isNullable } ->
-      let baseType = maybe
-                     (dbNameToType dataType)
-                      -- TODO Need proper external reference
-                      (Ref emptyPos <<< ("Domains." <> _))
-                      domainName
-          optioned =
+    col :: DbColumn -> Writer Imports RecordProp
+    col { columnName, dataType, domainName, isNullable } = do
+      baseType <- maybe (pure $ dbNameToType dataType) domain domainName
+      let optioned =
             if isNullable == "YES"
               then Option baseType
               else baseType
-      in RecordProp columnName optioned
+      pure $ RecordProp columnName optioned
+
+domain :: String -> Writer Imports Type
+domain name = do
+  tell [ Import { mod: "Domains", typ: name } ]
+  pure $ (Ref emptyPos ("Domains." <> name))
+
 
 dbNameToType :: String -> Type
 dbNameToType = Primitive <<< case _ of
