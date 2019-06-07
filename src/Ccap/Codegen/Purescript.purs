@@ -7,7 +7,7 @@ import Prelude
 
 import Ccap.Codegen.Annotations (getWrapOpts)
 import Ccap.Codegen.Shared (Emit, OutputSpec, emit, indented)
-import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Import(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Monad.Writer (runWriter, tell)
 import Data.Array ((:))
 import Data.Array as Array
@@ -25,8 +25,9 @@ prettyPrint module_ modules =
 
 oneModule :: String -> Module -> Box
 oneModule module_ (Module name imps decls) = vsep 1 Boxes.left do
+  let mimps = imps <#> importModule module_
   let Tuple result imports = runWriter (traverse typeDecl decls)
-      is = imports # Array.sort >>> Array.nub
+      is = (mimps <> imports) # Array.sort >>> Array.nub
   text ("module " <> module_ <> "." <> name <> " where")
     : vcat Boxes.left (is <#> \i -> text ("import " <> i))
     : result
@@ -49,6 +50,10 @@ type Extern = { prefix :: String, t :: String}
 externalType :: Extern -> Emit Box
 externalType { prefix, t } =
   emit [ prefix <> " (" <> t <> ")" ] $ text t
+
+importModule :: String -> Import -> String
+importModule package (Import { mod, typ }) =
+  package <> "." <> mod <> " (" <> typ <> ") as " <> mod
 
 splitType :: String -> Maybe Extern
 splitType s = do

@@ -11,7 +11,6 @@ import Data.Array as Array
 import Data.Array.NonEmpty (head)
 import Data.Array.NonEmpty as NonEmpty
 import Data.Maybe (maybe)
-import Data.Tuple (Tuple(..))
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
 
