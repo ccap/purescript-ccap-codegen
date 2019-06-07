@@ -70,8 +70,7 @@ typeDecl (TypeDecl name tt annots) =
       ty <- tyType t
       j <- jsonCodec t
       pure $ (dec "type" <<+>> ty)
-        // jsonCodecTypeDecl name
-        // (text "jsonCodec_" <<>> text name <<>> text " = " <<>> j)
+        // defJsonCodec name j
     Wrap t ->
       case getWrapOpts "purs" annots of
         Nothing -> do
@@ -83,24 +82,19 @@ typeDecl (TypeDecl name tt annots) =
             dec "newtype" <<+>> text name <<+>> ty
               // newtype_
               // other
-              // jsonCodecTypeDecl name
-              // (text "jsonCodec_" <<>> text name <<>> text " = " <<>> j)
+              // defJsonCodec name j
         Just { typ, wrap, unwrap } -> do
           ty <- typeRef typ
           j <- externalJsonCodec name t wrap unwrap
           pure $
             dec "type" <<+>> ty
-              // jsonCodecTypeDecl name
-              // (text "jsonCodec_" <<>> text name <<>> text " = " <<>> j)
-
+              // defJsonCodec name j
     Record props -> do
       recordDecl <- record props <#> \p -> dec "type" // indented p
       codec <- recordJsonCodec props
       pure $
         recordDecl
-          // jsonCodecTypeDecl name
-          // (text "jsonCodec_" <<>> text name <<>> text " = ")
-          // indented codec
+          // defJsonCodec name codec
     Sum vs -> do
       other <- otherInstances name
       codec <- sumJsonCodec name vs
@@ -108,9 +102,7 @@ typeDecl (TypeDecl name tt annots) =
         dec "data"
           // indented (hsep 1 Boxes.bottom $ vcat Boxes.left <$> [ Array.drop 1 vs <#> \_ -> char '|',  vs <#> text ])
           // other
-          // jsonCodecTypeDecl name
-          // (text "jsonCodec_" <<>> text name <<>> text " = ")
-          // indented codec
+          // defJsonCodec name codec
 
 sumJsonCodec :: String -> Array String -> Emit Box
 sumJsonCodec name vs = do
@@ -197,9 +189,12 @@ jsonCodec ty =
 parens :: Box -> Box
 parens b = char '(' <<>> b <<>> char ')'
 
-jsonCodecTypeDecl :: String -> Box
-jsonCodecTypeDecl name =
-  text "jsonCodec_" <<>> text name <<+>> text ":: Runtime.JsonCodec" <<+>> text name
+defJsonCodec :: String -> Box -> Box
+defJsonCodec name def =
+  let cname = "jsonCodec_" <> name
+  in text cname <<+>> text ":: Runtime.JsonCodec" <<+>> text name
+     // (text cname <<+>> char '=')
+     // indented def
 
 data DelimitedLiteralDir = Vert | Horiz
 
