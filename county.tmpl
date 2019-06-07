@@ -20,12 +20,12 @@
 //   - Record types must be given a name to be nested within a record or used
 //     in an array type.
 //
-// TODO cross-module type references, types (domains) from database, PureScript, Scala
 
 module County {
   type CountyNo: wrap int
   type CountyName: string <validations maxLength="32" xyz>
   type AssessFacilityId: wrap int
+  type SomethingMoney: wrap decimal
 
   type County: {
     countyNo: CountyNo

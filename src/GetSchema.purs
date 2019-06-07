@@ -9,7 +9,8 @@ import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Shared (OutputSpec)
 import Ccap.Codegen.Types (Module)
 import Ccap.Codegen.Util (liftEffectSafely, processResult, scrubEolSpaces)
-import Control.Monad.Except (ExceptT, except)
+import Control.Monad.Except (ExceptT)
+import Data.Array (singleton) as Array
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..), maybe)
 import Data.String as String
@@ -19,23 +20,18 @@ import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Class.Console as Console
-import Foreign.Generic (Foreign)
-import Node.Yargs.Applicative (flag, rest, runY, yarg)
+import Node.Yargs.Applicative (flag, runY, yarg)
 import Node.Yargs.Setup (usage)
 
-app :: Boolean -> String -> Array Foreign -> Effect Unit
-app domains tableParam fs = launchAff_ $ processResult do
+app :: Boolean -> String -> Effect Unit
+app domains tableParam = launchAff_ $ processResult do
   let checkString s =
         if String.length s > 0
           then Just s
           else Nothing
       table = checkString tableParam
-
-  config <- except do
-        pure { domains, table }
-
+      config = { domains, table }
   fromDb <- dbModules config
-
   processModules config fromDb
 
 dbModules :: Config -> ExceptT String Aff (Array Module)
@@ -43,16 +39,12 @@ dbModules config = do
   pool <- liftEffect $ newPool Database.poolConfiguration
   ds <-
     if config.domains
-      then do
-        d <- Database.domainModule pool
-        pure [ d ]
+      then map Array.singleton (Database.domainModule pool)
       else pure []
   ts <-
     config.table # maybe
       (pure [])
-      (\t -> do
-        t' <- Database.tableModule pool t
-        pure $ [ t' ])
+      (map Array.singleton <<< Database.tableModule pool)
   pure $ ds <> ts
 
 type Config =
@@ -71,7 +63,7 @@ writeOutput config modules outputSpec = liftEffectSafely do
 
 main :: Effect Unit
 main = do
-  let setup = usage "$0 --package <package> --mode <mode> a.tmpl"
+  let setup = usage "$0 --domains | --table <table>"
   runY setup $ app <$> flag
                         "d"
                         [ "domains" ]
@@ -82,4 +74,3 @@ main = do
                         (Just "Query the provided database table")
                         (Left "")
                         true
-                  <*> rest

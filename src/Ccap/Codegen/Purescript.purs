@@ -37,13 +37,12 @@ outputSpec package =
   , fileName: \(Module n _) -> n <> ".purs"
   }
 
-primitive :: Primitive -> Box
-primitive p = text
-  case p of
-    PBoolean -> "Boolean"
-    PInt -> "Int"
-    PDecimal -> "Number" -- ish
-    PString -> "String"
+primitive :: Primitive -> Emit Box
+primitive = case _ of
+  PBoolean -> pure (text "Boolean")
+  PInt -> pure (text "Int")
+  PDecimal -> emit [ "Data.Decimal (Decimal)" ] (text "Decimal")
+  PString -> pure (text "String")
 
 type Extern = { prefix :: String, t :: String}
 
@@ -150,7 +149,7 @@ tyType =
     wrap tycon t =
       tyType t <#> \ty -> text tycon <<+>> parens ty
   in case _ of
-    Primitive p -> pure $ primitive p
+    Primitive p -> primitive p
     Ref _ s -> typeRef s
     Array t -> wrap "Array" t
     Option t -> tell (pure "Data.Maybe (Maybe)") >>= const (wrap "Maybe" t)
