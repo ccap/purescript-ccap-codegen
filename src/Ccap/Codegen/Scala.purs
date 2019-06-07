@@ -7,7 +7,7 @@ import Prelude
 
 import Ccap.Codegen.Annotations (getWrapOpts)
 import Ccap.Codegen.Shared (OutputSpec, indented)
-import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Import(..), Imports, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array ((:))
 import Data.Array as Array
 import Data.Maybe (Maybe(..))
@@ -27,6 +27,7 @@ outputSpec package =
 oneModule :: String -> Module -> Box
 oneModule package (Module name imps decls) = vsep 1 Boxes.left do
   text ("package " <> package)
+    : imports package imps
     : text ("object " <> name <> " {")
     : (decls <#> typeDecl true >>> indented)
     `Array.snoc` text "}"
@@ -44,6 +45,13 @@ paren pref inner =
 paren1 :: Box -> Array Box -> Box
 paren1 pref inner =
   hcat Boxes.top (pref <<>> char '(' : inner `Array.snoc` char ')')
+
+imports :: String -> Imports -> Box
+imports package imps = vcat Boxes.left do
+  Import { mod } <- imps
+  -- TODO: Check for alternate package name in annotation. (if we need to import
+  --       modules from other packages)
+  pure $ text ("import " <> package <> "." <> mod)
 
 defEncoder :: String -> Box -> Box
 defEncoder name fun =
