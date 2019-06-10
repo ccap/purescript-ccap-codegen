@@ -34,7 +34,7 @@ oneModule (Module name imps decls) =
 imports :: Imports -> Box
 imports imps = vcat Boxes.left do
   mod <- imps <#> (\(Import i) -> i) # Array.sort >>> Array.nub
-  pure $ text ("// TODO: PARSE ME: import " <> mod)
+  pure $ text ("import " <> mod)
   where
     commaTypes = NonEmpty.uncons >>> \{ head, tail } ->
       Array.foldl (\s t -> s <> ", " <> t) head tail
