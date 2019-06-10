@@ -8,6 +8,7 @@ module Ccap.Codegen.Types
   , ModuleName
   , Primitive(..)
   , Type(..)
+  , TRef
   , RecordProp(..)
   , TopType(..)
   , TypeDecl(..)
@@ -45,9 +46,11 @@ data TopType
 
 data Type
   = Primitive Primitive
-  | Ref Position String
+  | Ref Position TRef
   | Array Type
   | Option Type
+
+type TRef = { mod :: Maybe ModuleName, typ :: String }
 
 data RecordProp = RecordProp String Type
 

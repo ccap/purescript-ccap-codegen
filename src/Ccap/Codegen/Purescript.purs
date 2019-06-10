@@ -84,7 +84,7 @@ typeDecl (TypeDecl name tt annots) =
               // other
               // defJsonCodec name j
         Just { typ, wrap, unwrap } -> do
-          ty <- typeRef typ
+          ty <- externalRef typ
           j <- externalJsonCodec name t wrap unwrap
           pure $
             dec "type" <<+>> ty
@@ -147,12 +147,12 @@ tyType =
       tyType t <#> \ty -> text tycon <<+>> parens ty
   in case _ of
     Primitive p -> primitive p
-    Ref _ s -> typeRef s
+    Ref _ { mod, typ } -> pure $ text (maybe "" (_ <> ".") mod <> typ)
     Array t -> wrap "Array" t
     Option t -> tell (pure "Data.Maybe (Maybe)") >>= const (wrap "Maybe" t)
 
-typeRef :: String -> Emit Box
-typeRef s = fromMaybe (text s # pure) (splitType s <#> externalType)
+externalRef :: String -> Emit Box
+externalRef s = fromMaybe (text s # pure) (splitType s <#> externalType)
 
 emitRuntime :: Box -> Emit Box
 emitRuntime b = emit [ "Ccap.Codegen.Runtime as Runtime" ] b
@@ -165,8 +165,8 @@ newtypeJsonCodec name t = do
 externalJsonCodec :: String -> Type -> String -> String -> Emit Box
 externalJsonCodec name t wrap unwrap = do
   i <- jsonCodec t
-  read <- typeRef wrap -- TODO Naming
-  write <- typeRef unwrap
+  read <- externalRef wrap -- TODO Naming
+  write <- externalRef unwrap
   emitRuntime $ text "Runtime.custom_codec" <<+>> read <<+>> write <<+>> parens i
 
 codecName :: Maybe String -> String -> String
@@ -185,7 +185,7 @@ jsonCodecS ty =
       )
     Array t -> tycon "array" t
     Option t -> tycon "maybe" t
-    Ref _ s -> codecName (Nothing {-TODO-}) s
+    Ref _ { mod, typ } -> codecName mod typ
   where
     tycon which t =
       "(" <> codecName (Just "Runtime") which <> " " <> jsonCodecS t <> ")"

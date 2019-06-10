@@ -7,14 +7,19 @@ module Ccap.Codegen.Parser
 import Prelude
 
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), TRef)
 import Control.Alt ((<|>))
 import Data.Array (fromFoldable, many, some) as Array
 import Data.Char.Unicode (isLower)
 import Data.Either (Either)
+import Data.Foldable (intercalate)
 import Data.Identity (Identity)
-import Data.List (List)
+import Data.List (List(..))
+import Data.List as List
+import Data.List.NonEmpty (NonEmptyList(..))
+import Data.List.NonEmpty as NonEmpty
 import Data.Maybe (Maybe(..))
+import Data.NonEmpty ((:|))
 import Data.String.CodeUnits (fromCharArray, singleton) as String
 import Text.Parsing.Parser (ParseError, ParserT, parseErrorMessage, parseErrorPosition, position, runParser)
 import Text.Parsing.Parser.Combinators (option, sepBy1, (<?>))
@@ -78,6 +83,13 @@ moduleOrTypeName = lexeme $ mkModuleOrTypeName <$> upper <*> Array.many alphaNum
   where mkModuleOrTypeName :: Char -> Array Char -> String
         mkModuleOrTypeName c s = String.singleton c <> String.fromCharArray s
 
+tRef :: ParserT String Identity TRef
+tRef = ado
+  parts <- moduleOrTypeName `sepBy1Nel` char '.'
+  let { init, last: typ } = NonEmpty.unsnoc parts
+  let mod = if init == Nil then Nothing else Just $ intercalate "." init
+  in { mod, typ }
+
 primitive :: String -> Primitive -> ParserT String Identity Type
 primitive s decl = reserved s <#> const (Primitive decl)
 
@@ -91,7 +103,7 @@ anyPrimitive =
 tyType :: Unit -> ParserT String Identity Type
 tyType _ =
   anyPrimitive
-    <|> (Ref <$> position <*> moduleOrTypeName)
+    <|> (Ref <$> position <*> tRef)
     <|> (reserved "array" >>= tyType <#> Array)
     <|> (reserved "optional" >>= tyType <#> Option)
 
@@ -163,3 +175,12 @@ roundTrip modules1 = do
   modules2 <- runParser prettyPrinted1 wholeFile
   let prettyPrinted2 = PrettyPrinter.prettyPrint modules2
   pure $ prettyPrinted1 == prettyPrinted2
+
+
+-- TODO: Push this upstream to purescript-parsing?
+-- | Parse phrases delimited by a separator, requiring at least one match.
+sepBy1Nel :: forall m s a sep. Monad m => ParserT s m a -> ParserT s m sep -> ParserT s m (NonEmptyList a)
+sepBy1Nel p sep = do
+  a <- p
+  as <- List.many $ sep *> p
+  pure $ NonEmptyList (a :| as)

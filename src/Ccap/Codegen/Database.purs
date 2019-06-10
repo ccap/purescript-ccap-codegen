@@ -100,7 +100,7 @@ tableType tableName columns = do
 domain :: String -> Writer Imports Type
 domain name = do
   tell [ Import { mod: "Domains", typ: name } ]
-  pure $ (Ref emptyPos ("Domains." <> name))
+  pure $ Ref emptyPos { mod: Just "Domains", typ: name }
 
 
 dbNameToType :: String -> Type

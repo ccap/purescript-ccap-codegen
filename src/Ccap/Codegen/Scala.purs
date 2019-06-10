@@ -10,7 +10,7 @@ import Ccap.Codegen.Shared (OutputSpec, indented)
 import Ccap.Codegen.Types (Import(..), Imports, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array ((:))
 import Data.Array as Array
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Text.PrettyPrint.Boxes (Box, char, hcat, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
 
@@ -102,7 +102,7 @@ tyType :: Type -> Box
 tyType =
   let wrap tycon t = text tycon <<>> char '[' <<>> tyType t <<>> char ']'
   in case _ of
-    Ref _ s -> text s
+    Ref _ { mod, typ } -> text (maybe "" (_ <> ".") mod <> typ)
     Array t -> wrap "List" t
     Option t ->  wrap "Option" t
     Primitive p -> text (case p of
@@ -116,7 +116,7 @@ encoderType :: Type -> Box
 encoderType =
   let call fun e = text fun `paren1` [ e ]
   in case _ of
-    Ref _ s -> text ("encodeJson" <> s)
+    Ref _ { mod, typ } -> text (maybe "" (_ <> ".") mod <> "encodeJson" <> typ)
     Array t -> call "argonaut.EncodeJson.ListEncodeJson" (encoderType t)
     Option t -> call "argonaut.EncodeJson.OptionEncodeJson" (encoderType t)
     Primitive p -> text (case p of

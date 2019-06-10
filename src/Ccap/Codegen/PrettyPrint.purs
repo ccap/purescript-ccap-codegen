@@ -10,7 +10,7 @@ import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import(..), Impo
 import Data.Array as Array
 import Data.Array.NonEmpty (head)
 import Data.Array.NonEmpty as NonEmpty
-import Data.Maybe (maybe)
+import Data.Maybe (Maybe(..), maybe)
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
 
@@ -92,6 +92,7 @@ recordProp (RecordProp s t) =
 tyType :: Type -> Box
 tyType = case _ of
   Primitive p -> primitive p
-  Ref _ s -> text s
+  Ref _ { mod: Nothing, typ } -> text typ
+  Ref _ { mod: Just m, typ } -> text (m <> "." <> typ)
   Array t -> text "array" <<+>> tyType t
   Option t ->  text "optional" <<+>> tyType t
