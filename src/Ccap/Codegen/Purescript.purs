@@ -11,7 +11,7 @@ import Ccap.Codegen.Types (Import(..), Module(..), Primitive(..), RecordProp(..)
 import Control.Monad.Writer (runWriter, tell)
 import Data.Array ((:))
 import Data.Array as Array
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String (Pattern(..))
 import Data.String as String
 import Data.Traversable (for, traverse)
@@ -169,29 +169,36 @@ externalJsonCodec name t wrap unwrap = do
   write <- typeRef unwrap
   emitRuntime $ text "Runtime.custom_codec" <<+>> read <<+>> write <<+>> parens i
 
-jsonCodec :: Type -> Emit Box
-jsonCodec ty =
+codecName :: Maybe String -> String -> String
+codecName mod t =
+  maybe "" (_ <> ".") mod <> "jsonCodec_" <> t
+
+jsonCodecS :: Type -> String
+jsonCodecS ty =
   case ty of
-    Primitive p ->
+    Primitive p -> codecName (Just "Runtime") (
       case p of
-        PBoolean -> emitRuntime (text "Runtime.jsonCodec_boolean")
-        PInt -> emitRuntime (text "Runtime.jsonCodec_int")
-        PDecimal -> emitRuntime (text "Runtime.jsonCodec_decimal")
-        PString -> emitRuntime (text "Runtime.jsonCodec_string")
-    Array t -> map parens (tycon "array" t)
-    Option t -> map parens (tycon "maybe" t)
-    Ref _ s -> pure $ text ("jsonCodec_" <> s)
+        PBoolean -> "boolean"
+        PInt -> "int"
+        PDecimal -> "decimal"
+        PString -> "string"
+      )
+    Array t -> tycon "array" t
+    Option t -> tycon "maybe" t
+    Ref _ s -> codecName (Nothing {-TODO-}) s
   where
-    tycon which t = do
-      inner <- jsonCodec t
-      emitRuntime $ text "Runtime.jsonCodec_" <<>> text which <<+>> inner
+    tycon which t =
+      "(" <> codecName (Just "Runtime") which <> " " <> jsonCodecS t <> ")"
+
+jsonCodec :: Type -> Emit Box
+jsonCodec = jsonCodecS >>> text >>> pure
 
 parens :: Box -> Box
 parens b = char '(' <<>> b <<>> char ')'
 
 defJsonCodec :: String -> Box -> Box
 defJsonCodec name def =
-  let cname = "jsonCodec_" <> name
+  let cname = codecName Nothing name
   in text cname <<+>> text ":: Runtime.JsonCodec" <<+>> text name
      // (text cname <<+>> char '=')
      // indented def
