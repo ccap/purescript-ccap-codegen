@@ -48,7 +48,7 @@ paren1 pref inner =
 
 imports :: String -> Imports -> Box
 imports package imps = vcat Boxes.left do
-  Import { mod } <- imps
+  Import mod <- imps
   -- TODO: Check for alternate package name in annotation. (if we need to import
   --       modules from other packages)
   pure $ text ("import " <> package <> "." <> mod)

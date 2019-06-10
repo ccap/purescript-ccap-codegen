@@ -28,7 +28,7 @@ type ModuleName = String
 
 type Imports = Array Import -- TODO: Consider using a Set?
 
-data Import = Import { mod :: ModuleName, typ :: String }
+data Import = Import ModuleName
 
 data TypeDecl = TypeDecl String TopType Annotations
 

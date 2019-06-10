@@ -52,8 +52,8 @@ externalType { prefix, t } =
   emit [ prefix <> " (" <> t <> ")" ] $ text t
 
 importModule :: String -> Import -> String
-importModule package (Import { mod, typ }) =
-  package <> "." <> mod <> " (" <> typ <> ") as " <> mod
+importModule package (Import mod) =
+  package <> "." <> mod <> " as " <> mod
 
 splitType :: String -> Maybe Extern
 splitType s = do
