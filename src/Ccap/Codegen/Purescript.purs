@@ -231,6 +231,7 @@ recordJsonCodec props = do
     [ "Data.Argonaut.Core as Argonaut"
     , "Ccap.Codegen.Runtime as Runtime"
     , "Foreign.Object as FO"
+    , "Prelude"
     ]
   writeProps <- recordWriteProps props
   readProps <- recordReadProps props
