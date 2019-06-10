@@ -1,0 +1,40 @@
+module DbParty {
+  import Domains
+
+  type DbParty: {
+    caseNo: Domains.CaseNoT
+    countyNo: Domains.CountyNoT
+    partyNo: Domains.PartyNoT
+    isInCustody: boolean
+    isSentNotc: boolean
+    isENotice: boolean
+    isSeal: boolean
+    lastAddrSeqNo: int
+    lastAliasSeqNo: Domains.AliasNoT
+    nameL: Domains.LastNameT
+    partyType: Domains.PartyTypeT
+    statusCode: Domains.StatusCodeT
+    attyNameF: optional Domains.FirstNameT
+    attyNameL: optional Domains.LastNameT
+    attyNameM: optional Domains.MiddleNameT
+    attySuffix: optional Domains.NameSuffixT
+    cpi: optional Domains.CpiT
+    defendantId: optional Domains.DefendantIdT
+    fingerPrintId: optional string
+    nameF: optional Domains.FirstNameT
+    nameM: optional Domains.MiddleNameT
+    sealSuprExpg: optional string
+    sex: optional string
+    suffix: optional Domains.NameSuffixT
+    prisonerId: optional Domains.PrisonerIdT
+    eAccountNo: optional Domains.EAccountNoT
+    isAddrSealed: Domains.BooleanT
+    preferredLanguage: Domains.LanguageCodeT
+    stateId: optional Domains.StateIdT
+    isParticipantProtection: Domains.BooleanT
+    isEFilingFeePaid: Domains.BooleanT
+    isCourtAppointed: Domains.BooleanT
+    prosAgencyNo: optional Domains.ProsAgencyNoT
+    needsAddlSecurity: Domains.BooleanT
+  }
+}
