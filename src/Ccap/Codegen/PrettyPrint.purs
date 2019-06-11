@@ -6,9 +6,10 @@ module Ccap.Codegen.PrettyPrint
 import Prelude
 
 import Ccap.Codegen.Shared (OutputSpec)
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import(..), Imports, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array as Array
-import Data.Maybe (maybe)
+import Data.Array.NonEmpty as NonEmpty
+import Data.Maybe (Maybe(..), maybe)
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
 
@@ -19,14 +20,24 @@ prettyPrint modules =
 outputSpec :: OutputSpec
 outputSpec =
   { render: render <<< oneModule
-  , fileName: \(Module n _) -> n <> ".tmpl"
+  , fileName: \(Module n _ _) -> n <> ".tmpl"
   }
 
 oneModule :: Module -> Box
-oneModule (Module name decls) =
+oneModule (Module name imps decls) =
   text ("module " <> name <> " {")
+    // indented (imports imps)
+    // text ""
     // indentedList (decls <#> typeDecl)
     // text "}"
+
+imports :: Imports -> Box
+imports imps = vcat Boxes.left do
+  mod <- imps <#> (\(Import i) -> i) # Array.sort >>> Array.nub
+  pure $ text ("import " <> mod)
+  where
+    commaTypes = NonEmpty.uncons >>> \{ head, tail } ->
+      Array.foldl (\s t -> s <> ", " <> t) head tail
 
 primitive :: Primitive -> Box
 primitive p = text
@@ -77,6 +88,7 @@ recordProp (RecordProp s t) =
 tyType :: Type -> Box
 tyType = case _ of
   Primitive p -> primitive p
-  Ref _ s -> text s
+  Ref _ { mod: Nothing, typ } -> text typ
+  Ref _ { mod: Just m, typ } -> text (m <> "." <> typ)
   Array t -> text "array" <<+>> tyType t
   Option t ->  text "optional" <<+>> tyType t

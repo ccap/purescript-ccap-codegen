@@ -7,10 +7,10 @@ import Prelude
 
 import Ccap.Codegen.Annotations (getWrapOpts)
 import Ccap.Codegen.Shared (OutputSpec, indented)
-import Ccap.Codegen.Types (Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Import(..), Imports, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array ((:))
 import Data.Array as Array
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Text.PrettyPrint.Boxes (Box, char, hcat, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
 
@@ -21,12 +21,13 @@ prettyPrint package modules =
 outputSpec :: String -> OutputSpec
 outputSpec package =
   { render: render <<< oneModule package
-  , fileName: \(Module n _) -> n <> ".scala"
+  , fileName: \(Module n _ _) -> n <> ".scala"
   }
 
 oneModule :: String -> Module -> Box
-oneModule package (Module name decls) = vsep 1 Boxes.left do
+oneModule package (Module name imps decls) = vsep 1 Boxes.left do
   text ("package " <> package)
+    : imports package imps
     : text ("object " <> name <> " {")
     : (decls <#> typeDecl true >>> indented)
     `Array.snoc` text "}"
@@ -44,6 +45,13 @@ paren pref inner =
 paren1 :: Box -> Array Box -> Box
 paren1 pref inner =
   hcat Boxes.top (pref <<>> char '(' : inner `Array.snoc` char ')')
+
+imports :: String -> Imports -> Box
+imports package imps = vcat Boxes.left do
+  Import mod <- imps
+  -- TODO: Check for alternate package name in annotation. (if we need to import
+  --       modules from other packages)
+  pure $ text ("import " <> package <> "." <> mod)
 
 defEncoder :: String -> Box -> Box
 defEncoder name fun =
@@ -94,7 +102,7 @@ tyType :: Type -> Box
 tyType =
   let wrap tycon t = text tycon <<>> char '[' <<>> tyType t <<>> char ']'
   in case _ of
-    Ref _ s -> text s
+    Ref _ { mod, typ } -> text (maybe "" (_ <> ".") mod <> typ)
     Array t -> wrap "List" t
     Option t ->  wrap "Option" t
     Primitive p -> text (case p of
@@ -108,7 +116,7 @@ encoderType :: Type -> Box
 encoderType =
   let call fun e = text fun `paren1` [ e ]
   in case _ of
-    Ref _ s -> text ("encodeJson" <> s)
+    Ref _ { mod, typ } -> text (maybe "" (_ <> ".") mod <> "encodeJson" <> typ)
     Array t -> call "argonaut.EncodeJson.ListEncodeJson" (encoderType t)
     Option t -> call "argonaut.EncodeJson.OptionEncodeJson" (encoderType t)
     Primitive p -> text (case p of
