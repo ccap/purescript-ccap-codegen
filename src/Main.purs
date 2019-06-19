@@ -16,9 +16,11 @@ import Control.Monad.Except (ExceptT(..), except, runExcept, withExceptT)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
+import Data.Foldable (any)
 import Data.Functor.Compose (Compose(..))
 import Data.Maybe (Maybe(..), maybe)
 import Data.String as String
+import Data.String.Utils (startsWith) as String.Utils
 import Data.Traversable (for_, scanl, traverse)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
@@ -55,8 +57,10 @@ app strMode package outputDirectoryParam fs = launchAff_ $ processResult do
         (pure unit)
         (Sync.mkdir d)
 
+  let all = fileModules >>= \(Tuple fileName modules) -> modules
+
   for_ fileModules \(Tuple fileName modules) ->
-    processModules config fileName modules
+    processModules config fileName modules all
 
 data Mode
   = Pretty
@@ -93,12 +97,12 @@ processFile config fileName = do
                 $ Sync.readTextFile UTF8 fileName
   except $ lmap (errorMessage fileName) (map (Tuple fileName) (runParser contents wholeFile))
 
-processModules :: Config -> String -> Array Module -> ExceptT String Aff Unit
-processModules config fileName modules = do
+processModules :: Config -> String -> Array Module -> Array Module -> ExceptT String Aff Unit
+processModules config fileName modules all = do
   case config.mode of
     Pretty -> writeOutput config modules PrettyPrint.outputSpec
     Purs -> writeOutput config modules (Purescript.outputSpec config.package)
-    Scala -> writeOutput config modules (Scala.outputSpec config.package)
+    Scala -> writeOutput config modules (Scala.outputSpec config.package all)
     Show -> Console.info $ show modules
     Test -> do
       b <- except $ lmap (errorMessage fileName) (roundTrip modules)
@@ -128,13 +132,15 @@ writeOutput config modules outputSpec = liftEffectSafely do
       (writeOutput_ mod))
   where
     writeOutput_ :: Module -> Array String -> Effect Unit
-    writeOutput_ mod dir =
+    writeOutput_ mod dir = do
+      Console.info $ "Writing " <> (String.joinWith "/" filePath)
       Sync.writeTextFile
         UTF8
         (String.joinWith "/" filePath)
         (scrubEolSpaces <<< outputSpec.render $ mod)
       where
         filePath = Array.snoc dir (outputSpec.fileName mod)
+        isRoot = any (String.Utils.startsWith "/") config.outputDirectory
 
 main :: Effect Unit
 main = do

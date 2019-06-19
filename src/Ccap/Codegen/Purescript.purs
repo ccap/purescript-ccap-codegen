@@ -1,12 +1,11 @@
 module Ccap.Codegen.Purescript
   ( outputSpec
-  , prettyPrint
   ) where
 
 import Prelude
 
 import Ccap.Codegen.Annotations (getWrapOpts)
-import Ccap.Codegen.Shared (Emit, OutputSpec, emit, indented)
+import Ccap.Codegen.Shared (DelimitedLiteralDir(..), Emit, OutputSpec, delimitedLiteral, emit, indented)
 import Ccap.Codegen.Types (Import(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Monad.Writer (runWriter, tell)
 import Data.Array ((:))
@@ -16,12 +15,8 @@ import Data.String (Pattern(..))
 import Data.String as String
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(..))
-import Text.PrettyPrint.Boxes (Box, char, hcat, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
-import Text.PrettyPrint.Boxes (bottom, left, top) as Boxes
-
-prettyPrint :: String -> Array Module -> String
-prettyPrint module_ modules =
-  render $ vsep 1 Boxes.left (modules <#> oneModule module_)
+import Text.PrettyPrint.Boxes (Box, char, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
+import Text.PrettyPrint.Boxes (bottom, left) as Boxes
 
 oneModule :: String -> Module -> Box
 oneModule module_ (Module name imps decls) = vsep 1 Boxes.left do
@@ -202,21 +197,6 @@ defJsonCodec name def =
   in text cname <<+>> text ":: Runtime.JsonCodec" <<+>> text name
      // (text cname <<+>> char '=')
      // indented def
-
-data DelimitedLiteralDir = Vert | Horiz
-
-delimitedLiteral
-  :: DelimitedLiteralDir
-  -> Char
-  -> Char
-  -> Array Box
-  -> Box
-delimitedLiteral dir l r boxes =
-  let all = (Array.take 1 boxes <#> (char l <<+>> _))
-                  <> (Array.drop 1 boxes <#> (char ',' <<+>> _))
-  in case dir of
-       Vert -> vcat Boxes.left (all <> [ char r ])
-       Horiz -> hcat Boxes.top (all <> [ char ' ' <<>> char r ])
 
 record :: Array RecordProp -> Emit Box
 record props = do
