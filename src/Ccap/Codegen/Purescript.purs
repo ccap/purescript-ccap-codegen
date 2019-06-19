@@ -78,9 +78,9 @@ typeDecl (TypeDecl name tt annots) =
               // newtype_
               // other
               // defJsonCodec name j
-        Just { typ, wrap, unwrap } -> do
+        Just { typ, decode, encode } -> do
           ty <- externalRef typ
-          j <- externalJsonCodec name t wrap unwrap
+          j <- externalJsonCodec name t decode encode
           pure $
             dec "type" <<+>> ty
               // defJsonCodec name j
@@ -104,16 +104,16 @@ sumJsonCodec name vs = do
   tell
     [ "Data.Either (Either(..))"
     ]
-  let write = text "write: case _ of"
-                // indented (branches writeBranch)
-      read = text "read: case _ of"
-                // indented (branches readBranch // fallthrough)
+  let encode = text "encode: case _ of"
+                // indented (branches encodeBranch)
+      decode = text "decode: case _ of"
+                // indented (branches decodeBranch // fallthrough)
   pure $ text "Runtime.composeCodec"
-          // indented (delimitedLiteral Vert '{' '}' [ read, write ] // text "Runtime.jsonCodec_string")
+          // indented (delimitedLiteral Vert '{' '}' [ decode, encode ] // text "Runtime.jsonCodec_string")
   where
     branches branch = vcat Boxes.left (vs <#> branch)
-    writeBranch v = text v <<+>> text "->" <<+>> text (show v)
-    readBranch v = text (show v) <<+>> text "-> Right" <<+>> text v
+    encodeBranch v = text v <<+>> text "->" <<+>> text (show v)
+    decodeBranch v = text (show v) <<+>> text "-> Right" <<+>> text v
     fallthrough = text $ "s -> Left $ \"Invalid value \" <> show s <> \" for " <> name <> "\""
 
 newtypeInstances :: String -> Emit Box
@@ -158,11 +158,11 @@ newtypeJsonCodec name t = do
   emitRuntime $ text "Runtime.codec_newtype" <<+>> parens i
 
 externalJsonCodec :: String -> Type -> String -> String -> Emit Box
-externalJsonCodec name t wrap unwrap = do
+externalJsonCodec name t decode encode = do
   i <- jsonCodec t
-  read <- externalRef wrap -- TODO Naming
-  write <- externalRef unwrap
-  emitRuntime $ text "Runtime.custom_codec" <<+>> read <<+>> write <<+>> parens i
+  decode_ <- externalRef decode
+  encode_ <- externalRef encode
+  emitRuntime $ text "Runtime.custom_codec" <<+>> decode_ <<+>> encode_ <<+>> parens i
 
 codecName :: Maybe String -> String -> String
 codecName mod t =
@@ -213,31 +213,31 @@ recordJsonCodec props = do
     , "Foreign.Object as FO"
     , "Prelude"
     ]
-  writeProps <- recordWriteProps props
-  readProps <- recordReadProps props
-  let write = text "write: \\p -> Argonaut.fromObject $"
+  encodeProps <- recordWriteProps props
+  decodeProps <- recordReadProps props
+  let encode = text "encode: \\p -> Argonaut.fromObject $"
                 // indented
                       (text "FO.fromFoldable"
-                        // indented writeProps)
+                        // indented encodeProps)
       names = props <#> \(RecordProp name _) -> text name
-      read = text "read: \\j -> do"
+      decode = text "decode: \\j -> do"
               // indented
                     (text "o <- Runtime.obj j"
-                      // readProps
+                      // decodeProps
                       // (text "pure" <<+>> delimitedLiteral Horiz '{' '}' names))
-  pure $ delimitedLiteral Vert '{' '}' [ read, write ]
+  pure $ delimitedLiteral Vert '{' '}' [ decode, encode ]
 
 recordWriteProps :: Array RecordProp -> Emit Box
 recordWriteProps props = do
   types <- for props (\(RecordProp name t) -> do
     x <- jsonCodec t
-    pure $ text "Tuple" <<+>> text (show name) <<+>> parens (x <<>> text ".write p." <<>> text name))
+    pure $ text "Tuple" <<+>> text (show name) <<+>> parens (x <<>> text ".encode p." <<>> text name))
   pure $ delimitedLiteral Vert '[' ']' types
 
 recordReadProps :: Array RecordProp -> Emit Box
 recordReadProps props = do
   lines <- for props (\(RecordProp name t) -> do
     x <- jsonCodec t
-    pure $ text name <<+>> text "<- Runtime.readProperty"
+    pure $ text name <<+>> text "<- Runtime.decodeProperty"
               <<+>> text (show name) <<+>> x <<+>> text "o")
   pure $ vcat Boxes.left lines

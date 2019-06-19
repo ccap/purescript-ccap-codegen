@@ -52,7 +52,8 @@ domainModule pool = withExceptT show $ withConnection pool \conn -> do
           select domain_name, data_type, character_maximum_length
           from information_schema.domains
           where domain_schema = 'public' and
-                  data_type in ('numeric', 'character varying', 'integer', 'smallint', 'text', 'boolean')
+                  data_type in ('numeric', 'character varying', 'integer', 'smallint', 'text', 'boolean') and
+                  domain_name <> 'BatchIDT'
           """
 
 type DbColumn =

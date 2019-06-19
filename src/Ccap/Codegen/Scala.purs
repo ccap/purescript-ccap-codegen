@@ -6,7 +6,7 @@ import Prelude
 
 import Ccap.Codegen.Annotations (getWrapOpts)
 import Ccap.Codegen.Shared (DelimitedLiteralDir(..), ExtraImports, OutputSpec, delimitedLiteral, indented)
-import Ccap.Codegen.Types (Import(..), Imports, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Imports, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Monad.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.State (State, evalState, get)
 import Data.Array ((:))
@@ -75,7 +75,8 @@ imports package imps = do
   extra <- get
   -- TODO: Check for alternate package name in annotation. (if we need to import
   --       modules from other packages)
-  let all = ((imps <#> \(Import s) -> package <> "." <> s) <> extra) # Array.sort >>> Array.nub
+  -- let all = ((imps <#> \(Import s) -> package <> "." <> s) <> extra) # Array.sort >>> Array.nub
+  let all = extra # Array.sort >>> Array.nub
   pure $ vcat Boxes.left (all <#> \s -> text ("import " <> s))
 
 defEncoder :: String -> Box -> Box
@@ -120,11 +121,11 @@ typeDecl (TypeDecl name tt an) =
             , defEncoder name (encoder t <<>> text ".tagged")
             , defDecoder name d (decoder t <<>> text ".tagged")
             ]
-        Just { typ, wrap, unwrap } -> do
-          wrappedDecoder <- wrapDecoder name t (text wrap <<>> text ".disjunction")
+        Just { typ, decode, encode } -> do
+          wrappedDecoder <- wrapDecoder name t (text decode <<>> text ".disjunction")
           pure $
             text "type" <<+>> text name <<+>> char '=' <<+>> text typ
-              // wrapEncoder name t (text unwrap)
+              // wrapEncoder name t (text encode)
               // wrappedDecoder
     Record props ->
       let
