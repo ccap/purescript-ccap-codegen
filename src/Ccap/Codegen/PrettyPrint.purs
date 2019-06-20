@@ -20,16 +20,21 @@ prettyPrint modules =
 outputSpec :: OutputSpec
 outputSpec =
   { render: render <<< oneModule
-  , fileName: \(Module n _ _) -> n <> ".tmpl"
+  , filePath: \(Module n _ _ _) -> n <> ".tmpl"
   }
 
 oneModule :: Module -> Box
-oneModule (Module name imps decls) =
-  text ("module " <> name <> " {")
+oneModule (Module name imps decls annots) =
+  text ("module " <> name) <<+>> trailingSpace (annots <#> annotation) <<>> text "{"
     // indented (imports imps)
     // text ""
     // indentedList (decls <#> typeDecl)
     // text "}"
+
+trailingSpace :: Array Box -> Box
+trailingSpace boxes =
+  hsep 1 Boxes.top boxes <<>>
+    if Array.length boxes > 0 then char ' ' else emptyBox 0 0
 
 imports :: Imports -> Box
 imports imps = vcat Boxes.left do
@@ -68,7 +73,7 @@ typeDecl (TypeDecl name tt annots) =
           // text "}"
       Sum vs ->
         dec <<+>> char '['
-          // indented (vcat Boxes.left (vs <#> (\x -> text "| " <<+>> text x)))
+          // indented (vcat Boxes.left (vs <#> (\x -> char '|' <<+>> text x)))
           // char ']'
   in ty // indentedList (annots <#> annotation)
 

@@ -4,51 +4,51 @@ module Ccap.Codegen.Scala
 
 import Prelude
 
-import Ccap.Codegen.Annotations (getWrapOpts)
-import Ccap.Codegen.Shared (DelimitedLiteralDir(..), ExtraImports, OutputSpec, delimitedLiteral, indented)
-import Ccap.Codegen.Types (Imports, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), isRecord)
+import Ccap.Codegen.Annotations (getMaxLength, getWrapOpts, field) as Annotations
+import Ccap.Codegen.Shared (Codegen, DelimitedLiteralDir(..), ExtraImports, OutputSpec, delimitedLiteral, indented, runCodegen)
+import Ccap.Codegen.Types (Annotations, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), isRecord)
 import Control.Alt ((<|>))
-import Control.Monad.Reader (ReaderT, ask, asks, runReaderT)
-import Control.Monad.State (State, evalState, get)
+import Control.Monad.Reader (ask, asks)
 import Data.Array ((:))
 import Data.Array as Array
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
-import Data.Traversable (traverse)
+import Data.String (Pattern(..), Replacement(..), replaceAll) as String
+import Data.Traversable (for, traverse)
+import Data.Tuple (Tuple(..))
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hcat, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
 
-type Env =
-  { allModules :: Array Module
-  , currentModule :: Module
-  }
-
-type Codegen = ReaderT Env (State ExtraImports)
-
-runCodegen :: forall a. Module -> Array Module -> Codegen a -> a
-runCodegen currentModule allModules c =
-  evalState (runReaderT c { allModules, currentModule }) []
-
 outputSpec :: String -> Array Module -> OutputSpec
-outputSpec package modules =
-  { render: render <<< oneModule package modules
-  , fileName: \(Module n _ _) -> n <> ".scala"
+outputSpec defaultPackage modules =
+  { render: render <<< oneModule defaultPackage modules
+  , filePath: \(Module n _ _ an) ->
+      let path = String.replaceAll
+                    (String.Pattern ".")
+                    (String.Replacement "/")
+                    (package defaultPackage an)
+      in path <> "/" <> n <> ".scala"
   }
+
+package :: String -> Annotations -> String
+package defaultPackage annots =
+  fromMaybe defaultPackage (Annotations.field "scala" "package" annots)
 
 oneModule :: String -> Array Module -> Module -> Box
-oneModule package all mod@(Module name imps decls) = runCodegen mod all do
+oneModule defaultPackage all mod@(Module name _ decls annots) = do
   let modDecl = Array.find (\(TypeDecl n tt _) -> n == name && isRecord tt) decls
-  modDeclOutput <- traverse (typeDecl TopLevelCaseClass) modDecl
-  declsOutput <- traverse (typeDecl CompanionObject) decls
-  importOutput <- imports package imps
-  pure $
-    vsep 1 Boxes.left do
-      [ text ("package " <> package)
-      , importOutput
-      ]
-        <> Array.fromFoldable modDeclOutput
-        <> [ text ("object " <> name <> " {") ]
-        <> (declsOutput <#> indented)
-        <> [ char '}']
+      env = { defaultPrefix: defaultPackage, currentModule: mod, allModules: all }
+      Tuple body extra = runCodegen env do
+        modDeclOutput <- traverse (typeDecl TopLevelCaseClass) modDecl
+        declsOutput <- traverse (typeDecl CompanionObject) decls
+        pure $
+          Array.fromFoldable modDeclOutput
+            <> [ text ("object " <> name <> " {") ]
+            <> (declsOutput <#> indented)
+            <> [ char '}']
+  vsep 1 Boxes.left do
+    [ text ("package " <> package defaultPackage annots)
+    , imports extra
+    ] <> body
 
 curly :: Box -> Array Box -> Box
 curly pref inner =
@@ -75,14 +75,10 @@ standardImports =
   , "scalaz.Monad"
   ]
 
-imports :: String -> Imports -> Codegen Box
-imports package imps = do
-  extra <- get
-  -- TODO: Check for alternate package name in annotation. (if we need to import
-  --       modules from other packages)
-  -- let all = ((imps <#> \(Import s) -> package <> "." <> s) <> extra) # Array.sort >>> Array.nub
+imports :: ExtraImports -> Box
+imports extra =
   let all = (extra <> standardImports) # Array.sort >>> Array.nub
-  pure $ vcat Boxes.left (all <#> \s -> text ("import " <> s))
+  in vcat Boxes.left (all <#> \s -> text ("import " <> s))
 
 defEncoder :: String -> Box -> Box
 defEncoder name enc =
@@ -94,14 +90,16 @@ defDecoder name dType dec =
   text ("def jsonDecoder" <> name <> "[M[_]: Monad]: Decoder." <> dType <> "[M, " <> name <> "] =")
     // indented dec
 
-wrapEncoder :: String -> Type -> Box -> Box
-wrapEncoder name t enc = defEncoder name do
-  (encoder t <<>> text ".compose") `paren` [ enc ]
+wrapEncoder :: String -> Type -> Box -> Codegen Box
+wrapEncoder name t enc = do
+  e <- encoder t
+  pure $ defEncoder name ((e <<>> text ".compose") `paren` [ enc ])
 
-wrapDecoder :: String -> Type -> Box -> Codegen Box
-wrapDecoder name t dec = do
+wrapDecoder :: Annotations -> String -> Type -> Box -> Codegen Box
+wrapDecoder annots name t dec = do
   d <- decoderType t
-  let body = (decoder t <<>> text ".disjunction.andThen") `paren` [ dec ] // text ".validation"
+  topDec <- topDecoder annots t
+  let body = (topDec <<>> text ".disjunction.andThen") `paren` [ dec ] // text ".validation"
   pure $ defDecoder name d body
 
 data TypeDeclOutputMode = TopLevelCaseClass | CompanionObject
@@ -111,44 +109,55 @@ typeDecl :: TypeDeclOutputMode -> TypeDecl -> Codegen Box
 typeDecl outputMode (TypeDecl name tt an) =
   case tt of
     Type t -> do
-      d <- decoderType t
+      dTy <- decoderType t
+      ty <- tyType Nothing t
+      e <- encoder t
+      d <- topDecoder an t
       pure $
-        text "type" <<+>> text name <<+>> char '=' <<+>> tyType Nothing t
-          // defEncoder name (encoder t)
-          // defDecoder name d (decoder t)
+        text "type" <<+>> text name <<+>> char '=' <<+>> ty
+          // defEncoder name e
+          // defDecoder name dTy d
     Wrap t -> do
-      d <- decoderType t
-      case getWrapOpts "scala" an of
-        Nothing ->
+      case Annotations.getWrapOpts "scala" an of
+        Nothing -> do
+          dTy <- decoderType t
+          ty <- tyType Nothing t
+          e <- encoder t
+          d <- topDecoder an t
           let
             tagname = text (name <> "T")
-            scalatyp = text"scalaz.@@[" <<>> tyType Nothing t <<>> char ',' <<+>> tagname <<>> char ']'
-          in pure $ vcat Boxes.left
+            scalatyp = text"scalaz.@@[" <<>> ty <<>> char ',' <<+>> tagname <<>> char ']'
+          pure $ vcat Boxes.left
             [ text "final abstract class" <<+>> tagname
             , text "type" <<+>> text name <<+>> char '=' <<+>> scalatyp
-            , defEncoder name (encoder t <<>> text ".tagged")
-            , defDecoder name d (decoder t <<>> text ".tagged")
+            , defEncoder name (e <<>> text ".tagged")
+            , defDecoder name dTy (d <<>> text ".tagged")
             ]
         Just { typ, decode, encode } -> do
-          wrappedDecoder <- wrapDecoder name t (text decode <<>> text ".disjunction")
+          wrappedEncoder <-  wrapEncoder name t (text encode)
+          wrappedDecoder <- wrapDecoder an name t (text decode <<>> text ".disjunction")
           pure $
             text "type" <<+>> text name <<+>> char '=' <<+>> text typ
-              // wrapEncoder name t (text encode)
+              // wrappedEncoder
               // wrappedDecoder
     Record props -> do
-      Module modName _ _ <- asks _.currentModule
+      Module modName _ _ _ <- asks _.currentModule
       let
         qualify =
           if modName == name && outputMode == TopLevelCaseClass
             then Just modName
             else Nothing
-        cls = (text "final case class" <<+>> text name) `paren` (recordFieldType qualify <$> props)
-        enc = defEncoder name (text "x => argonaut.Json.obj" `paren` (recordFieldEncoder <$> props))
-        decBody =
-          case Array.length props of
-            1 -> maybe (emptyBox 0 0) (singletonRecordDecoder name) (Array.head props)
-            x | x <= 12 -> smallRecordDecoder name props
-            x -> bigRecordDecoder name props
+      recordFieldTypes <- traverse (recordFieldType qualify) props
+      recordFieldEncoders <- traverse recordFieldEncoder props
+      let
+        cls = (text "final case class" <<+>> text name) `paren` recordFieldTypes
+        enc = defEncoder name (text "x => argonaut.Json.obj" `paren` recordFieldEncoders)
+      decBody <-
+        case Array.length props of
+          1 -> maybe (pure (emptyBox 0 0)) (singletonRecordDecoder name) (Array.head props)
+          x | x <= 12 -> smallRecordDecoder name props
+          x -> bigRecordDecoder name props
+      let
         dec = defDecoder name "Form" decBody
         output | modName == name && outputMode == TopLevelCaseClass = cls
         output | modName == name && outputMode == CompanionObject = enc // dec
@@ -163,53 +172,72 @@ typeDecl outputMode (TypeDecl name tt an) =
         assocs = vs <#> \v ->
           paren1 (emptyBox 0 0) [ text (show v), text ", ", text name <<>> char '.' <<>> text v ] <<>> char ','
         params = text (show name) <<>> char ',' : assocs
-        enc = wrapEncoder name (Primitive PString) (text "_.tag")
+      enc <- wrapEncoder name (Primitive PString) (text "_.tag")
       dec <- wrapDecoder
+              an
               name
               (Primitive PString)
               (((text ("Decoder.enum[M, " <> name) <<>> char ']') `paren` params) // text ".disjunction")
       pure $ trait // ((text "object" <<+>> text name) `curly` variants) // enc // dec
 
-tyType :: Maybe String -> Type -> Box
-tyType qualify ty =
-  let wrap tycon t = text tycon <<>> char '[' <<>> tyType qualify t <<>> char ']'
-  in case ty of
-    Ref _ { mod, typ } -> text (maybe "" (_ <> ".") (mod <|> qualify) <> typ)
+tyType :: Maybe String -> Type -> Codegen Box
+tyType qualify ty = do
+  allModules <- asks _.allModules
+  let wrap tycon t = do
+        ty_ <- tyType qualify t
+        pure $ text tycon <<>> char '[' <<>> ty_ <<>> char ']'
+  case ty of
+    Ref _ { mod, typ } ->
+      pure $ text (maybe "" (_ <> ".") ((mod >>= modRef allModules) <|> mod <|> qualify) <> typ)
     Array t -> wrap "List" t
     Option t ->  wrap "Option" t
-    Primitive p -> text (case p of
+    Primitive p -> pure $ text (case p of
       PBoolean -> "Boolean"
       PInt -> "Int"
       PDecimal -> "BigDecimal"
       PString -> "String"
     )
 
-encoderDecoder :: String -> Type -> Box
-encoderDecoder which ty =
-  case ty of
-    Ref _ { mod, typ } -> text (maybe "" (_ <> ".") mod <> "json" <> which <> typ)
-    Array t -> encoderDecoder which t <<>> text ".list"
-    Option t -> encoderDecoder which t <<>> text ".option"
-    Primitive p -> text (case p of
-      PBoolean -> which <> ".boolean"
-      PInt -> which <> ".int"
-      PDecimal -> which <> ".decimal"
-      PString -> which <> ".string"
-    )
+modRef :: Array Module -> String -> Maybe String
+modRef all modName = do
+  Module _ _ _ annots <- Array.find (\(Module n _ _ _) -> n == modName) all
+  p <- Annotations.field "scala" "package" annots
+  pure $ p <> "." <> modName
 
-encoder :: Type -> Box
+encoderDecoder :: String -> Type -> Codegen Box
+encoderDecoder which ty = do
+  allModules <- asks _.allModules
+  case ty of
+    Ref _ { mod, typ } ->
+      pure $ text (maybe "" (_ <> ".") ((mod >>= modRef allModules) <|> mod) <> "json" <> which <> typ)
+    Array t -> encoderDecoder which t <#> (_ <<>> text ".list")
+    Option t -> encoderDecoder which t <#> (_ <<>> text ".option")
+    Primitive p -> pure $
+      text (case p of
+        PBoolean -> which <> ".boolean"
+        PInt -> which <> ".int"
+        PDecimal -> which <> ".decimal"
+        PString -> which <> ".string"
+      )
+
+encoder :: Type -> Codegen Box
 encoder = encoderDecoder "Encoder"
 
-decoder :: Type -> Box
+decoder :: Type -> Codegen Box
 decoder = encoderDecoder "Decoder"
+
+topDecoder :: Annotations -> Type -> Codegen Box
+topDecoder annots ty = do
+  let maxLength = Annotations.getMaxLength annots
+  decoder ty <#> (_ <<>> (maybe (emptyBox 0 0) (\s -> text (".maxLength(" <> s <> ")")) maxLength))
 
 decoderType :: Type -> Codegen String
 decoderType ty =
   case ty of
     Ref _ { mod, typ } -> do
       { currentModule, allModules } <- ask
-      let external = mod >>= (\m -> Array.find (\(Module n _ _) -> n == m) allModules)
-          Module _ _ ds = fromMaybe currentModule external
+      let external = mod >>= (\m -> Array.find (\(Module n _ _ _) -> n == m) allModules)
+          Module _ _ ds _ = fromMaybe currentModule external
           tt = Array.find (\(TypeDecl n _ _) -> n == typ) ds
                 <#> (\(TypeDecl _ t _) -> t)
       maybe (pure "MISSING") decoderTopType tt
@@ -224,46 +252,59 @@ decoderTopType = case _ of
   Record _ -> pure "Form"
   Sum _ -> pure "Field"
 
-encodeType :: Type -> Box -> Box
+encodeType :: Type -> Box -> Codegen Box
 encodeType t e =
-  encoder t <<>> text ".encode" `paren1` [ e ]
+  encoder t <#> (_ <<>> text ".encode" `paren1` [ e ])
 
-recordFieldType :: Maybe String -> RecordProp -> Box
-recordFieldType qualify (RecordProp n t) =
-  text n <<>> char ':' <<+>> tyType qualify t <<>> char ','
+recordFieldType :: Maybe String -> RecordProp -> Codegen Box
+recordFieldType qualify (RecordProp n t) = do
+  ty <- tyType qualify t
+  pure $ text n <<>> char ':' <<+>> ty <<>> char ','
 
-recordFieldEncoder :: RecordProp -> Box
-recordFieldEncoder (RecordProp n t) =
-  text (show n <> " ->") <<+>> encodeType t (text ("x." <> n)) <<>> char ','
+recordFieldEncoder :: RecordProp -> Codegen Box
+recordFieldEncoder (RecordProp n t) = do
+  ty <- encodeType t (text ("x." <> n))
+  pure $ text (show n <> " ->") <<+>> ty <<>> char ','
 
-recordFieldDecoder :: RecordProp -> Box
+recordFieldDecoder :: RecordProp -> Codegen Box
 recordFieldDecoder (RecordProp n t) =
-  decoder t <<>> text ".property(" <<>> text (show n) <<>> char ')'
+  decoder t <#> (_ <<>> text ".property(" <<>> text (show n) <<>> char ')')
 
-singletonRecordDecoder :: String -> RecordProp -> Box
+singletonRecordDecoder :: String -> RecordProp -> Codegen Box
 singletonRecordDecoder name prop =
-  recordFieldDecoder prop <<>> text (".map(" <> name <> ".apply)")
+  recordFieldDecoder prop <#> (_ <<>> text (".map(" <> name <> ".apply)"))
 
-smallRecordDecoder :: String -> Array RecordProp -> Box
-smallRecordDecoder name props = paren_
-  (text ("scalaz.Apply[Decoder.Form[M, ?]].apply" <> show (Array.length props)))
-  (props <#> \r -> recordFieldDecoder r <<>> char ',')
-  (text ("(" <> name <> ".apply)"))
+smallRecordDecoder :: String -> Array RecordProp -> Codegen Box
+smallRecordDecoder name props = do
+  ps <- traverse (\r -> recordFieldDecoder r <#> (_ <<>> char ',')) props
+  pure $
+    paren_
+      (text ("scalaz.Apply[Decoder.Form[M, ?]].apply" <> show (Array.length props)))
+      ps
+      (text ("(" <> name <> ".apply)"))
 
-bigRecordDecoder :: String -> Array RecordProp -> Box
-bigRecordDecoder name props =
-  paren_
-    (text ("scalaz.Apply[Decoder.Form[M, ?]].apply" <> show (Array.length parts)))
-    (parts <#> \part ->
+bigRecordDecoder :: String -> Array RecordProp -> Codegen Box
+bigRecordDecoder name props = do
+  body <-
+    for parts \part ->
       if Array.length part == 1
         then
-          maybe (emptyBox 0 0) (\r -> recordFieldDecoder r <<>> char ',') (Array.head part)
-        else
-          (paren_
-            (text ("scalaz.Apply[Decoder.Form[M, ?]].tuple" <> show (Array.length part)))
-            (part <#> \r -> recordFieldDecoder r <<>> char ','))
-            (char ','))
-    (curly (emptyBox 0 0) [ applyAllParams ])
+          maybe
+            (pure (emptyBox 0 0))
+            (\r -> recordFieldDecoder r <#> (_ <<>> char ','))
+            (Array.head part)
+        else do
+          decs <- traverse (\r -> recordFieldDecoder r <#> (_ <<>> char ',')) part
+          pure $
+            paren_
+              (text ("scalaz.Apply[Decoder.Form[M, ?]].tuple" <> show (Array.length part)))
+              decs
+              (char ',')
+  pure $
+    paren_
+      (text ("scalaz.Apply[Decoder.Form[M, ?]].apply" <> show (Array.length parts)))
+      body
+      (curly (emptyBox 0 0) [ applyAllParams ])
   where
     parts = chunksOf 5 props
     applyAllParams =

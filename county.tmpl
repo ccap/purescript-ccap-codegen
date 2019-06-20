@@ -21,11 +21,12 @@
 //     in an array type.
 //
 
-module County {
+module County <scala package="gov.wicourts.test"> <purs modulePrefix="Ccap.Test"> {
   import Domains
 
   type CountyNo: Domains.CountyNoT
-  type CountyName: string <validations maxLength="32" xyz>
+  type CountyName: string <validations maxLength="32">
+  type OtherCountyName: wrap string <validations maxLength="32">
   type AssessFacilityId: wrap int
   type SomethingMoney: wrap decimal
 
@@ -69,6 +70,7 @@ module County {
 
   // A date, encoded per RFC 3339.
   type Date: wrap string
+    <validations maxLength="32">
     <scala
       t="org.joda.time.LocalDate"
       decode="Decoder.date"

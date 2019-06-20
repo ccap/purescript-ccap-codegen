@@ -16,11 +16,8 @@ import Control.Monad.Except (ExceptT(..), except, runExcept, withExceptT)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Foldable (any)
-import Data.Functor.Compose (Compose(..))
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String as String
-import Data.String.Utils (startsWith) as String.Utils
 import Data.Traversable (for_, scanl, traverse)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
@@ -50,12 +47,6 @@ app strMode package outputDirectoryParam fs = launchAff_ $ processResult do
         pure { mode, package, files, outputDirectory }
 
   fileModules <- traverse (processFile config) config.files
-
-  for_ (Compose $ map outputDirectories (outputPath config)) \d ->
-    liftEffectSafely do
-      ifM (Sync.exists d)
-        (pure unit)
-        (Sync.mkdir d)
 
   let all = fileModules >>= \(Tuple fileName modules) -> modules
 
@@ -101,7 +92,7 @@ processModules :: Config -> String -> Array Module -> Array Module -> ExceptT St
 processModules config fileName modules all = do
   case config.mode of
     Pretty -> writeOutput config modules PrettyPrint.outputSpec
-    Purs -> writeOutput config modules (Purescript.outputSpec config.package)
+    Purs -> writeOutput config modules (Purescript.outputSpec config.package all)
     Scala -> writeOutput config modules (Scala.outputSpec config.package all)
     Show -> Console.info $ show modules
     Test -> do
@@ -110,37 +101,46 @@ processModules config fileName modules all = do
         then Console.info "Round-trip passed"
         else except $ Left "Round-trip failed"
 
-outputPath :: Config -> Maybe (Array String)
-outputPath config =
-  config.outputDirectory <#> \o ->
-    let packagePath = String.replaceAll
-          (String.Pattern ".")
-          (String.Replacement "/")
-          config.package
-    in Array.filter
-        (\s -> String.length s > 0)
-        (String.split (String.Pattern "/") (o <> "/" <> packagePath))
-
-outputDirectories :: Array String -> Array String
-outputDirectories = scanl (\b a -> if b == "" then a else b <> "/" <> a) ""
-
 writeOutput :: Config -> Array Module -> OutputSpec -> ExceptT String Aff Unit
-writeOutput config modules outputSpec = liftEffectSafely do
+writeOutput config modules outputSpec = do
   for_ modules (\mod ->
-    outputPath config # maybe
+    config.outputDirectory # maybe
       (Console.info <<< scrubEolSpaces <<< outputSpec.render $ mod)
       (writeOutput_ mod))
   where
-    writeOutput_ :: Module -> Array String -> Effect Unit
+    writeOutput_ :: Module -> String -> ExceptT String Aff Unit
     writeOutput_ mod dir = do
-      Console.info $ "Writing " <> (String.joinWith "/" filePath)
-      Sync.writeTextFile
+      let outputFile = String.joinWith "/" filePath
+      Console.info $ "Writing " <> outputFile
+      ensureDirectoryExists outputFile
+      liftEffectSafely $ Sync.writeTextFile
         UTF8
-        (String.joinWith "/" filePath)
+        outputFile
         (scrubEolSpaces <<< outputSpec.render $ mod)
       where
-        filePath = Array.snoc dir (outputSpec.fileName mod)
-        isRoot = any (String.Utils.startsWith "/") config.outputDirectory
+        filePath = [ dir, (outputSpec.filePath mod) ]
+
+ensureDirectoryExists :: String -> ExceptT String Aff Unit
+ensureDirectoryExists filePath =
+  dirPath filePath # maybe (pure unit) \dir -> do
+    let parts = Array.filter (not <<< String.null) (String.split (String.Pattern "/") dir)
+    for_ (outputDirectories (String.take 1 filePath == "/") parts) \d ->
+      liftEffectSafely do
+        ifM (Sync.exists d)
+          (pure unit)
+          (Sync.mkdir d)
+  where
+    dirPath :: String -> Maybe String
+    dirPath p =
+      let idx = String.lastIndexOf (String.Pattern "/") p
+      in map (flip String.take filePath) idx
+
+    outputDirectories :: Boolean -> Array String -> Array String
+    outputDirectories rootPath parts =
+      scanl
+        (\b a -> if b == "" then a else b <> "/" <> a)
+        ""
+        (if rootPath then fromMaybe parts (Array.modifyAt 0 ("/" <> _) parts) else parts)
 
 main :: Effect Unit
 main = do

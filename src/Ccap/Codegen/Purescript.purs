@@ -4,36 +4,48 @@ module Ccap.Codegen.Purescript
 
 import Prelude
 
+import Ccap.Codegen.Annotations (field) as Annotations
 import Ccap.Codegen.Annotations (getWrapOpts)
-import Ccap.Codegen.Shared (DelimitedLiteralDir(..), Emit, OutputSpec, delimitedLiteral, emit, indented)
-import Ccap.Codegen.Types (Import(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
-import Control.Monad.Writer (runWriter, tell)
+import Ccap.Codegen.Shared (Codegen, DelimitedLiteralDir(..), OutputSpec, delimitedLiteral, emit, indented, runCodegen)
+import Ccap.Codegen.Types (Annotations, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Control.Apply (lift2)
+import Control.Monad.Reader (ask)
+import Control.Monad.Writer (tell)
 import Data.Array ((:))
 import Data.Array as Array
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String (Pattern(..))
 import Data.String as String
-import Data.Traversable (for, traverse)
+import Data.Traversable (for, for_, traverse)
 import Data.Tuple (Tuple(..))
 import Text.PrettyPrint.Boxes (Box, char, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (bottom, left) as Boxes
 
-oneModule :: String -> Module -> Box
-oneModule module_ (Module name imps decls) = vsep 1 Boxes.left do
-  let mimps = imps <#> importModule module_
-  let Tuple result imports = runWriter (traverse typeDecl decls)
-      is = (mimps <> imports) # Array.sort >>> Array.nub
-  text ("module " <> module_ <> "." <> name <> " where")
+oneModule :: String -> Array Module -> Module -> Box
+oneModule defaultModulePrefix all mod@(Module name _ decls annots) = vsep 1 Boxes.left do
+  let env = { defaultPrefix: defaultModulePrefix, currentModule: mod, allModules: all }
+  let Tuple body imports = runCodegen env (traverse typeDecl decls)
+      is = imports # Array.sort >>> Array.nub
+  text ("module " <> modulePrefix defaultModulePrefix annots <> "." <> name <> " where")
     : vcat Boxes.left (is <#> \i -> text ("import " <> i))
-    : result
+    : body
 
-outputSpec :: String -> OutputSpec
-outputSpec package =
-  { render: render <<< oneModule package
-  , fileName: \(Module n _ _) -> n <> ".purs"
+outputSpec :: String -> Array Module -> OutputSpec
+outputSpec defaultModulePrefix modules =
+  { render: render <<< oneModule defaultModulePrefix modules
+  , filePath: \(Module n _ _ an) ->
+      let path = String.replaceAll
+                    (String.Pattern ".")
+                    (String.Replacement "/")
+                    (modulePrefix defaultModulePrefix an)
+      in path <> "/" <> n <> ".purs"
   }
 
-primitive :: Primitive -> Emit Box
+modulePrefix :: String -> Annotations -> String
+modulePrefix defaultPrefix annots =
+  fromMaybe defaultPrefix (Annotations.field "purs" "modulePrefix" annots)
+
+primitive :: Primitive -> Codegen Box
 primitive = case _ of
   PBoolean -> pure (text "Boolean")
   PInt -> pure (text "Int")
@@ -42,12 +54,12 @@ primitive = case _ of
 
 type Extern = { prefix :: String, t :: String}
 
-externalType :: Extern -> Emit Box
+externalType :: Extern -> Codegen Box
 externalType { prefix, t } =
   emit [ prefix <> " (" <> t <> ")" ] $ text t
 
-importModule :: String -> Import -> String
-importModule package (Import mod) =
+importModule :: String -> String -> String
+importModule package mod =
   package <> "." <> mod <> " as " <> mod
 
 splitType :: String -> Maybe Extern
@@ -57,7 +69,7 @@ splitType s = do
   let t = String.drop (i + 1) s
   pure $ { prefix, t }
 
-typeDecl :: TypeDecl -> Emit Box
+typeDecl :: TypeDecl -> Codegen Box
 typeDecl (TypeDecl name tt annots) =
   let dec kw = text kw <<+>> text name <<+>> char '='
   in case tt of
@@ -99,7 +111,7 @@ typeDecl (TypeDecl name tt annots) =
           // other
           // defJsonCodec name codec
 
-sumJsonCodec :: String -> Array String -> Emit Box
+sumJsonCodec :: String -> Array String -> Codegen Box
 sumJsonCodec name vs = do
   tell
     [ "Data.Either (Either(..))"
@@ -116,13 +128,13 @@ sumJsonCodec name vs = do
     decodeBranch v = text (show v) <<+>> text "-> Right" <<+>> text v
     fallthrough = text $ "s -> Left $ \"Invalid value \" <> show s <> \" for " <> name <> "\""
 
-newtypeInstances :: String -> Emit Box
+newtypeInstances :: String -> Codegen Box
 newtypeInstances name =
   emit
     [ "Data.Newtype (class Newtype)" ]
     $ text ("derive instance newtype" <> name <> " :: Newtype " <> name <> " _")
 
-otherInstances :: String -> Emit Box
+otherInstances :: String -> Codegen Box
 otherInstances name =
   emit
     [ "Prelude"
@@ -135,29 +147,38 @@ otherInstances name =
         // text ("instance show" <> name <> " :: Show " <> name <> " where")
         // indented (text "show a = genericShow a")
 
-tyType :: Type -> Emit Box
+tyType :: Type -> Codegen Box
 tyType =
   let
     wrap tycon t =
       tyType t <#> \ty -> text tycon <<+>> parens ty
   in case _ of
     Primitive p -> primitive p
-    Ref _ { mod, typ } -> pure $ text (maybe "" (_ <> ".") mod <> typ)
+    Ref _ { mod, typ } -> do
+      { defaultPrefix, allModules } <- ask
+      let prefix = mod <#> \m -> fromMaybe defaultPrefix (modPrefix allModules m)
+      for_ (lift2 importModule prefix mod) \s -> tell [ s ]
+      pure $ text (maybe "" (_ <> ".") mod <> typ)
     Array t -> wrap "Array" t
     Option t -> tell (pure "Data.Maybe (Maybe)") >>= const (wrap "Maybe" t)
 
-externalRef :: String -> Emit Box
+modPrefix :: Array Module -> String -> Maybe String
+modPrefix all modName = do
+  Module _ _ _ annots <- Array.find (\(Module n _ _ _) -> n == modName) all
+  Annotations.field "purs" "modulePrefix" annots
+
+externalRef :: String -> Codegen Box
 externalRef s = fromMaybe (text s # pure) (splitType s <#> externalType)
 
-emitRuntime :: Box -> Emit Box
+emitRuntime :: Box -> Codegen Box
 emitRuntime b = emit [ "Ccap.Codegen.Runtime as Runtime" ] b
 
-newtypeJsonCodec :: String -> Type -> Emit Box
+newtypeJsonCodec :: String -> Type -> Codegen Box
 newtypeJsonCodec name t = do
   i <- jsonCodec t
   emitRuntime $ text "Runtime.codec_newtype" <<+>> parens i
 
-externalJsonCodec :: String -> Type -> String -> String -> Emit Box
+externalJsonCodec :: String -> Type -> String -> String -> Codegen Box
 externalJsonCodec name t decode encode = do
   i <- jsonCodec t
   decode_ <- externalRef decode
@@ -185,7 +206,7 @@ jsonCodecS ty =
     tycon which t =
       "(" <> codecName (Just "Runtime") which <> " " <> jsonCodecS t <> ")"
 
-jsonCodec :: Type -> Emit Box
+jsonCodec :: Type -> Codegen Box
 jsonCodec = jsonCodecS >>> text >>> pure
 
 parens :: Box -> Box
@@ -198,14 +219,14 @@ defJsonCodec name def =
      // (text cname <<+>> char '=')
      // indented def
 
-record :: Array RecordProp -> Emit Box
+record :: Array RecordProp -> Codegen Box
 record props = do
   tell [ "Data.Tuple (Tuple(..))" ]
   types <- (\(RecordProp _ t) -> tyType t) `traverse` props
   let labels = props <#> \(RecordProp name _) -> text name <<+>> text "::"
   pure $ delimitedLiteral Vert '{' '}' (Array.zip labels types <#> \(Tuple l t) -> l <<+>> t)
 
-recordJsonCodec :: Array RecordProp -> Emit Box
+recordJsonCodec :: Array RecordProp -> Codegen Box
 recordJsonCodec props = do
   tell
     [ "Data.Argonaut.Core as Argonaut"
@@ -227,14 +248,14 @@ recordJsonCodec props = do
                       // (text "pure" <<+>> delimitedLiteral Horiz '{' '}' names))
   pure $ delimitedLiteral Vert '{' '}' [ decode, encode ]
 
-recordWriteProps :: Array RecordProp -> Emit Box
+recordWriteProps :: Array RecordProp -> Codegen Box
 recordWriteProps props = do
   types <- for props (\(RecordProp name t) -> do
     x <- jsonCodec t
     pure $ text "Tuple" <<+>> text (show name) <<+>> parens (x <<>> text ".encode p." <<>> text name))
   pure $ delimitedLiteral Vert '[' ']' types
 
-recordReadProps :: Array RecordProp -> Emit Box
+recordReadProps :: Array RecordProp -> Codegen Box
 recordReadProps props = do
   lines <- for props (\(RecordProp name t) -> do
     x <- jsonCodec t

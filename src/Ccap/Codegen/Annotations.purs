@@ -1,5 +1,7 @@
 module Ccap.Codegen.Annotations
-  ( getWrapOpts
+  ( getMaxLength
+  , getWrapOpts
+  , field
   ) where
 
 import Prelude
@@ -22,3 +24,6 @@ getWrapOpts lang an =
     decode <- f "decode" <|> pure ""
     encode <- f "encode" <|> pure ""
     pure { typ, decode, encode }
+
+getMaxLength :: Annotations -> Maybe String
+getMaxLength = field "validations" "maxLength"

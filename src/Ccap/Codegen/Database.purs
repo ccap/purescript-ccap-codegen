@@ -45,7 +45,7 @@ domainModule pool = withExceptT show $ withConnection pool \conn -> do
                           ])
                         maxLen
                 in TypeDecl domainName (Wrap (dbNameToType dataType)) annots)
-  pure $ Module "Domains" [] types
+  pure $ Module "Domains" [] types []
   where
     -- TODO Support other types (date/time types in particular)
     sql = """
@@ -67,7 +67,7 @@ tableModule :: Pool -> String -> ExceptT String Aff Module
 tableModule pool tableName = withExceptT show $ withConnection pool \conn -> do
   columns <- queryColumns tableName conn
   let Tuple decl imps = runWriter $ tableType tableName columns
-  pure $ Module ("Db" <> tableName) (imps # Array.sort >>> Array.nub) [ decl ]
+  pure $ Module ("Db" <> tableName) (imps # Array.sort >>> Array.nub) [ decl ] []
 
 queryColumns :: String -> Connection -> ExceptT PGError Aff (Array DbColumn)
 queryColumns tableName conn = do

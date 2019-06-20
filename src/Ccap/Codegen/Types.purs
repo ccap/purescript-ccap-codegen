@@ -23,7 +23,7 @@ import Data.Ord (class Ord)
 import Prelude (class Eq, class Show)
 import Text.Parsing.Parser.Pos (Position)
 
-data Module = Module ModuleName Imports (Array TypeDecl)
+data Module = Module ModuleName Imports (Array TypeDecl) Annotations
 
 type ModuleName = String
 
