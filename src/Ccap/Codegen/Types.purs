@@ -13,6 +13,7 @@ module Ccap.Codegen.Types
   , TopType(..)
   , TypeDecl(..)
   , Variant
+  , isRecord
   ) where
 
 import Data.Generic.Rep (class Generic)
@@ -43,6 +44,10 @@ data TopType
   | Wrap Type
   | Record (Array RecordProp)
   | Sum (Array Variant)
+
+isRecord :: TopType -> Boolean
+isRecord (Record _) = true
+isRecord _ = false
 
 data Type
   = Primitive Primitive

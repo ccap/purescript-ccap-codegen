@@ -6,8 +6,9 @@ import Prelude
 
 import Ccap.Codegen.Annotations (getWrapOpts)
 import Ccap.Codegen.Shared (DelimitedLiteralDir(..), ExtraImports, OutputSpec, delimitedLiteral, indented)
-import Ccap.Codegen.Types (Imports, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
-import Control.Monad.Reader (ReaderT, ask, runReaderT)
+import Ccap.Codegen.Types (Imports, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), isRecord)
+import Control.Alt ((<|>))
+import Control.Monad.Reader (ReaderT, ask, asks, runReaderT)
 import Control.Monad.State (State, evalState, get)
 import Data.Array ((:))
 import Data.Array as Array
@@ -35,16 +36,19 @@ outputSpec package modules =
 
 oneModule :: String -> Array Module -> Module -> Box
 oneModule package all mod@(Module name imps decls) = runCodegen mod all do
-  declsOutput <- traverse typeDecl decls
+  let modDecl = Array.find (\(TypeDecl n tt _) -> n == name && isRecord tt) decls
+  modDeclOutput <- traverse (typeDecl TopLevelCaseClass) modDecl
+  declsOutput <- traverse (typeDecl CompanionObject) decls
   importOutput <- imports package imps
   pure $
     vsep 1 Boxes.left do
-      text ("package " <> package)
-        : importOutput
-        : standardImports
-        : text ("object " <> name <> " {")
-        : (declsOutput <#> indented)
-        `Array.snoc` text "}"
+      [ text ("package " <> package)
+      , importOutput
+      ]
+        <> Array.fromFoldable modDeclOutput
+        <> [ text ("object " <> name <> " {") ]
+        <> (declsOutput <#> indented)
+        <> [ char '}']
 
 curly :: Box -> Array Box -> Box
 curly pref inner =
@@ -64,11 +68,12 @@ paren1 :: Box -> Array Box -> Box
 paren1 pref inner =
   hcat Boxes.top (pref <<>> char '(' : inner `Array.snoc` char ')')
 
-standardImports :: Box
+standardImports :: Array String
 standardImports =
-  text "import gov.wicourts.jsoncommon.Encoder"
-    // text "import gov.wicourts.jsoncommon.Decoder"
-    // text "import scalaz.Monad"
+  [ "gov.wicourts.jsoncommon.Encoder"
+  , "gov.wicourts.jsoncommon.Decoder"
+  , "scalaz.Monad"
+  ]
 
 imports :: String -> Imports -> Codegen Box
 imports package imps = do
@@ -76,7 +81,7 @@ imports package imps = do
   -- TODO: Check for alternate package name in annotation. (if we need to import
   --       modules from other packages)
   -- let all = ((imps <#> \(Import s) -> package <> "." <> s) <> extra) # Array.sort >>> Array.nub
-  let all = extra # Array.sort >>> Array.nub
+  let all = (extra <> standardImports) # Array.sort >>> Array.nub
   pure $ vcat Boxes.left (all <#> \s -> text ("import " <> s))
 
 defEncoder :: String -> Box -> Box
@@ -99,13 +104,16 @@ wrapDecoder name t dec = do
   let body = (decoder t <<>> text ".disjunction.andThen") `paren` [ dec ] // text ".validation"
   pure $ defDecoder name d body
 
-typeDecl :: TypeDecl -> Codegen Box
-typeDecl (TypeDecl name tt an) =
+data TypeDeclOutputMode = TopLevelCaseClass | CompanionObject
+derive instance eqTypeDeclOutputMode :: Eq TypeDeclOutputMode
+
+typeDecl :: TypeDeclOutputMode -> TypeDecl -> Codegen Box
+typeDecl outputMode (TypeDecl name tt an) =
   case tt of
     Type t -> do
       d <- decoderType t
       pure $
-        text "type" <<+>> text name <<+>> char '=' <<+>> tyType t
+        text "type" <<+>> text name <<+>> char '=' <<+>> tyType Nothing t
           // defEncoder name (encoder t)
           // defDecoder name d (decoder t)
     Wrap t -> do
@@ -114,7 +122,7 @@ typeDecl (TypeDecl name tt an) =
         Nothing ->
           let
             tagname = text (name <> "T")
-            scalatyp = text"scalaz.@@[" <<>> tyType t <<>> char ',' <<+>> tagname <<>> char ']'
+            scalatyp = text"scalaz.@@[" <<>> tyType Nothing t <<>> char ',' <<+>> tagname <<>> char ']'
           in pure $ vcat Boxes.left
             [ text "final abstract class" <<+>> tagname
             , text "type" <<+>> text name <<+>> char '=' <<+>> scalatyp
@@ -127,9 +135,14 @@ typeDecl (TypeDecl name tt an) =
             text "type" <<+>> text name <<+>> char '=' <<+>> text typ
               // wrapEncoder name t (text encode)
               // wrappedDecoder
-    Record props ->
+    Record props -> do
+      Module modName _ _ <- asks _.currentModule
       let
-        cls = (text "final case class" <<+>> text name) `paren` (recordFieldType <$> props)
+        qualify =
+          if modName == name && outputMode == TopLevelCaseClass
+            then Just modName
+            else Nothing
+        cls = (text "final case class" <<+>> text name) `paren` (recordFieldType qualify <$> props)
         enc = defEncoder name (text "x => argonaut.Json.obj" `paren` (recordFieldEncoder <$> props))
         decBody =
           case Array.length props of
@@ -137,7 +150,10 @@ typeDecl (TypeDecl name tt an) =
             x | x <= 12 -> smallRecordDecoder name props
             x -> bigRecordDecoder name props
         dec = defDecoder name "Form" decBody
-      in pure $ cls // enc // dec
+        output | modName == name && outputMode == TopLevelCaseClass = cls
+        output | modName == name && outputMode == CompanionObject = enc // dec
+        output | otherwise = cls // enc // dec
+      pure output
     Sum vs -> do
       let
         trait = (text "sealed trait" <<+>> text name) `curly` [ text "def tag: String"]
@@ -154,11 +170,11 @@ typeDecl (TypeDecl name tt an) =
               (((text ("Decoder.enum[M, " <> name) <<>> char ']') `paren` params) // text ".disjunction")
       pure $ trait // ((text "object" <<+>> text name) `curly` variants) // enc // dec
 
-tyType :: Type -> Box
-tyType =
-  let wrap tycon t = text tycon <<>> char '[' <<>> tyType t <<>> char ']'
-  in case _ of
-    Ref _ { mod, typ } -> text (maybe "" (_ <> ".") mod <> typ)
+tyType :: Maybe String -> Type -> Box
+tyType qualify ty =
+  let wrap tycon t = text tycon <<>> char '[' <<>> tyType qualify t <<>> char ']'
+  in case ty of
+    Ref _ { mod, typ } -> text (maybe "" (_ <> ".") (mod <|> qualify) <> typ)
     Array t -> wrap "List" t
     Option t ->  wrap "Option" t
     Primitive p -> text (case p of
@@ -212,9 +228,9 @@ encodeType :: Type -> Box -> Box
 encodeType t e =
   encoder t <<>> text ".encode" `paren1` [ e ]
 
-recordFieldType :: RecordProp -> Box
-recordFieldType (RecordProp n t) =
-  text n <<>> char ':' <<+>> tyType t <<>> char ','
+recordFieldType :: Maybe String -> RecordProp -> Box
+recordFieldType qualify (RecordProp n t) =
+  text n <<>> char ':' <<+>> tyType qualify t <<>> char ','
 
 recordFieldEncoder :: RecordProp -> Box
 recordFieldEncoder (RecordProp n t) =
