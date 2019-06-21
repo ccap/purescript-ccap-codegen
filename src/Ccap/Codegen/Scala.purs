@@ -5,10 +5,11 @@ module Ccap.Codegen.Scala
 import Prelude
 
 import Ccap.Codegen.Annotations (getMaxLength, getWrapOpts, field) as Annotations
-import Ccap.Codegen.Shared (Codegen, DelimitedLiteralDir(..), ExtraImports, OutputSpec, delimitedLiteral, indented, runCodegen)
+import Ccap.Codegen.Shared (DelimitedLiteralDir(..), OutputSpec, Env, delimitedLiteral, indented)
 import Ccap.Codegen.Types (Annotations, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), isRecord)
 import Control.Alt ((<|>))
-import Control.Monad.Reader (ask, asks)
+import Control.Monad.Reader (ReaderT, ask, asks, runReaderT)
+import Control.Monad.Writer (class MonadTell, Writer, runWriter, tell)
 import Data.Array ((:))
 import Data.Array as Array
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
@@ -17,6 +18,16 @@ import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(..))
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hcat, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
+
+type ExtraImports = Array String
+
+type Codegen = ReaderT Env (Writer ExtraImports)
+
+runCodegen :: forall a. Env -> Codegen a -> Tuple a ExtraImports
+runCodegen env c = runWriter (runReaderT c env)
+
+emit :: forall m a. MonadTell ExtraImports m => ExtraImports -> a -> m a
+emit imps a = map (const a) (tell imps)
 
 outputSpec :: String -> Array Module -> OutputSpec
 outputSpec defaultPackage modules =
