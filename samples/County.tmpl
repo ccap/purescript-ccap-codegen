@@ -21,7 +21,7 @@
 //     in an array type.
 //
 
-module County <scala package="gov.wicourts.test"> <purs modulePrefix="Ccap.Test"> {
+module County /* <scala package="gov.wicourts.codegen"> <purs modulePrefix="Ccap.Codegen"> */ {
   type CountyNo: Domains.CountyNoT
   type CountyName: string <validations maxLength="32">
   type OtherCountyName: wrap string <validations maxLength="32">
