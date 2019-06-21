@@ -22,7 +22,7 @@ import Text.PrettyPrint.Boxes (Box, char, hsep, render, text, vcat, vsep, (//), 
 import Text.PrettyPrint.Boxes (bottom, left) as Boxes
 
 oneModule :: String -> Array Module -> Module -> Box
-oneModule defaultModulePrefix all mod@(Module name _ decls annots) = vsep 1 Boxes.left do
+oneModule defaultModulePrefix all mod@(Module name decls annots) = vsep 1 Boxes.left do
   let env = { defaultPrefix: defaultModulePrefix, currentModule: mod, allModules: all }
   let Tuple body imports = runCodegen env (traverse typeDecl decls)
       is = imports # Array.sort >>> Array.nub
@@ -33,7 +33,7 @@ oneModule defaultModulePrefix all mod@(Module name _ decls annots) = vsep 1 Boxe
 outputSpec :: String -> Array Module -> OutputSpec
 outputSpec defaultModulePrefix modules =
   { render: render <<< oneModule defaultModulePrefix modules
-  , filePath: \(Module n _ _ an) ->
+  , filePath: \(Module n _ an) ->
       let path = String.replaceAll
                     (String.Pattern ".")
                     (String.Replacement "/")
@@ -164,7 +164,7 @@ tyType =
 
 modPrefix :: Array Module -> String -> Maybe String
 modPrefix all modName = do
-  Module _ _ _ annots <- Array.find (\(Module n _ _ _) -> n == modName) all
+  Module _ _ annots <- Array.find (\(Module n _ _) -> n == modName) all
   Annotations.field "purs" "modulePrefix" annots
 
 externalRef :: String -> Codegen Box

@@ -21,7 +21,7 @@ import Text.PrettyPrint.Boxes (left, top) as Boxes
 outputSpec :: String -> Array Module -> OutputSpec
 outputSpec defaultPackage modules =
   { render: render <<< oneModule defaultPackage modules
-  , filePath: \(Module n _ _ an) ->
+  , filePath: \(Module n _ an) ->
       let path = String.replaceAll
                     (String.Pattern ".")
                     (String.Replacement "/")
@@ -34,7 +34,7 @@ package defaultPackage annots =
   fromMaybe defaultPackage (Annotations.field "scala" "package" annots)
 
 oneModule :: String -> Array Module -> Module -> Box
-oneModule defaultPackage all mod@(Module name _ decls annots) = do
+oneModule defaultPackage all mod@(Module name decls annots) = do
   let modDecl = Array.find (\(TypeDecl n tt _) -> n == name && isRecord tt) decls
       env = { defaultPrefix: defaultPackage, currentModule: mod, allModules: all }
       Tuple body extra = runCodegen env do
@@ -141,7 +141,7 @@ typeDecl outputMode (TypeDecl name tt an) =
               // wrappedEncoder
               // wrappedDecoder
     Record props -> do
-      Module modName _ _ _ <- asks _.currentModule
+      Module modName _ _ <- asks _.currentModule
       let
         qualify =
           if modName == name && outputMode == TopLevelCaseClass
@@ -200,7 +200,7 @@ tyType qualify ty = do
 
 modRef :: Array Module -> String -> Maybe String
 modRef all modName = do
-  Module _ _ _ annots <- Array.find (\(Module n _ _ _) -> n == modName) all
+  Module _ _ annots <- Array.find (\(Module n _ _) -> n == modName) all
   p <- Annotations.field "scala" "package" annots
   pure $ p <> "." <> modName
 
@@ -236,8 +236,8 @@ decoderType ty =
   case ty of
     Ref _ { mod, typ } -> do
       { currentModule, allModules } <- ask
-      let external = mod >>= (\m -> Array.find (\(Module n _ _ _) -> n == m) allModules)
-          Module _ _ ds _ = fromMaybe currentModule external
+      let external = mod >>= (\m -> Array.find (\(Module n _ _) -> n == m) allModules)
+          Module _ ds _ = fromMaybe currentModule external
           tt = Array.find (\(TypeDecl n _ _) -> n == typ) ds
                 <#> (\(TypeDecl _ t _) -> t)
       maybe (pure "MISSING") decoderTopType tt
