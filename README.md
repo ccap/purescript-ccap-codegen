@@ -17,8 +17,6 @@ Status](https://travis-ci.org/ccap/purescript-ccap-codegen.svg)](https://travis-
 
 ### Testing
 
-```sh
-
 Pretty-print county.tmpl to the console. Removes comments and puts the template in a readable format.
 
 ```pulp run -- -m pretty -p unused county.tmpl```
@@ -38,5 +36,3 @@ pulp run -- -p gov.wicourts.cc -m scala county.tmpl > County.scala
 Print a computer-friendly representation of the template to the console. Useful for debugging.
 
 ```pulp run -- -m show -p unused county.tmpl```
-
-```
