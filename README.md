@@ -5,6 +5,15 @@ purescript-ccap-codegen
 [![Build
 Status](https://travis-ci.org/ccap/purescript-ccap-codegen.svg)](https://travis-ci.org/ccap/purescript-ccap-codegen)
 
+### First time setup
+
+yarn
+bower install
+
+### If after successful setup, pulp is not found (try pulp psci to test this)
+
+PATH=node_modules/.bin:$PATH
+
 ### Testing
 
 ```sh
