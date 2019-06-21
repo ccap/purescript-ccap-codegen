@@ -48,7 +48,10 @@ domainModule pool = withExceptT show $ withConnection pool \conn -> do
           select domain_name, data_type, character_maximum_length
           from information_schema.domains
           where domain_schema = 'public' and
-                  data_type in ('numeric', 'character varying', 'integer', 'smallint', 'text', 'boolean') and
+                  data_type in ('numeric', 'character varying',
+                                'integer', 'smallint', 'text',
+                                'boolean', 'date', 'time without timezone',
+                                'timestamp with time zone') and
                   domain_name <> 'BatchIDT'
           """
 
@@ -76,7 +79,10 @@ queryColumns tableName conn = do
           select column_name, data_type, domain_name, is_nullable
           from information_schema.columns
           where table_name = $1 and
-                  data_type in ('numeric', 'character varying', 'integer', 'smallint', 'text', 'boolean')
+                  data_type in ('numeric', 'character varying',
+                                'integer', 'smallint', 'text',
+                                'boolean', 'date', 'time without timezone',
+                                'timestamp with time zone')
           order by ordinal_position ;
           """
 
@@ -98,11 +104,15 @@ domain name =
   Ref emptyPos { mod: Just "Domains", typ: name }
 
 dbNameToType :: String -> Type
-dbNameToType = Primitive <<< case _ of
-  "numeric" -> PDecimal
-  "character varying" -> PString
-  "integer" -> PInt
-  "smallint" -> PInt
-  "text" -> PString
-  "boolean" -> PBoolean
-  _ -> PString -- XXX
+dbNameToType =
+  case _ of
+    "numeric" -> Primitive PDecimal
+    "character varying" -> Primitive PString
+    "integer" -> Primitive PInt
+    "smallint" -> Primitive PInt
+    "text" -> Primitive PString
+    "boolean" -> Primitive PBoolean
+    "date" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Date" }
+    "time without time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Time" }
+    "timestamp without time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Timestamp" }
+    _ -> Primitive PString -- XXX
