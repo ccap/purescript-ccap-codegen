@@ -7,12 +7,12 @@ Status](https://travis-ci.org/ccap/purescript-ccap-codegen.svg)](https://travis-
 
 ### First time setup
 
-yarn
-bower install
+```yarn```
+```bower install```
 
 ### If after successful setup, pulp is not found (try pulp psci to test this)
 
-PATH=node_modules/.bin:$PATH
+```PATH=node_modules/.bin:$PATH```
 
 ### Testing
 
