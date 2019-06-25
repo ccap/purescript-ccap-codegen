@@ -8,26 +8,19 @@ import Ccap.Codegen.Annotations (getMaxLength, getWrapOpts, field) as Annotation
 import Ccap.Codegen.Shared (DelimitedLiteralDir(..), OutputSpec, Env, delimitedLiteral, indented)
 import Ccap.Codegen.Types (Annotations, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), isRecord)
 import Control.Alt ((<|>))
-import Control.Monad.Reader (ReaderT, ask, asks, runReaderT)
-import Control.Monad.Writer (class MonadTell, Writer, runWriter, tell)
+import Control.Monad.Reader (Reader, ask, asks, runReader)
 import Data.Array ((:))
 import Data.Array as Array
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String (Pattern(..), Replacement(..), replaceAll) as String
 import Data.Traversable (for, traverse)
-import Data.Tuple (Tuple(..))
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hcat, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
 
-type ExtraImports = Array String
+type Codegen = Reader Env
 
-type Codegen = ReaderT Env (Writer ExtraImports)
-
-runCodegen :: forall a. Env -> Codegen a -> Tuple a ExtraImports
-runCodegen env c = runWriter (runReaderT c env)
-
-emit :: forall m a. MonadTell ExtraImports m => ExtraImports -> a -> m a
-emit imps a = map (const a) (tell imps)
+runCodegen :: forall a. Env -> Codegen a -> a
+runCodegen = flip runReader
 
 outputSpec :: String -> Array Module -> OutputSpec
 outputSpec defaultPackage modules =
@@ -48,7 +41,7 @@ oneModule :: String -> Array Module -> Module -> Box
 oneModule defaultPackage all mod@(Module name decls annots) = do
   let modDecl = Array.find (\(TypeDecl n tt _) -> n == name && isRecord tt) decls
       env = { defaultPrefix: defaultPackage, currentModule: mod, allModules: all }
-      Tuple body extra = runCodegen env do
+      body = runCodegen env do
         modDeclOutput <- traverse (typeDecl TopLevelCaseClass) modDecl
         declsOutput <- traverse (typeDecl CompanionObject) decls
         pure $
@@ -58,7 +51,7 @@ oneModule defaultPackage all mod@(Module name decls annots) = do
             <> [ char '}']
   vsep 1 Boxes.left do
     [ text ("package " <> package defaultPackage annots)
-    , imports extra
+    , imports
     ] <> body
 
 curly :: Box -> Array Box -> Box
@@ -86,9 +79,9 @@ standardImports =
   , "scalaz.Monad"
   ]
 
-imports :: ExtraImports -> Box
-imports extra =
-  let all = (extra <> standardImports) # Array.sort >>> Array.nub
+imports :: Box
+imports =
+  let all = standardImports # Array.sort >>> Array.nub
   in vcat Boxes.left (all <#> \s -> text ("import " <> s))
 
 defEncoder :: String -> Box -> Box
