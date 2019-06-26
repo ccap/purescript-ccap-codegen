@@ -1,5 +1,4 @@
 module Domains {
-
   type ABACityStateT: wrap decimal
   type ABARoutingNoT: wrap string
     <validations maxLength="9">
@@ -1116,7 +1115,8 @@ module Domains {
     <validations maxLength="50">
   type TimeBlkTpSeqNoT: wrap int
   type TimeBlockSeqNoT: wrap int
-  type TimestampT: wrap string
+  type TimeT: wrap DateTimeSupport.Time
+  type TimestampT: wrap DateTimeSupport.Timestamp
   type TitleT: wrap string
     <validations maxLength="25">
   type TranDetailSeqNoT: wrap int

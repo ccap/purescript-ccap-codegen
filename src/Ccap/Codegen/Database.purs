@@ -1,6 +1,5 @@
 module Ccap.Codegen.Database
   ( domainModule
-  , poolConfiguration
   , tableModule
   ) where
 
@@ -10,19 +9,10 @@ import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Prim
 import Control.Monad.Except (ExceptT, withExceptT)
 import Data.Maybe (Maybe(..), maybe)
 import Database.PostgreSQL (Connection, PGError)
-import Database.PostgreSQL.PG (Pool, PoolConfiguration, Query(..), defaultPoolConfiguration, query, withConnection)
+import Database.PostgreSQL.PG (Pool, Query(..), query, withConnection)
 import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row4(..))
 import Effect.Aff (Aff)
 import Text.Parsing.Parser.Pos (Position(..))
-
--- TODO should be configurable
-poolConfiguration :: PoolConfiguration
-poolConfiguration = (defaultPoolConfiguration "cc")
-  { host = Just "dev15-db.wicourts.gov"
-  , port = Just 5612
-  , user = Just "viewer"
-  , idleTimeoutMillis = Just 500
-  }
 
 emptyPos :: Position
 emptyPos = Position { line: 0, column: 0 }
@@ -43,14 +33,13 @@ domainModule pool = withExceptT show $ withConnection pool \conn -> do
                 in TypeDecl domainName (Wrap (dbNameToType dataType)) annots)
   pure $ Module "Domains" types []
   where
-    -- TODO Support other types (date/time types in particular)
     sql = """
           select domain_name, data_type, character_maximum_length
           from information_schema.domains
           where domain_schema = 'public' and
                   data_type in ('numeric', 'character varying',
                                 'integer', 'smallint', 'text',
-                                'boolean', 'date', 'time without timezone',
+                                'boolean', 'date', 'time without time zone',
                                 'timestamp with time zone') and
                   domain_name <> 'BatchIDT'
           """
@@ -74,14 +63,13 @@ queryColumns tableName conn = do
   pure (results <#> \(Row4 columnName dataType domainName isNullable) ->
          { columnName, dataType, domainName, isNullable })
   where
-    -- TODO Support other types (date/time types in particular)
     sql = """
           select column_name, data_type, domain_name, is_nullable
           from information_schema.columns
           where table_name = $1 and
                   data_type in ('numeric', 'character varying',
                                 'integer', 'smallint', 'text',
-                                'boolean', 'date', 'time without timezone',
+                                'boolean', 'date', 'time without time zone',
                                 'timestamp with time zone')
           order by ordinal_position ;
           """
@@ -114,5 +102,5 @@ dbNameToType =
     "boolean" -> Primitive PBoolean
     "date" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Date" }
     "time without time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Time" }
-    "timestamp without time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Timestamp" }
+    "timestamp with time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Timestamp" }
     _ -> Primitive PString -- XXX
