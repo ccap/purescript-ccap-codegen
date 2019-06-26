@@ -15,6 +15,7 @@
     "purescript-argonaut-codecs": "^6.0.0",
     "purescript-boxes": "^1.0.1",
     "purescript-debug": "^4.0.0",
+    "purescript-filterable": "^3.0.1",
     "purescript-generics-rep": "^6.1.1",
     "purescript-heterogenous": "^0.4.0",
     "purescript-node-fs": "^5.0.0",

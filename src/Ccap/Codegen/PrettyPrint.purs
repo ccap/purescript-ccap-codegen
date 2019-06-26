@@ -6,9 +6,8 @@ module Ccap.Codegen.PrettyPrint
 import Prelude
 
 import Ccap.Codegen.Shared (OutputSpec)
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import(..), Imports, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array as Array
-import Data.Array.NonEmpty as NonEmpty
 import Data.Maybe (Maybe(..), maybe)
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
@@ -20,24 +19,19 @@ prettyPrint modules =
 outputSpec :: OutputSpec
 outputSpec =
   { render: render <<< oneModule
-  , fileName: \(Module n _ _) -> n <> ".tmpl"
+  , filePath: \(Module n _ _) -> n <> ".tmpl"
   }
 
 oneModule :: Module -> Box
-oneModule (Module name imps decls) =
-  text ("module " <> name <> " {")
-    // indented (imports imps)
-    // text ""
+oneModule (Module name decls annots) =
+  text ("module " <> name) <<+>> trailingSpace (annots <#> annotation) <<>> text "{"
     // indentedList (decls <#> typeDecl)
     // text "}"
 
-imports :: Imports -> Box
-imports imps = vcat Boxes.left do
-  mod <- imps <#> (\(Import i) -> i) # Array.sort >>> Array.nub
-  pure $ text ("import " <> mod)
-  where
-    commaTypes = NonEmpty.uncons >>> \{ head, tail } ->
-      Array.foldl (\s t -> s <> ", " <> t) head tail
+trailingSpace :: Array Box -> Box
+trailingSpace boxes =
+  hsep 1 Boxes.top boxes <<>>
+    if Array.length boxes > 0 then char ' ' else emptyBox 0 0
 
 primitive :: Primitive -> Box
 primitive p = text
@@ -68,7 +62,7 @@ typeDecl (TypeDecl name tt annots) =
           // text "}"
       Sum vs ->
         dec <<+>> char '['
-          // indented (vcat Boxes.left (vs <#> (\x -> text "| " <<+>> text x)))
+          // indented (vcat Boxes.left (vs <#> (\x -> char '|' <<+>> text x)))
           // char ']'
   in ty // indentedList (annots <#> annotation)
 

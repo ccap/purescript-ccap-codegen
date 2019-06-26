@@ -17,48 +17,48 @@ import Foreign.Object (Object) as FO
 import Foreign.Object (lookup) as Object
 
 type Codec a b =
-  { read :: a -> Either String b
-  , write :: b -> a
+  { decode :: a -> Either String b
+  , encode :: b -> a
   }
 
 type JsonCodec a = Codec Json a
 
 jsonCodec_string :: JsonCodec String
 jsonCodec_string =
-  { read: maybe (Left "This value must be a string") Right <<< Argonaut.toString
-  , write: Argonaut.fromString
+  { decode: maybe (Left "This value must be a string") Right <<< Argonaut.toString
+  , encode: Argonaut.fromString
   }
 
 jsonCodec_decimal :: JsonCodec Decimal
 jsonCodec_decimal = composeCodec
-  { read: maybe (Left "This value must be a decimal") Right <<< Decimal.fromString
-  , write: Decimal.toString
+  { decode: maybe (Left "This value must be a decimal") Right <<< Decimal.fromString
+  , encode: Decimal.toString
   }
   jsonCodec_string
 
 jsonCodec_number :: JsonCodec Number
 jsonCodec_number =
-  { read: maybe (Left "This value must be a number") Right <<< Argonaut.toNumber
-  , write: Argonaut.fromNumber
+  { decode: maybe (Left "This value must be a number") Right <<< Argonaut.toNumber
+  , encode: Argonaut.fromNumber
   }
 
 jsonCodec_int :: JsonCodec Int
 jsonCodec_int = composeCodec
-  { read: maybe (Left "This value must be an integer") Right <<< Int.fromNumber
-  , write: Int.toNumber
+  { decode: maybe (Left "This value must be an integer") Right <<< Int.fromNumber
+  , encode: Int.toNumber
   }
   jsonCodec_number
 
 jsonCodec_boolean :: JsonCodec Boolean
 jsonCodec_boolean =
-  { read: maybe (Left "This value must be a boolean") Right <<< Argonaut.toBoolean
-  , write: Argonaut.fromBoolean
+  { decode: maybe (Left "This value must be a boolean") Right <<< Argonaut.toBoolean
+  , encode: Argonaut.fromBoolean
   }
 
 jsonCodec_maybe :: forall a. JsonCodec a -> JsonCodec (Maybe a)
 jsonCodec_maybe w =
-  { read: \j -> if Argonaut.isNull j then Right Nothing else map Just (w.read j)
-  , write: \a -> maybe Argonaut.jsonNull w.write a
+  { decode: \j -> if Argonaut.isNull j then Right Nothing else map Just (w.decode j)
+  , encode: \a -> maybe Argonaut.jsonNull w.encode a
   }
 
 jsonCodec_array
@@ -66,17 +66,17 @@ jsonCodec_array
    . JsonCodec a
   -> JsonCodec (Array a)
 jsonCodec_array inner =
-  { read: maybe (Left "This value must be an array") (traverse inner.read) <<< Argonaut.toArray
-  , write: Argonaut.fromArray <<< (map inner.write)
+  { decode: maybe (Left "This value must be an array") (traverse inner.decode) <<< Argonaut.toArray
+  , encode: Argonaut.fromArray <<< (map inner.encode)
   }
 
-readProperty :: forall a. String -> JsonCodec a -> FO.Object Json -> Either String a
-readProperty prop codec o = do
+decodeProperty :: forall a. String -> JsonCodec a -> FO.Object Json -> Either String a
+decodeProperty prop codec o = do
   v <- maybe
         (Left $ "Property " <> prop <> " does not exist")
         Right
         (Object.lookup prop o)
-  lmap (\s -> "Property " <> prop <> ": " <> s) (codec.read v)
+  lmap (\s -> "Property " <> prop <> ": " <> s) (codec.decode v)
 
 composeCodec
   :: forall a b c
@@ -84,8 +84,8 @@ composeCodec
   -> Codec a b
   -> Codec a c
 composeCodec codec1 codec2 =
-  { read: map (flip bind codec1.read) codec2.read
-  , write: codec1.write >>> codec2.write
+  { decode: map (flip bind codec1.decode) codec2.decode
+  , encode: codec1.encode >>> codec2.encode
   }
 
 obj :: Json -> Either String (Object Json)
@@ -97,7 +97,7 @@ codec_custom
   -> (t -> b)
   -> Codec a b
   -> Codec a t
-codec_custom read write = composeCodec { read, write }
+codec_custom decode encode = composeCodec { decode, encode }
 
 codec_newtype
   :: forall t a b
@@ -105,6 +105,6 @@ codec_newtype
   => Codec a b
   -> Codec a t
 codec_newtype = composeCodec
-  { read: Right <<< wrap
-  , write: unwrap
+  { decode: Right <<< wrap
+  , encode: unwrap
   }

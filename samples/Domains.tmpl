@@ -136,7 +136,6 @@ module Domains {
     <validations maxLength="6">
   type BasePathT: wrap string
     <validations maxLength="100">
-  type BatchIDT: wrap int
   type BatchIdT: wrap string
     <validations maxLength="36">
   type BatchNoT: wrap int
@@ -352,6 +351,7 @@ module Domains {
     <validations maxLength="15">
   type DaCaseNoT: wrap string
     <validations maxLength="12">
+  type DateT: wrap DateTimeSupport.Date
   type DaysServedT: wrap decimal
   type DbIdT: wrap string
     <validations maxLength="20">
@@ -1116,6 +1116,7 @@ module Domains {
     <validations maxLength="50">
   type TimeBlkTpSeqNoT: wrap int
   type TimeBlockSeqNoT: wrap int
+  type TimestampT: wrap string
   type TitleT: wrap string
     <validations maxLength="25">
   type TranDetailSeqNoT: wrap int

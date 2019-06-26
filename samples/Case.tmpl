@@ -1,0 +1,40 @@
+module Case {
+  type Case: {
+    caseNo: Domains.CaseNoT
+    countyNo: Domains.CountyNoT
+    caseType: Domains.CaseTypeT
+    filingDate: Domains.DateT
+    isConfidential: boolean
+    isFiledWoCtofc: boolean
+    lastChargeSeqNo: Domains.ChargeSeqNoT
+    lastCvJgSeqNo: Domains.CivilJdgmtSeqNoT
+    lastHistSeqNo: Domains.HistSeqNoT
+    lastPartySeqNo: Domains.PartyNoT
+    lastRelSeqNo: Domains.RelSeqNoT
+    statusCode: Domains.StatusCodeT
+    isSeal: boolean
+    isExpunge: boolean
+    isElectronicFiling: boolean
+    isPartySeal: boolean
+    bondId: optional Domains.BondIdT
+    branchId: optional Domains.BranchIdT
+    caption: optional Domains.CaptionT
+    daCaseNo: optional Domains.DaCaseNoT
+    dispCtofcNo: optional Domains.CtofcNoT
+    fileCtofcDate: optional Domains.DateT
+    filingCtofcNo: optional Domains.CtofcNoT
+    issAgencyNo: optional Domains.IssAgencyNoT
+    maintCode: optional Domains.MaintCodeT
+    oldCaseNo: optional string
+    plntfAgencyNo: optional Domains.PlntfAgencyNoT
+    previousRespCo: optional Domains.CtofcNoT
+    prosAgencyNo: optional Domains.ProsAgencyNoT
+    prosAtty: optional Domains.AttyNoT
+    respCtofcNo: optional Domains.CtofcNoT
+    wcisClsCode: optional Domains.WcisClsCodeT
+    unifiedCaseNo: optional Domains.UnifiedCaseNoT
+    statClsCode: optional Domains.WcisClsCodeT
+    optInCode: optional Domains.PublicOptInCodeT
+    lastDocNumber: Domains.CaseDocNoT
+  }
+}

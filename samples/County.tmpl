@@ -21,17 +21,38 @@
 //     in an array type.
 //
 
-module County {
-  type CountyNo: wrap int
-  type CountyName: string <validations maxLength="32" xyz>
+module County /* <scala package="gov.wicourts.codegen"> <purs modulePrefix="Ccap.Codegen"> */ {
+  type CountyNo: Domains.CountyNoT
+  type CountyName: string <validations maxLength="32">
+  type OtherCountyName: wrap string <validations maxLength="32">
   type AssessFacilityId: wrap int
   type SomethingMoney: wrap decimal
 
   type County: {
-    countyNo: Domains.CountyNo
+    countyNo: Domains.CountyNoT
+    countyNoX: CountyNo
     countyName: CountyName
     assessFacilityId: optional AssessFacilityId
     soapPort: int
+  }
+
+  type Big: {
+    a1: int
+    b1: string
+    c1: decimal
+    d1: boolean
+    a2: int
+    b2: string
+    c2: decimal
+    d2: boolean
+    a3: int
+    b3: string
+    c3: decimal
+    d3: boolean
+    a4: int
+    b4: string
+    c4: decimal
+    d4: boolean
   }
 
   type Response: {
@@ -47,12 +68,15 @@ module County {
 
   // A date, encoded per RFC 3339.
   type Date: wrap string
+    <validations maxLength="32">
     <scala
       t="org.joda.time.LocalDate"
-      wrap="gov.wicourts.common.LocalDateOps.TODO:R-16899"
-      unwrap="gov.wicourts.common.LocalDateOps.sortableDateFormat.print">
+      decode="Decoder.date"
+      encode="gov.wicourts.common.LocalDateOps.sortableDateFormat.print">
     <purs
-      t="Ccap.Common.DateTime.Date"
-      wrap="Ccap.Common.DateTime.Date.fromIsoMadison"
-      unwrap="Ccap.Common.DateTime.Date.inIso8601ExtendedDateFormat">
+      t="Ccap.Common.DateTime.Date.Date"
+      decode="Ccap.Common.DateTime.Date.fromIsoMadison"
+      encode="Ccap.Common.DateTime.Date.inIso8601ExtendedDateFormat">
+
+  type Mydate: wrap Date
 }

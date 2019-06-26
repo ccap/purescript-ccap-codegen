@@ -7,7 +7,7 @@ module Ccap.Codegen.Parser
 import Prelude
 
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import(..), Module(..), Primitive(..), RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..))
 import Control.Alt ((<|>))
 import Data.Array (fromFoldable, many, some) as Array
 import Data.Char.Unicode (isLower)
@@ -20,9 +20,9 @@ import Data.List.NonEmpty (NonEmptyList(..))
 import Data.List.NonEmpty as NonEmpty
 import Data.Maybe (Maybe(..))
 import Data.NonEmpty ((:|))
-import Data.String.CodeUnits (fromCharArray, singleton) as String
+import Data.String.CodeUnits (fromCharArray, singleton) as SCU
 import Text.Parsing.Parser (ParseError, ParserT, parseErrorMessage, parseErrorPosition, position, runParser)
-import Text.Parsing.Parser.Combinators (option, sepBy1, (<?>))
+import Text.Parsing.Parser.Combinators (option, sepBy1, try, (<?>))
 import Text.Parsing.Parser.Language (javaStyle)
 import Text.Parsing.Parser.Pos (Position(..))
 import Text.Parsing.Parser.String (char, satisfy)
@@ -76,13 +76,24 @@ lower = satisfy isLower <?> "lowercase letter"
 identifier :: ParserT String Identity String
 identifier = tokenParser.identifier
 
+-- Quick hack to parse identifiers ignoring reserved words. TODO Figure out what
+-- tokens really need to be reserved (if any).
+ident :: ParserT String Identity String
+ident = lexeme $ try go <?> "ident"
+  where
+    go :: ParserT String Identity String
+    go = do
+        c <- lower
+        cs <- Array.many alphaNum
+        pure $ SCU.singleton c <> SCU.fromCharArray cs
+
 lexeme :: forall a. ParserT String Identity a -> ParserT String Identity a
 lexeme = tokenParser.lexeme
 
 moduleOrTypeName :: ParserT String Identity String
 moduleOrTypeName = lexeme $ mkModuleOrTypeName <$> upper <*> Array.many alphaNum
   where mkModuleOrTypeName :: Char -> Array Char -> String
-        mkModuleOrTypeName c s = String.singleton c <> String.fromCharArray s
+        mkModuleOrTypeName c s = SCU.singleton c <> SCU.fromCharArray s
 
 tRef :: ParserT String Identity TRef
 tRef = ado
@@ -126,17 +137,11 @@ oneModule :: ParserT String Identity Module
 oneModule = ado
   reserved "module"
   name <- moduleOrTypeName
+  annots <- Array.many annotation
   lexeme $ char '{'
-  imps <- Array.many import'
   decls <- Array.many typeDecl
   lexeme $ char '}'
-  in Module name imps decls
-
-import' :: ParserT String Identity Import
-import' = ado
-  reserved "import"
-  parts <- moduleOrTypeName `sepBy1` char '.'
-  in Import $ intercalate "." parts
+  in Module name decls annots
 
 typeDecl :: ParserT String Identity TypeDecl
 typeDecl = ado
@@ -151,7 +156,7 @@ annotation :: ParserT String Identity Annotation
 annotation = ado
   pos <- position
   lexeme $ char '<'
-  name <- identifier
+  name <- ident
   params <- Array.many annotationParam
   lexeme $ char '>'
   in Annotation name pos params
@@ -159,7 +164,7 @@ annotation = ado
 annotationParam :: ParserT String Identity AnnotationParam
 annotationParam = ado
   pos <- position
-  name <- identifier
+  name <- ident
   value <- option Nothing (lexeme (char '=') *> stringLiteral <#> Just)
   in AnnotationParam name pos value
 

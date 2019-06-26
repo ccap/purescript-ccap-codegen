@@ -6,13 +6,9 @@ module Ccap.Codegen.Database
 
 import Prelude
 
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import(..), Imports, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Monad.Except (ExceptT, withExceptT)
-import Control.Monad.Writer (Writer, runWriter, tell)
-import Data.Array as Array
 import Data.Maybe (Maybe(..), maybe)
-import Data.Traversable (for)
-import Data.Tuple (Tuple(..))
 import Database.PostgreSQL (Connection, PGError)
 import Database.PostgreSQL.PG (Pool, PoolConfiguration, Query(..), defaultPoolConfiguration, query, withConnection)
 import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row4(..))
@@ -45,14 +41,18 @@ domainModule pool = withExceptT show $ withConnection pool \conn -> do
                           ])
                         maxLen
                 in TypeDecl domainName (Wrap (dbNameToType dataType)) annots)
-  pure $ Module "Domains" [] types
+  pure $ Module "Domains" types []
   where
     -- TODO Support other types (date/time types in particular)
     sql = """
           select domain_name, data_type, character_maximum_length
           from information_schema.domains
           where domain_schema = 'public' and
-                  data_type in ('numeric', 'character varying', 'integer', 'smallint', 'text', 'boolean')
+                  data_type in ('numeric', 'character varying',
+                                'integer', 'smallint', 'text',
+                                'boolean', 'date', 'time without timezone',
+                                'timestamp with time zone') and
+                  domain_name <> 'BatchIDT'
           """
 
 type DbColumn =
@@ -65,8 +65,8 @@ type DbColumn =
 tableModule :: Pool -> String -> ExceptT String Aff Module
 tableModule pool tableName = withExceptT show $ withConnection pool \conn -> do
   columns <- queryColumns tableName conn
-  let Tuple decl imps = runWriter $ tableType tableName columns
-  pure $ Module ("Db" <> tableName) (imps # Array.sort >>> Array.nub) [ decl ]
+  let decl = tableType tableName columns
+  pure $ Module tableName [ decl ] []
 
 queryColumns :: String -> Connection -> ExceptT PGError Aff (Array DbColumn)
 queryColumns tableName conn = do
@@ -79,36 +79,40 @@ queryColumns tableName conn = do
           select column_name, data_type, domain_name, is_nullable
           from information_schema.columns
           where table_name = $1 and
-                  data_type in ('numeric', 'character varying', 'integer', 'smallint', 'text', 'boolean')
+                  data_type in ('numeric', 'character varying',
+                                'integer', 'smallint', 'text',
+                                'boolean', 'date', 'time without timezone',
+                                'timestamp with time zone')
           order by ordinal_position ;
           """
 
-tableType :: String -> Array DbColumn -> Writer Imports TypeDecl
-tableType tableName columns = do
-  props <- for columns col
-  pure $ TypeDecl ("Db" <> tableName) (Record props) []
+tableType :: String -> Array DbColumn -> TypeDecl
+tableType tableName columns =
+  TypeDecl tableName (Record (map col columns)) []
   where
-    col :: DbColumn -> Writer Imports RecordProp
+    col :: DbColumn -> RecordProp
     col { columnName, dataType, domainName, isNullable } = do
-      baseType <- maybe (pure $ dbNameToType dataType) domain domainName
-      let optioned =
+      let baseType = maybe (dbNameToType dataType) domain domainName
+          optioned =
             if isNullable == "YES"
               then Option baseType
               else baseType
-      pure $ RecordProp columnName optioned
+      RecordProp columnName optioned
 
-domain :: String -> Writer Imports Type
-domain name = do
-  tell [ Import "Domains" ]
-  pure $ Ref emptyPos { mod: Just "Domains", typ: name }
-
+domain :: String -> Type
+domain name =
+  Ref emptyPos { mod: Just "Domains", typ: name }
 
 dbNameToType :: String -> Type
-dbNameToType = Primitive <<< case _ of
-  "numeric" -> PDecimal
-  "character varying" -> PString
-  "integer" -> PInt
-  "smallint" -> PInt
-  "text" -> PString
-  "boolean" -> PBoolean
-  _ -> PString -- XXX
+dbNameToType =
+  case _ of
+    "numeric" -> Primitive PDecimal
+    "character varying" -> Primitive PString
+    "integer" -> Primitive PInt
+    "smallint" -> Primitive PInt
+    "text" -> Primitive PString
+    "boolean" -> Primitive PBoolean
+    "date" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Date" }
+    "time without time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Time" }
+    "timestamp without time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Timestamp" }
+    _ -> Primitive PString -- XXX

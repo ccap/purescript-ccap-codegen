@@ -2,8 +2,6 @@ module Ccap.Codegen.Types
   ( Annotation(..)
   , Annotations
   , AnnotationParam(..)
-  , Import(..)
-  , Imports
   , Module(..)
   , ModuleName
   , Primitive(..)
@@ -13,22 +11,18 @@ module Ccap.Codegen.Types
   , TopType(..)
   , TypeDecl(..)
   , Variant
+  , isRecord
   ) where
 
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe)
-import Data.Ord (class Ord)
 import Prelude (class Eq, class Show)
 import Text.Parsing.Parser.Pos (Position)
 
-data Module = Module ModuleName Imports (Array TypeDecl)
+data Module = Module ModuleName (Array TypeDecl) Annotations
 
 type ModuleName = String
-
-type Imports = Array Import -- TODO: Consider using a Set?
-
-data Import = Import ModuleName
 
 data TypeDecl = TypeDecl String TopType Annotations
 
@@ -43,6 +37,10 @@ data TopType
   | Wrap Type
   | Record (Array RecordProp)
   | Sum (Array Variant)
+
+isRecord :: TopType -> Boolean
+isRecord (Record _) = true
+isRecord _ = false
 
 data Type
   = Primitive Primitive
@@ -67,12 +65,6 @@ data Primitive
 derive instance eqModule :: Eq Module
 derive instance genericModule :: Generic Module _
 instance showModule :: Show Module where
-  show = genericShow
-
-derive instance eqImport :: Eq Import
-derive instance genericImport :: Generic Import _
-derive instance ordImport :: Ord Import
-instance showImport :: Show Import where
   show = genericShow
 
 derive instance eqType :: Eq Type

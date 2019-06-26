@@ -1,5 +1,7 @@
 module Ccap.Codegen.Annotations
-  ( getWrapOpts
+  ( getMaxLength
+  , getWrapOpts
+  , field
   ) where
 
 import Prelude
@@ -14,11 +16,14 @@ field annotKey paramKey annots = do
   AnnotationParam _ _ v <- Array.find (\(AnnotationParam n _ _) -> n == paramKey) params
   v
 
-getWrapOpts :: String -> Annotations -> Maybe { typ :: String, wrap :: String, unwrap :: String }
+getWrapOpts :: String -> Annotations -> Maybe { typ :: String, decode :: String, encode :: String }
 getWrapOpts lang an =
   let f n = field lang n an
   in do
     typ <- f "t"
-    wrap <- f "wrap" <|> pure ""
-    unwrap <- f "unwrap" <|> pure ""
-    pure { typ, wrap, unwrap }
+    decode <- f "decode" <|> pure ""
+    encode <- f "encode" <|> pure ""
+    pure { typ, decode, encode }
+
+getMaxLength :: Annotations -> Maybe String
+getMaxLength = field "validations" "maxLength"
