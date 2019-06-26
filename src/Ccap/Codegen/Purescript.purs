@@ -223,7 +223,7 @@ externalJsonCodec name t decode encode = do
   i <- jsonCodec t
   decode_ <- externalRef decode
   encode_ <- externalRef encode
-  emitRuntime $ text "Runtime.custom_codec" <<+>> decode_ <<+>> encode_ <<+>> parens i
+  emitRuntime $ text "Runtime.codec_custom" <<+>> decode_ <<+>> encode_ <<+>> parens i
 
 codecName :: Maybe String -> String -> String
 codecName mod t =
