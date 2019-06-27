@@ -13,10 +13,9 @@ import Control.Monad.Writer (class MonadTell, Writer, runWriter, tell)
 import Data.Array ((:))
 import Data.Array as Array
 import Data.Array.NonEmpty as NonEmptyArray
-import Data.Filterable (compact)
-import Data.Foldable (any, intercalate)
+import Data.Foldable (intercalate)
 import Data.Function (on)
-import Data.Maybe (Maybe(..), fromMaybe, isNothing, maybe)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String (Pattern(..))
 import Data.String as String
 import Data.Traversable (for, for_, traverse)
@@ -57,16 +56,12 @@ mergeImports :: Array PsImport -> Array PsImport
 mergeImports imps =
   let
     sorted = Array.sortBy ((compare `on` _.mod) <> (compare `on` _.alias)) imps
-    grouped = Array.groupBy (\a b -> a.mod == b.mod && b.alias == b.alias) sorted
-  in grouped <#> \group -> do
-    let typs = map _.typ group
-    { mod: (NonEmptyArray.head group).mod
-    , alias: (NonEmptyArray.head group).alias
-    , typ:
-        if any isNothing typs
-          then Nothing
-          else Just $ intercalate ", " (Array.nub <<< compact <<< NonEmptyArray.toArray $ typs)
-    }
+    grouped = Array.groupBy (\a b -> a.mod == b.mod && a.alias == b.alias) sorted
+  in grouped <#> \group ->
+    (NonEmptyArray.head group)
+      { typ = traverse _.typ group <#> NonEmptyArray.toArray
+                >>> Array.sort >>> Array.nub >>> intercalate ", "
+      }
 
 outputSpec :: String -> Array Module -> OutputSpec
 outputSpec defaultModulePrefix modules =
