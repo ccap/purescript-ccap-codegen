@@ -6,6 +6,11 @@
   :group 'ccap-temple-mode
   :type 'string)
 
+(defcustom ccap-temple-mode-tab-width 2
+  "Length of an indentation level."
+  :group 'ccap-temple-mode
+  :type 'number)
+
 (defconst ccap-temple-out-buffer (generate-new-buffer "*ccap-temple output*"))
 
 ;; --------------------------------------------------------------------
@@ -16,6 +21,38 @@
   (buffer-substring-no-properties
    (line-beginning-position)
    (line-end-position)))
+
+(defun ccap-temple-trim-line ()
+  "Remove whitespace from the start of current line."
+  (save-excursion
+    (beginning-of-line)
+    (while (and (char-equal (following-char) ?\s)
+                (not (string= (ccap-temple-current-line) "")))
+      (delete-char 1))))
+
+(defun ccap-temple-clean-line (line)
+  "Strip trailing whitespace and comments from LINE.
+Strips trailing whitespace after stripping comments."
+  (string-trim-right
+   (replace-regexp-in-string (rx "//" (* any))
+                             ""
+                             (replace-regexp-in-string (rx "/*" (* any) "*/")
+                                                       ""
+                                                       line))))
+
+(defun ccap-temple-increments-indentation-p (line)
+  "Return t if LINE should increment the indentation level."
+  (let ((clean-line (ccap-temple-clean-line line)))
+    (when (not (string= clean-line ""))
+      (char-equal ?{
+                  (aref clean-line (1- (string-width clean-line)))))))
+
+(defun ccap-temple-decrements-self-indentation-p (line)
+  "Return t if LINE should decrement the indentation level on that line."
+  (let ((clean-line (ccap-temple-clean-line line)))
+    (when (not (string= clean-line ""))
+      (char-equal ?}
+                  (aref clean-line (1- (string-width clean-line)))))))
 
 (defun ccap-temple-get-main-dir (tmpl-filename)
   "Given a TMPL-FILENAME, get the directory for the main src folder.
@@ -110,6 +147,37 @@ OUT-DIR directory to place the generated code file."
          ((not scala-target)
           (message "Could not detect scala target. Cannot compile.")))))))
 
+;; TODO: Properly indent the <> annotation syntax
+(defun ccap-temple-mode-indent ()
+  "Indent the current line."
+  (interactive)
+  ;; If at start of file, indent to 0.
+  (let* ((self-line (ccap-temple-current-line))
+         (clean-self-line (ccap-temple-clean-line self-line))
+         (indentation-lvl (when (= (point-min) (line-beginning-position))
+                            0)))
+    (ccap-temple-trim-line)
+    (beginning-of-line)
+    (save-excursion
+      (while (not indentation-lvl)
+        (forward-line -1)
+        (if (= (point) (point-min))
+            (setq indentation-lvl 0)
+          (let* ((line (ccap-temple-current-line))
+                 (clean-line (ccap-temple-clean-line line)))
+            ;; If the next previous line has content, check its indentation level.
+            (when (not (string= (string-trim-right line) ""))
+              (cond
+               ((and (ccap-temple-increments-indentation-p clean-line)
+                     (ccap-temple-decrements-self-indentation-p clean-self-line))
+                (setq indentation-lvl (current-indentation)))
+               ((ccap-temple-increments-indentation-p clean-line)
+                (setq indentation-lvl (+ ccap-temple-mode-tab-width (current-indentation))))
+               ((ccap-temple-decrements-self-indentation-p clean-self-line)
+                (setq indentation-lvl (- (current-indentation) ccap-temple-mode-tab-width)))
+               (t (setq indentation-lvl (current-indentation)))))))))
+    (indent-to indentation-lvl)))
+
 ;; --------------------------------------------------------------------
 ;; Keybindings
 
@@ -155,6 +223,9 @@ OUT-DIR directory to place the generated code file."
 ;;;###autoload
 (define-derived-mode ccap-temple-mode fundamental-mode "ccap-temple"
   "Major mode for editing CCAP code-gen template files."
+
+  ;; Indentation
+  (setq indent-line-function #'ccap-temple-mode-indent)
 
   ;; Syntax highlighting.
   (setq font-lock-defaults '((ccap-temple-font-lock-keywords))))
