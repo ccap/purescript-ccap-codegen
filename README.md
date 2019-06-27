@@ -17,22 +17,14 @@ Status](https://travis-ci.org/ccap/purescript-ccap-codegen.svg)](https://travis-
 
 ### Testing
 
-Pretty-print county.tmpl to the console. Removes comments and puts the template in a readable format.
+For the most basic testing:
 
-```pulp run -- -m pretty -p unused county.tmpl```
+    ./runtests
 
-Attempts to compile the county.tmpl, reporting parsing errors if not parsed correctly. NOTE: this passing does NOT guarantee a working purescript or scala file on generation; for example, if a type is undefined, no error checking catches this.
+To additionally re-generate the auto-generated `tmpl`s from the DB, assuming you already have `~/.pgpass` set up and are on the CCAP network:
 
-```pulp run -- -m test -p unused county.tmpl```
+    ./runtests ccap
 
-Generate the purescript file from the given template, and output it to County.purs
+Print a computer-friendly (PureScript) representation of the template to the console. Useful for debugging.
 
-```pulp run -- -p Ccap.Cc -m purs county.tmpl > County.purs```
-
-Generate the scala file from the given template, and output it to County.scala
-
-pulp run -- -p gov.wicourts.cc -m scala county.tmpl > County.scala
-
-Print a computer-friendly representation of the template to the console. Useful for debugging.
-
-```pulp run -- -m show -p unused county.tmpl```
+    pulp run -- -m show -p unused samples/County.tmpl

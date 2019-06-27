@@ -1,0 +1,33 @@
+#!/bin/sh
+
+set -e -x
+
+pulp build
+
+case $1 in
+    ccap)
+        DB=dev15-db.wicourts.gov:5612:cc:viewer
+        ./get-schema --config $DB -d > samples/Domains.tmpl
+        ./get-schema --config $DB -t Case > samples/Case.tmpl
+        ;;
+esac
+
+for i in samples/*.tmpl; do
+    # Attempts to compile the input.tmpl, reporting parsing errors if
+    # not parsed correctly. NOTE: this passing does NOT guarantee a
+    # working purescript or scala file on generation; for example, if
+    # a type is undefined, no error checking catches this.
+    ./compile -m test -p unused $i
+
+    # Pretty-print county.tmpl to the console. Removes comments and
+    # puts the template in a readable format.
+    ./compile -m pretty -p unused $i
+
+    # Generate the purescript file from the given template
+    ./compile -p Ccap.Cc.Test -m purs $i
+
+    # Generate the scala file from the given template
+    ./compile -p gov.wicourts.cc -m scala $i
+
+    # TODO: Test compilation of generated output.
+done
