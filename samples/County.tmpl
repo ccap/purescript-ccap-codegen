@@ -5,58 +5,58 @@
 // - A template file consists of one or more modules.
 // - A module consists of one or more type declarations.
 // - Non-primitive type and module names are camel-case with an initial upper-case letter.
-// - Any type can be marked as optional (Maybe in PureScript, Option in Scala)
+// - Any type can be marked as Maybe (Maybe in PureScript, Option in Scala)
 // - Any type can be tagged with wrap (newtype in PureScript, Scalaz @@ in Scala)
 //
 // The following primitive types are supported:
-//   - boolean
-//   - int
-//   - decimal
-//   - string
+//   - Boolean
+//   - Int
+//   - Decimal
+//   - String
 //
 // Record types:
 //   - Contain one one or more properties.
 //   - Property names are camel-case with an initial lower-case letter.
 //   - Record types must be given a name to be nested within a record or used
-//     in an array type.
+//     in an Array type.
 //
 
 module County /* <scala package="gov.wicourts.codegen"> <purs modulePrefix="Ccap.Codegen"> */ {
   type CountyNo: Domains.CountyNoT
-  type CountyName: string <validations maxLength="32">
-  type OtherCountyName: wrap string <validations maxLength="32">
-  type AssessFacilityId: wrap int
-  type SomethingMoney: wrap decimal
+  type CountyName: String <validations maxLength="32">
+  type OtherCountyName: wrap String <validations maxLength="32">
+  type AssessFacilityId: wrap Int
+  type SomethingMoney: wrap Decimal
 
   type County: {
     countyNo: Domains.CountyNoT
     countyNoX: CountyNo
     countyName: CountyName
-    assessFacilityId: optional AssessFacilityId
-    soapPort: int
+    assessFacilityId: Maybe AssessFacilityId
+    soapPort: Int
   }
 
   type Big: {
-    a1: int
-    b1: string
-    c1: decimal
-    d1: boolean
-    a2: int
-    b2: string
-    c2: decimal
-    d2: boolean
-    a3: int
-    b3: string
-    c3: decimal
-    d3: boolean
-    a4: int
-    b4: string
-    c4: decimal
-    d4: boolean
+    a1: Int
+    b1: String
+    c1: Decimal
+    d1: Boolean
+    a2: Int
+    b2: String
+    c2: Decimal
+    d2: Boolean
+    a3: Int
+    b3: String
+    c3: Decimal
+    d3: Boolean
+    a4: Int
+    b4: String
+    c4: Decimal
+    d4: Boolean
   }
 
   type Response: {
-    counties: array County
+    counties: Array County
   }
 
   type CountyEnum: [
@@ -67,7 +67,7 @@ module County /* <scala package="gov.wicourts.codegen"> <purs modulePrefix="Ccap
   ]
 
   // A date, encoded per RFC 3339.
-  type Date: wrap string
+  type Date: wrap String
     <validations maxLength="32">
     <scala
       t="org.joda.time.LocalDate"

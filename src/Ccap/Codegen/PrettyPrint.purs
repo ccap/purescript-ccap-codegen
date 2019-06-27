@@ -36,10 +36,10 @@ trailingSpace boxes =
 primitive :: Primitive -> Box
 primitive p = text
   case p of
-    PBoolean -> "boolean"
-    PInt -> "int"
-    PDecimal -> "decimal"
-    PString -> "string"
+    PBoolean -> "Boolean"
+    PInt -> "Int"
+    PDecimal -> "Decimal"
+    PString -> "String"
 
 indented :: Box -> Box
 indented b = emptyBox 0 2 <<>> b
@@ -84,5 +84,5 @@ tyType = case _ of
   Primitive p -> primitive p
   Ref _ { mod: Nothing, typ } -> text typ
   Ref _ { mod: Just m, typ } -> text (m <> "." <> typ)
-  Array t -> text "array" <<+>> tyType t
-  Option t ->  text "optional" <<+>> tyType t
+  Array t -> text "Array" <<+>> tyType t
+  Option t ->  text "Maybe" <<+>> tyType t

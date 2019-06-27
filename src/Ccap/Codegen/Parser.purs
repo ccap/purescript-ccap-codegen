@@ -22,7 +22,7 @@ import Data.Maybe (Maybe(..))
 import Data.NonEmpty ((:|))
 import Data.String.CodeUnits (fromCharArray, singleton) as SCU
 import Text.Parsing.Parser (ParseError, ParserT, parseErrorMessage, parseErrorPosition, position, runParser)
-import Text.Parsing.Parser.Combinators (option, sepBy1, try, (<?>))
+import Text.Parsing.Parser.Combinators (option, sepBy1, (<?>))
 import Text.Parsing.Parser.Language (javaStyle)
 import Text.Parsing.Parser.Pos (Position(..))
 import Text.Parsing.Parser.String (char, satisfy)
@@ -31,17 +31,7 @@ import Text.Parsing.Parser.Token (GenLanguageDef(..), GenTokenParser, alphaNum, 
 tokenParser :: GenTokenParser String Identity
 tokenParser = makeTokenParser $
   LanguageDef (unGenLanguageDef javaStyle)
-    { reservedNames =
-        [ "boolean"
-        , "decimal"
-        , "int"
-        , "import"
-        , "module"
-        , "optional"
-        , "string"
-        , "type"
-        ]
-    , identStart = lower
+    { identStart = lower
     , identLetter = alphaNum
     }
 
@@ -76,17 +66,6 @@ lower = satisfy isLower <?> "lowercase letter"
 identifier :: ParserT String Identity String
 identifier = tokenParser.identifier
 
--- Quick hack to parse identifiers ignoring reserved words. TODO Figure out what
--- tokens really need to be reserved (if any).
-ident :: ParserT String Identity String
-ident = lexeme $ try go <?> "ident"
-  where
-    go :: ParserT String Identity String
-    go = do
-        c <- lower
-        cs <- Array.many alphaNum
-        pure $ SCU.singleton c <> SCU.fromCharArray cs
-
 lexeme :: forall a. ParserT String Identity a -> ParserT String Identity a
 lexeme = tokenParser.lexeme
 
@@ -107,17 +86,17 @@ primitive s decl = reserved s <#> const (Primitive decl)
 
 anyPrimitive :: ParserT String Identity Type
 anyPrimitive =
-  primitive "boolean" PBoolean
-    <|> primitive "int" PInt
-    <|> primitive "decimal" PDecimal
-    <|> primitive "string" PString
+  primitive "Boolean" PBoolean
+    <|> primitive "Int" PInt
+    <|> primitive "Decimal" PDecimal
+    <|> primitive "String" PString
 
 tyType :: Unit -> ParserT String Identity Type
 tyType _ =
   anyPrimitive
+    <|> (reserved "Array" >>= tyType <#> Array)
+    <|> (reserved "Maybe" >>= tyType <#> Option)
     <|> (Ref <$> position <*> tRef)
-    <|> (reserved "array" >>= tyType <#> Array)
-    <|> (reserved "optional" >>= tyType <#> Option)
 
 topType :: ParserT String Identity TopType
 topType =
@@ -156,7 +135,7 @@ annotation :: ParserT String Identity Annotation
 annotation = ado
   pos <- position
   lexeme $ char '<'
-  name <- ident
+  name <- identifier
   params <- Array.many annotationParam
   lexeme $ char '>'
   in Annotation name pos params
@@ -164,7 +143,7 @@ annotation = ado
 annotationParam :: ParserT String Identity AnnotationParam
 annotationParam = ado
   pos <- position
-  name <- ident
+  name <- identifier
   value <- option Nothing (lexeme (char '=') *> stringLiteral <#> Just)
   in AnnotationParam name pos value
 
