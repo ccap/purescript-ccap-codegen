@@ -12,7 +12,7 @@ import Control.Monad.Reader (Reader, ask, asks, runReader)
 import Data.Array ((:))
 import Data.Array as Array
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
-import Data.String (Pattern(..), Replacement(..), replaceAll) as String
+import Data.String as String
 import Data.Traversable (for, traverse)
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hcat, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
@@ -163,9 +163,14 @@ typeDecl outputMode (TypeDecl name tt an) =
           x -> bigRecordDecoder name props
       let
         dec = defDecoder name "Form" decBody
+        fieldNamesTarget =
+          if modName == name
+            then Nothing
+            else Just name
+        names = fieldNames fieldNamesTarget (props <#> \(RecordProp n _) -> n)
         output | modName == name && outputMode == TopLevelCaseClass = cls
-        output | modName == name && outputMode == CompanionObject = enc // dec
-        output | otherwise = cls // enc // dec
+        output | modName == name && outputMode == CompanionObject = enc // dec // names
+        output | otherwise = cls // enc // dec // names
       pure output
     Sum vs -> do
       let
@@ -183,6 +188,17 @@ typeDecl outputMode (TypeDecl name tt an) =
               (Primitive PString)
               (((text ("Decoder.enum[M, " <> name) <<>> char ']') `paren` params) // text ".disjunction")
       pure $ trait // ((text "object" <<+>> text name) `curly` variants) // enc // dec
+
+fieldNames :: Maybe String -> Array String -> Box
+fieldNames mod names =
+  maybe body (\m -> curly (text "object" <<+>> text m) [ body ]) mod
+  where
+    body = curly (text "object" <<+>> text "FieldNames") (names <#> fieldNameConst)
+    fieldNameConst s =
+      text "val" <<+>> text (valName s) <<>> text ": String" <<+>> text "=" <<+>> text (show s)
+    valName s =
+      let { before, after } = String.splitAt 1 s
+      in String.toUpper before <> after
 
 tyType :: Maybe String -> Type -> Codegen Box
 tyType qualify ty = do
