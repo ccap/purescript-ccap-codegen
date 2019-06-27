@@ -11,7 +11,7 @@ module SelfContained  {
   type Bunnies: wrap Int
     <purs
       t="Test.Support.Newint"
-      decode="Data.Newtype.wrap"
+      decode="Ccap.Codegen.Runtime.decodeNewtype"
       encode="Data.Newtype.unwrap">
 
   type County: {

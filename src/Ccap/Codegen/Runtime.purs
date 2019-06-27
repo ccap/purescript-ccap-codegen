@@ -99,12 +99,15 @@ codec_custom
   -> Codec a t
 codec_custom decode encode = composeCodec { decode, encode }
 
+decodeNewtype :: forall t a. Newtype t a => a -> Either String t
+decodeNewtype a = Right $ wrap a
+
 codec_newtype
   :: forall t a b
    . Newtype t b
   => Codec a b
   -> Codec a t
 codec_newtype = composeCodec
-  { decode: Right <<< wrap
+  { decode: decodeNewtype
   , encode: unwrap
   }
