@@ -2,7 +2,7 @@
 
 set -e -x
 
-pulp build
+pulp test
 
 case $1 in
     ccap)
