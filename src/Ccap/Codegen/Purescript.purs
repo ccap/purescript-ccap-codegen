@@ -8,7 +8,6 @@ import Ccap.Codegen.Annotations (field) as Annotations
 import Ccap.Codegen.Annotations (getWrapOpts)
 import Ccap.Codegen.Shared (DelimitedLiteralDir(..), OutputSpec, Env, delimitedLiteral, indented)
 import Ccap.Codegen.Types (Annotations, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
-import Control.Apply (lift2)
 import Control.Monad.Reader (ReaderT, ask, runReaderT)
 import Control.Monad.Writer (class MonadTell, Writer, runWriter, tell)
 import Data.Array ((:))
@@ -95,11 +94,12 @@ type Extern = { prefix :: String, t :: String}
 
 externalType :: Extern -> Codegen Box
 externalType { prefix, t } =
-  emit { mod: prefix, typ: Just t, alias: Nothing } $ text t
+  emit { mod: prefix, typ: Just t, alias: Just prefix } $ text (prefix <> "." <> t)
 
 importModule :: String -> String -> PsImport
 importModule package mod =
-  { mod: package, typ: Nothing, alias: Just mod }
+  { mod: fullName, typ: Nothing, alias: Just fullName }
+  where fullName = package <> "." <> mod
 
 splitType :: String -> Maybe Extern
 splitType s = do
@@ -159,8 +159,8 @@ sumJsonCodec name vs = do
                 // indented (branches encodeBranch)
       decode = text "decode: case _ of"
                 // indented (branches decodeBranch // fallthrough)
-  pure $ text "Runtime.composeCodec"
-          // indented (delimitedLiteral Vert '{' '}' [ decode, encode ] // text "Runtime.jsonCodec_string")
+  pure $ text "R.composeCodec"
+          // indented (delimitedLiteral Vert '{' '}' [ decode, encode ] // text "R.jsonCodec_string")
   where
     branches branch = vcat Boxes.left (vs <#> branch)
     encodeBranch v = text v <<+>> text "->" <<+>> text (show v)
@@ -194,13 +194,16 @@ tyType =
       tyType t <#> \ty -> text tycon <<+>> parens ty
   in case _ of
     Primitive p -> primitive p
-    Ref _ { mod, typ } -> do
-      { defaultPrefix, allModules } <- ask
-      let prefix = mod <#> \m -> fromMaybe defaultPrefix (modPrefix allModules m)
-      for_ (lift2 importModule prefix mod) \s -> tell [ s ]
-      pure $ text (maybe "" (_ <> ".") mod <> typ)
+    Ref _ { mod, typ } -> internalRef mod typ
     Array t -> wrap "Array" t
     Option t -> tell (pure { mod: "Data.Maybe", typ: Just "Maybe", alias: Nothing }) >>= const (wrap "Maybe" t)
+
+internalRef :: Maybe String -> String -> Codegen Box
+internalRef mod typ = do
+  { defaultPrefix, allModules } <- ask
+  let fullModName = mod <#> \m -> fromMaybe defaultPrefix (modPrefix allModules m) <> "." <> m
+  for_ fullModName (\n -> tell [ { mod: n, typ: Nothing, alias: Just n } ])
+  pure $ text (maybe "" (_ <> ".") fullModName <> typ)
 
 modPrefix :: Array Module -> String -> Maybe String
 modPrefix all modName = do
@@ -211,43 +214,41 @@ externalRef :: String -> Codegen Box
 externalRef s = fromMaybe (text s # pure) (splitType s <#> externalType)
 
 emitRuntime :: Box -> Codegen Box
-emitRuntime b = emit { mod: "Ccap.Codegen.Runtime", typ: Nothing, alias: Just "Runtime" } b
+emitRuntime b = emit { mod: "Ccap.Codegen.Runtime", typ: Nothing, alias: Just "R" } b
 
 newtypeJsonCodec :: String -> Type -> Codegen Box
 newtypeJsonCodec name t = do
   i <- jsonCodec t
-  emitRuntime $ text "Runtime.codec_newtype" <<+>> parens i
+  emitRuntime $ text "R.codec_newtype" <<+>> parens i
 
 externalJsonCodec :: String -> Type -> String -> String -> Codegen Box
 externalJsonCodec name t decode encode = do
   i <- jsonCodec t
   decode_ <- externalRef decode
   encode_ <- externalRef encode
-  emitRuntime $ text "Runtime.codec_custom" <<+>> decode_ <<+>> encode_ <<+>> parens i
+  emitRuntime $ text "R.codec_custom" <<+>> decode_ <<+>> encode_ <<+>> parens i
 
 codecName :: Maybe String -> String -> String
 codecName mod t =
   maybe "" (_ <> ".") mod <> "jsonCodec_" <> t
 
-jsonCodecS :: Type -> String
-jsonCodecS ty =
+jsonCodec :: Type -> Codegen Box
+jsonCodec ty =
   case ty of
-    Primitive p -> codecName (Just "Runtime") (
+    Primitive p -> pure (text $ codecName (Just "R") (
       case p of
         PBoolean -> "boolean"
         PInt -> "int"
         PDecimal -> "decimal"
         PString -> "string"
-      )
+      ))
     Array t -> tycon "array" t
     Option t -> tycon "maybe" t
-    Ref _ { mod, typ } -> codecName mod typ
+    Ref _ { mod, typ } -> internalRef mod ("jsonCodec_" <> typ)
   where
-    tycon which t =
-      "(" <> codecName (Just "Runtime") which <> " " <> jsonCodecS t <> ")"
-
-jsonCodec :: Type -> Codegen Box
-jsonCodec = jsonCodecS >>> text >>> pure
+    tycon which t = do
+      ref <- jsonCodec t
+      pure $ text ("(" <> codecName (Just "R") which <> " ") <<>> ref <<>> text ")"
 
 parens :: Box -> Box
 parens b = char '(' <<>> b <<>> char ')'
@@ -255,7 +256,7 @@ parens b = char '(' <<>> b <<>> char ')'
 defJsonCodec :: String -> Box -> Box
 defJsonCodec name def =
   let cname = codecName Nothing name
-  in text cname <<+>> text ":: Runtime.JsonCodec" <<+>> text name
+  in text cname <<+>> text ":: R.JsonCodec" <<+>> text name
      // (text cname <<+>> char '=')
      // indented def
 
@@ -269,21 +270,21 @@ record props = do
 recordJsonCodec :: Array RecordProp -> Codegen Box
 recordJsonCodec props = do
   tell
-    [ { mod: "Data.Argonaut.Core", typ: Nothing, alias: Just "Argonaut" }
-    , { mod: "Ccap.Codegen.Runtime", typ: Nothing, alias: Just "Runtime" }
+    [ { mod: "Data.Argonaut.Core", typ: Nothing, alias: Just "A" }
+    , { mod: "Ccap.Codegen.Runtime", typ: Nothing, alias: Just "R" }
     , { mod: "Foreign.Object", typ: Nothing, alias: Just "FO" }
     , { mod: "Prelude", typ: Nothing, alias: Nothing }
     ]
   encodeProps <- recordWriteProps props
   decodeProps <- recordReadProps props
-  let encode = text "encode: \\p -> Argonaut.fromObject $"
+  let encode = text "encode: \\p -> A.fromObject $"
                 // indented
                       (text "FO.fromFoldable"
                         // indented encodeProps)
       names = props <#> \(RecordProp name _) -> text name
       decode = text "decode: \\j -> do"
               // indented
-                    (text "o <- Runtime.obj j"
+                    (text "o <- R.obj j"
                       // decodeProps
                       // (text "pure" <<+>> delimitedLiteral Horiz '{' '}' names))
   pure $ delimitedLiteral Vert '{' '}' [ decode, encode ]
@@ -299,6 +300,6 @@ recordReadProps :: Array RecordProp -> Codegen Box
 recordReadProps props = do
   lines <- for props (\(RecordProp name t) -> do
     x <- jsonCodec t
-    pure $ text name <<+>> text "<- Runtime.decodeProperty"
+    pure $ text name <<+>> text "<- R.decodeProperty"
               <<+>> text (show name) <<+>> x <<+>> text "o")
   pure $ vcat Boxes.left lines
