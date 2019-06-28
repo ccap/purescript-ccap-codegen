@@ -2,7 +2,7 @@
 
 set -e -x
 
-pulp test
+pulp build
 
 case $1 in
     ccap)
@@ -31,3 +31,9 @@ for i in samples/*.tmpl; do
 
     # TODO: Test compilation of generated output.
 done
+
+# We can at least test compile this one for now
+
+./compile -p Test.Generated -m purs  -o test/generated samples/SelfContained.tmpl
+
+pulp test
