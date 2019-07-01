@@ -163,10 +163,18 @@ sumJsonCodec name vs = do
     fallthrough = text $ "s -> Left $ \"Invalid value \" <> show s <> \" for " <> name <> "\""
 
 newtypeInstances :: String -> Codegen Box
-newtypeInstances name =
-  emit
-    { mod: "Data.Newtype", typ: Just "class Newtype", alias: Nothing }
-    $ text ("derive instance newtype" <> name <> " :: Newtype " <> name <> " _")
+newtypeInstances name = do
+  tell
+    [ { mod: "Data.Newtype", typ: Just "class Newtype", alias: Nothing }
+    , { mod: "Data.Argonaut.Decode", typ: Just "class DecodeJson", alias: Nothing }
+    , { mod: "Data.Argonaut.Encode", typ: Just "class EncodeJson", alias: Nothing }
+    ]
+  pure $
+    text ("derive instance newtype" <> name <> " :: Newtype " <> name <> " _")
+      // text ("instance encodeJson" <> name <> " :: EncodeJson " <> name <> " where ")
+      // indented (text $ "encodeJson a = jsonCodec_" <> name <> ".encode a")
+      // text ("instance decodeJson" <> name <> " :: DecodeJson " <> name <> " where ")
+      // indented (text $ "decodeJson a = jsonCodec_" <> name <> ".decode a")
 
 otherInstances :: String -> Codegen Box
 otherInstances name = do

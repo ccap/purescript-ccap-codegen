@@ -28,12 +28,6 @@ module County /* <scala package="gov.wicourts.codegen"> <purs modulePrefix="Ccap
   type AssessFacilityId: wrap Int
   type SomethingMoney: wrap Decimal
 
-  type Bunnies: wrap Int
-    <purs
-      t="Test.Support.Newint.Newint"
-      decode="Data.Newtype.wrap"
-      encode="Data.Newtype.unwrap">
-
   type County: {
     countyNo: Domains.CountyNoT
     countyNoX: CountyNo
