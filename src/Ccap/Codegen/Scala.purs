@@ -135,6 +135,8 @@ typeDecl outputMode (TypeDecl name tt an) =
           pure $ vcat Boxes.left
             [ text "final abstract class" <<+>> tagname
             , text "type" <<+>> text name <<+>> char '=' <<+>> scalatyp
+            , text "val" <<+>> text name <<>> char ':' <<+>> text "scalaz.Tag.TagOf["
+                <<>> tagname <<>> text "] = scalaz.Tag.of[" <<>> tagname <<>> char ']'
             , defEncoder name (e <<>> text ".tagged")
             , defDecoder name dTy (d <<>> text ".tagged")
             ]
