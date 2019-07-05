@@ -7,7 +7,6 @@ import Prelude
 import Ccap.Codegen.Annotations (getMaxLength, getWrapOpts, field) as Annotations
 import Ccap.Codegen.Shared (DelimitedLiteralDir(..), OutputSpec, Env, delimitedLiteral, indented)
 import Ccap.Codegen.Types (Annotations, Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), isRecord)
-import Control.Alt ((<|>))
 import Control.Monad.Reader (Reader, ask, asks, runReader)
 import Data.Array ((:))
 import Data.Array as Array
@@ -85,27 +84,31 @@ imports =
   let all = standardImports # Array.sort >>> Array.nub
   in vcat Boxes.left (all <#> \s -> text ("import " <> s))
 
-defEncoder :: String -> Box -> Box
-defEncoder name enc =
-  text ("lazy val jsonEncoder" <> name <> ": Encoder[" <> name <> ", argonaut.Json] =")
-    // indented enc
+defEncoder :: Boolean -> String -> Box -> Box
+defEncoder includeName name enc =
+  let includedName = if includeName then name else ""
+  in
+    text ("lazy val jsonEncoder" <> includedName <> ": Encoder[" <> name <> ", argonaut.Json] =")
+      // indented enc
 
-defDecoder :: String -> String -> Box -> Box
-defDecoder name dType dec =
-  text ("def jsonDecoder" <> name <> "[M[_]: Monad]: Decoder." <> dType <> "[M, " <> name <> "] =")
-    // indented dec
+defDecoder :: Boolean -> String -> String -> Box -> Box
+defDecoder includeName name dType dec =
+  let includedName = if includeName then name else ""
+  in
+    text ("def jsonDecoder" <> includedName <> "[M[_]: Monad]: Decoder." <> dType <> "[M, " <> name <> "] =")
+      // indented dec
 
 wrapEncoder :: String -> Type -> Box -> Codegen Box
 wrapEncoder name t enc = do
   e <- encoder t
-  pure $ defEncoder name ((e <<>> text ".compose") `paren` [ enc ])
+  pure $ defEncoder true name ((e <<>> text ".compose") `paren` [ enc ])
 
 wrapDecoder :: Annotations -> String -> Type -> Box -> Codegen Box
 wrapDecoder annots name t dec = do
   d <- decoderType t
   topDec <- topDecoder annots t
   let body = (topDec <<>> text ".disjunction.andThen") `paren` [ dec ] // text ".validation"
-  pure $ defDecoder name d body
+  pure $ defDecoder true name d body
 
 data TypeDeclOutputMode = TopLevelCaseClass | CompanionObject
 derive instance eqTypeDeclOutputMode :: Eq TypeDeclOutputMode
@@ -120,8 +123,8 @@ typeDecl outputMode (TypeDecl name tt an) =
       d <- topDecoder an t
       pure $
         text "type" <<+>> text name <<+>> char '=' <<+>> ty
-          // defEncoder name e
-          // defDecoder name dTy d
+          // defEncoder true name e
+          // defDecoder true name dTy d
     Wrap t -> do
       case Annotations.getWrapOpts "scala" an of
         Nothing -> do
@@ -137,8 +140,8 @@ typeDecl outputMode (TypeDecl name tt an) =
             , text "type" <<+>> text name <<+>> char '=' <<+>> scalatyp
             , text "val" <<+>> text name <<>> char ':' <<+>> text "scalaz.Tag.TagOf["
                 <<>> tagname <<>> text "] = scalaz.Tag.of[" <<>> tagname <<>> char ']'
-            , defEncoder name (e <<>> text ".tagged")
-            , defDecoder name dTy (d <<>> text ".tagged")
+            , defEncoder true name (e <<>> text ".tagged")
+            , defDecoder true name dTy (d <<>> text ".tagged")
             ]
         Just { typ, decode, encode } -> do
           wrappedEncoder <-  wrapEncoder name t (text encode)
@@ -158,14 +161,14 @@ typeDecl outputMode (TypeDecl name tt an) =
       recordFieldEncoders <- traverse recordFieldEncoder props
       let
         cls = (text "final case class" <<+>> text name) `paren` recordFieldTypes
-        enc = defEncoder name (text "x => argonaut.Json.obj" `paren` recordFieldEncoders)
+        enc = defEncoder (modName /= name) name (text "x => argonaut.Json.obj" `paren` recordFieldEncoders)
       decBody <-
         case Array.length props of
           1 -> maybe (pure (emptyBox 0 0)) (singletonRecordDecoder name) (Array.head props)
           x | x <= 12 -> smallRecordDecoder name props
           x -> bigRecordDecoder name props
       let
-        dec = defDecoder name "Form" decBody
+        dec = defDecoder (modName /= name) name "Form" decBody
         fieldNamesTarget =
           if modName == name
             then Nothing
@@ -211,7 +214,7 @@ tyType qualify ty = do
         pure $ text tycon <<>> char '[' <<>> ty_ <<>> char ']'
   case ty of
     Ref _ { mod, typ } ->
-      pure $ text (maybe "" (_ <> ".") ((mod >>= modRef allModules) <|> mod <|> qualify) <> typ)
+      pure $ text (mod >>= fullyQualifiedRef allModules typ # fromMaybe (partiallyQualifiedRef qualify typ))
     Array t -> wrap "List" t
     Option t ->  wrap "Option" t
     Primitive p -> pure $ text (case p of
@@ -221,18 +224,43 @@ tyType qualify ty = do
       PString -> "String"
     )
 
-modRef :: Array Module -> String -> Maybe String
-modRef all modName = do
-  Module _ _ annots <- Array.find (\(Module n _ _) -> n == modName) all
-  p <- Annotations.field "scala" "package" annots
-  pure $ p <> "." <> modName
+partiallyQualifiedRef :: Maybe String -> String -> String
+partiallyQualifiedRef q typ =
+  maybe "" (_ <> ".") q <> typ
+
+fullyQualifiedRef :: Array Module -> String -> String -> Maybe String
+fullyQualifiedRef all typ modName = do
+  { rec, pkg } <- refData all typ modName
+  pure
+    if modName == typ && rec
+      then pkg <> typ
+      else pkg <> modName <> "." <> typ
+
+refData :: Array Module -> String -> String -> Maybe { rec :: Boolean, pkg :: String }
+refData all typ modName = do
+  Module _ decls annots <- Array.find (\(Module n _ _) -> n == modName) all
+  let rec = Array.find (\(TypeDecl n _ _) -> n == typ) decls
+              <#> (\(TypeDecl _ tt _) -> isRecord tt)
+              # fromMaybe false
+      pkg = Annotations.field "scala" "package" annots <#> (_ <> ".") # fromMaybe ""
+  pure { rec, pkg }
+
+encoderDecoderRef :: Array Module -> String -> String -> String -> Maybe String
+encoderDecoderRef all typ which modName = do
+  { rec, pkg } <- refData all typ modName
+  let prefix = pkg <> modName <> ".json" <> which
+  pure
+    if modName == typ && rec
+      then prefix
+      else prefix <> typ
 
 encoderDecoder :: String -> Type -> Codegen Box
 encoderDecoder which ty = do
   allModules <- asks _.allModules
   case ty of
-    Ref _ { mod, typ } ->
-      pure $ text (maybe "" (_ <> ".") ((mod >>= modRef allModules) <|> mod) <> "json" <> which <> typ)
+    Ref _ { mod, typ } -> do
+      let jRef = "json" <> which <> typ
+      pure $ text (mod >>= encoderDecoderRef allModules typ which # fromMaybe jRef)
     Array t -> encoderDecoder which t <#> (_ <<>> text ".list")
     Option t -> encoderDecoder which t <#> (_ <<>> text ".option")
     Primitive p -> pure $
