@@ -179,6 +179,26 @@ OUT-DIR directory to place the generated code file."
     (indent-to indentation-lvl)))
 
 ;; --------------------------------------------------------------------
+;; Flycheck
+
+(flycheck-define-checker ccap-temple
+  "A .tmpl file syntax checker using the configured compiler."
+  ;; Flycheck tries really hard to force you to hard-code the location of the compiler.
+  ;; We want to load it from ccap-temple-mode-codegen-repo, so we'll just manually set
+  ;; the variable that's supposed to be for user customization when we init the mode.
+  :command ("REPLACE_ME"
+            "-m"
+            "pretty"
+            "-p"
+            "test"
+            source)
+  :standard-input t
+  :error-patterns
+  ((error "ERROR: Could not parse " (file-name) ": line " line ", column " column
+          ": " (message) line-end))
+  :modes ccap-temple-mode)
+
+;; --------------------------------------------------------------------
 ;; Keybindings
 
 (defvar ccap-temple-mode-map nil
@@ -226,6 +246,11 @@ OUT-DIR directory to place the generated code file."
 
   ;; Indentation
   (setq indent-line-function #'ccap-temple-mode-indent)
+
+  ;; Flycheck
+  (add-to-list 'flycheck-checkers 'ccap-temple)
+  (flycheck-add-mode 'ccap-temple 'ccap-temple-mode)
+  (setq flycheck-ccap-temple-executable (concat ccap-temple-mode-codegen-repo "/compile"))
 
   ;; Syntax highlighting.
   (setq font-lock-defaults '((ccap-temple-font-lock-keywords))))
