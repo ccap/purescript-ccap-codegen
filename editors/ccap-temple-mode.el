@@ -16,6 +16,14 @@
 ;; --------------------------------------------------------------------
 ;; Helpers
 
+(defun ccap-temple-directory-splat ()
+  "Get a filename that matches all files in the current directory.
+EG. /home/steve/documents/test.txt -> /home/steve/documents/*"
+  (replace-regexp-in-string
+   (rx "/" (one-or-more (not (any "/"))) eol)
+   "/*"
+   (buffer-file-name)))
+
 (defun ccap-temple-current-line ()
   "Get the current line as text."
   (buffer-substring-no-properties
@@ -94,7 +102,7 @@ Assumes that the tmpl file is in <project-dir>/main/resources/."
     target))
 
 (defun ccap-temple-compile-command (compiler-loc target-package language out-dir)
-  "Construct the console command to run the compiler.
+  "Construct the console command to run the compiler on every file in current directory.
 COMPILER-LOC the directory containing the compiler executable.
 TARGET-PACKAGE package or module to place the generated module.
 LANGUAGE either 'scala' or 'purs'.
@@ -103,13 +111,15 @@ OUT-DIR directory to place the generated code file."
         (module-argument (concat "-p " target-package))
         (lang-argument (concat "-m " language))
         (output-argument (concat "-o " out-dir))
-        (input-argument (buffer-file-name)))
+        (input-argument (ccap-temple-directory-splat)))
     (string-join
      (list compile-command
            module-argument
            lang-argument
            output-argument
-           input-argument)
+           input-argument
+           ;; Run the command in the background to not block Emacs
+           "&")
      " ")))
 
 ;; --------------------------------------------------------------------
@@ -137,8 +147,7 @@ OUT-DIR directory to place the generated code file."
                                 (ccap-temple-module-to-path
                                  (buffer-file-name)
                                  "scala"))))
-            (shell-command purs-command)
-            (shell-command scala-command))
+            (shell-command (concat purs-command scala-command)))
         (cond
          ((and (not scala-target) (not purs-target))
           (message "Could not detect purescript or scala targets. Cannot compile."))
@@ -229,8 +238,8 @@ OUT-DIR directory to place the generated code file."
 (setq ccap-temple-font-lock-keywords
       (let* (;; Define several categories of keywords
              (x-keywords '("module" "type"))
-             (x-types '("int" "string" "decimal" "boolean" "array"))
-             (x-functions '("wrap" "optional"))
+             (x-types '("Int" "String" "Decimal" "Boolean" "Array"))
+             (x-functions '("wrap" "Maybe"))
 
              ;; Generate regex strings to parse each kategory of keywords
              (x-keywords-regexp (regexp-opt x-keywords 'words))
