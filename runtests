@@ -12,6 +12,12 @@ case $1 in
         ;;
 esac
 
+./compile -p gov.wicourts.test -m scala -o test/generated/scala samples/SelfContained.tmpl
+
+scalac -classpath lib/scalaz-core_2.12-7.2.27.jar \
+       src/main/scala/gov/wicourts/*.scala \
+       test/generated/scala/gov/wicourts/test/SelfContained.scala
+
 for i in samples/*.tmpl; do
     # Attempts to compile the input.tmpl, reporting parsing errors if
     # not parsed correctly. NOTE: this passing does NOT guarantee a
