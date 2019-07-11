@@ -101,6 +101,36 @@ Assumes that the tmpl file is in <project-dir>/main/resources/."
             (forward-line)))))
     target))
 
+(defun ccap-temple-target-filename (base-path lang target module)
+  "Given all the pieces, create a filename for a target file in LANG."
+  (string-join
+   (list base-path
+         (replace-regexp-in-string (rx ".")
+                                   "/"
+                                   target)
+         (concat module "." lang))
+   "/"))
+
+(defun ccap-temple-buffer-get-module ()
+  "Get the module defined in the buffer."
+  (let ((module nil))
+    (save-excursion
+      (beginning-of-buffer)
+      (while
+          (and
+           (not module)
+           ;; Not at end of buffer
+           (< (point) (point-max)))
+        (let* ((line (ccap-temple-clean-line (ccap-temple-current-line)))
+               (module-parsed (second
+                               (s-match (rx "module "
+                                            (group (one-or-more word)))
+                                        line))))
+          (if module-parsed
+              (setq module module-parsed)
+            (forward-line)))))
+    module))
+
 (defun ccap-temple-compile-command (compiler-loc target-package language out-dir)
   "Construct the console command to run the compiler on every file in current directory.
 COMPILER-LOC the directory containing the compiler executable.
@@ -117,10 +147,24 @@ OUT-DIR directory to place the generated code file."
            module-argument
            lang-argument
            output-argument
-           input-argument
-           ;; Run the command in the background to not block Emacs
-           "&")
+           input-argument)
      " ")))
+
+(defun ccap-temple-jump-to-lang (lang)
+  "Try to jump to the target LANG file."
+  (let ((module (ccap-temple-buffer-get-module))
+        (target (ccap-temple-buffer-get-target lang)))
+    (cond
+     ((not module)
+      (message "Could not detect module."))
+     ((not target)
+      (message (concat "Could not detect " lang " target.")))
+     (t
+      (find-file (ccap-temple-target-filename
+                  (ccap-temple-module-to-path (buffer-file-name) lang)
+                  lang
+                  target
+                  module))))))
 
 ;; --------------------------------------------------------------------
 ;; Commands
@@ -147,7 +191,9 @@ OUT-DIR directory to place the generated code file."
                                 (ccap-temple-module-to-path
                                  (buffer-file-name)
                                  "scala"))))
-            (shell-command (concat purs-command scala-command)))
+            (let ((command (concat purs-command "&& " scala-command " &")))
+              (print (concat "Compiling: " command) ccap-temple-out-buffer)
+              (shell-command command)))
         (cond
          ((and (not scala-target) (not purs-target))
           (message "Could not detect purescript or scala targets. Cannot compile."))
@@ -187,6 +233,16 @@ OUT-DIR directory to place the generated code file."
                (t (setq indentation-lvl (current-indentation)))))))))
     (indent-to indentation-lvl)))
 
+(defun ccap-temple-jump-to-scala ()
+  "Jump to the scala target file."
+  (interactive)
+  (ccap-temple-jump-to-lang "scala"))
+
+(defun ccap-temple-jump-to-purs ()
+  "Jump to the purescript target file."
+  (interactive)
+  (ccap-temple-jump-to-lang "purs"))
+
 ;; --------------------------------------------------------------------
 ;; Flycheck
 
@@ -216,6 +272,8 @@ OUT-DIR directory to place the generated code file."
 (setq ccap-temple-mode-map (make-sparse-keymap))
 
 (define-key ccap-temple-mode-map (kbd "C-c C-c") 'ccap-temple-mode-compile)
+(define-key ccap-temple-mode-map (kbd "C-j s") 'ccap-temple-jump-to-scala)
+(define-key ccap-temple-mode-map (kbd "C-j p") 'ccap-temple-jump-to-purs)
 
 ;; --------------------------------------------------------------------
 ;; Syntax highlighting
