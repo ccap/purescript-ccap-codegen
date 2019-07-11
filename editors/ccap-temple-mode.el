@@ -147,9 +147,7 @@ OUT-DIR directory to place the generated code file."
            module-argument
            lang-argument
            output-argument
-           input-argument
-           ;; Run the command in the background to not block Emacs
-           "&")
+           input-argument)
      " ")))
 
 (defun ccap-temple-jump-to-lang (lang)
@@ -193,7 +191,7 @@ OUT-DIR directory to place the generated code file."
                                 (ccap-temple-module-to-path
                                  (buffer-file-name)
                                  "scala"))))
-            (let ((command (concat purs-command " " scala-command)))
+            (let ((command (concat purs-command "&& " scala-command " &")))
               (print (concat "Compiling: " command) ccap-temple-out-buffer)
               (shell-command command)))
         (cond
