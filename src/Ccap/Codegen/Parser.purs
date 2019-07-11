@@ -9,7 +9,7 @@ import Prelude
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
 import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..))
 import Control.Alt ((<|>))
-import Data.Array (fromFoldable, many, some) as Array
+import Data.Array (fromFoldable, many) as Array
 import Data.Char.Unicode (isLower)
 import Data.Either (Either)
 import Data.Foldable (intercalate)
@@ -147,8 +147,8 @@ annotationParam = ado
   value <- option Nothing (lexeme (char '=') *> stringLiteral <#> Just)
   in AnnotationParam name pos value
 
-wholeFile :: ParserT String Identity (Array Module)
-wholeFile = whiteSpace *> Array.some oneModule
+wholeFile :: ParserT String Identity Module
+wholeFile = whiteSpace *> oneModule
 
 errorMessage :: String -> ParseError -> String
 errorMessage fileName err =
@@ -163,11 +163,11 @@ errorMessage fileName err =
       <> ": "
       <> parseErrorMessage err
 
-roundTrip :: Array Module -> Either ParseError Boolean
-roundTrip modules1 = do
-  let prettyPrinted1 = PrettyPrinter.prettyPrint modules1
-  modules2 <- runParser prettyPrinted1 wholeFile
-  let prettyPrinted2 = PrettyPrinter.prettyPrint modules2
+roundTrip :: Module -> Either ParseError Boolean
+roundTrip module1 = do
+  let prettyPrinted1 = PrettyPrinter.prettyPrint module1
+  module2 <- runParser prettyPrinted1 wholeFile
+  let prettyPrinted2 = PrettyPrinter.prettyPrint module2
   pure $ prettyPrinted1 == prettyPrinted2
 
 

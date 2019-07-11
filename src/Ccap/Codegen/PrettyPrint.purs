@@ -9,12 +9,11 @@ import Ccap.Codegen.Shared (OutputSpec)
 import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Data.Array as Array
 import Data.Maybe (Maybe(..), maybe)
-import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
+import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
 
-prettyPrint :: Array Module -> String
-prettyPrint modules =
-  render $ vsep 1 Boxes.left (modules <#> oneModule)
+prettyPrint :: Module -> String
+prettyPrint = render <<< oneModule
 
 outputSpec :: OutputSpec
 outputSpec =

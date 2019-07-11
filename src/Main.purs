@@ -48,10 +48,10 @@ app strMode package outputDirectoryParam fs = launchAff_ $ processResult do
 
   fileModules <- traverse (processFile config) config.files
 
-  let all = fileModules >>= \(Tuple fileName modules) -> modules
+  let all = fileModules <#> \(Tuple fileName mod) -> mod
 
-  for_ fileModules \(Tuple fileName modules) ->
-    processModules config fileName modules all
+  for_ fileModules \(Tuple fileName mod) ->
+    processModule config fileName mod all
 
 data Mode
   = Pretty
@@ -79,7 +79,7 @@ readMode = case _ of
 readFiles :: Array Foreign -> Either String (Array String)
 readFiles = lmap show <<< runExcept <<< traverse readString
 
-processFile :: Config -> String -> ExceptT String Aff (Tuple String (Array Module))
+processFile :: Config -> String -> ExceptT String Aff (Tuple String Module)
 processFile config fileName = do
   contents <- withExceptT Error.message
                 <<< ExceptT
@@ -88,28 +88,27 @@ processFile config fileName = do
                 $ Sync.readTextFile UTF8 fileName
   except $ lmap (errorMessage fileName) (map (Tuple fileName) (runParser contents wholeFile))
 
-processModules :: Config -> String -> Array Module -> Array Module -> ExceptT String Aff Unit
-processModules config fileName modules all = do
+processModule :: Config -> String -> Module -> Array Module -> ExceptT String Aff Unit
+processModule config fileName mod all = do
   case config.mode of
-    Pretty -> writeOutput config modules PrettyPrint.outputSpec
-    Purs -> writeOutput config modules (Purescript.outputSpec config.package all)
-    Scala -> writeOutput config modules (Scala.outputSpec config.package all)
-    Show -> Console.info $ show modules
+    Pretty -> writeOutput config mod PrettyPrint.outputSpec
+    Purs -> writeOutput config mod (Purescript.outputSpec config.package all)
+    Scala -> writeOutput config mod (Scala.outputSpec config.package all)
+    Show -> Console.info $ show mod
     Test -> do
-      b <- except $ lmap (errorMessage fileName) (roundTrip modules)
+      b <- except $ lmap (errorMessage fileName) (roundTrip mod)
       if b
         then Console.info "Round-trip passed"
         else except $ Left "Round-trip failed"
 
-writeOutput :: Config -> Array Module -> OutputSpec -> ExceptT String Aff Unit
-writeOutput config modules outputSpec = do
-  for_ modules (\mod ->
-    config.outputDirectory # maybe
-      (Console.info <<< scrubEolSpaces <<< outputSpec.render $ mod)
-      (writeOutput_ mod))
+writeOutput :: Config -> Module -> OutputSpec -> ExceptT String Aff Unit
+writeOutput config mod outputSpec = do
+  config.outputDirectory # maybe
+    (Console.info <<< scrubEolSpaces <<< outputSpec.render $ mod)
+    writeOutput_
   where
-    writeOutput_ :: Module -> String -> ExceptT String Aff Unit
-    writeOutput_ mod dir = do
+    writeOutput_ :: String -> ExceptT String Aff Unit
+    writeOutput_ dir = do
       let outputFile = String.joinWith "/" filePath
       Console.info $ "Writing " <> outputFile
       ensureDirectoryExists outputFile
