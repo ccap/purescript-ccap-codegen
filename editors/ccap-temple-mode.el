@@ -11,6 +11,16 @@
   :group 'ccap-temple-mode
   :type 'number)
 
+(defcustom ccap-temple-mode-default-purs-target ""
+  "Default purescript generation target."
+  :group 'ccap-temple-mode
+  :type 'string)
+
+(defcustom ccap-temple-mode-default-scala-target ""
+  "Default scala generation target."
+  :group 'ccap-temple-mode
+  :type 'string)
+
 (defconst ccap-temple-out-buffer (generate-new-buffer "*ccap-temple output*"))
 
 ;; --------------------------------------------------------------------
@@ -83,6 +93,15 @@ Assumes that the tmpl file is in <project-dir>/main/resources/."
     (when (string-match annotation line)
       (replace-regexp-in-string annotation "" line))))
 
+(defun ccap-temple-default-target (lang)
+  "Get the default target variable for LANG."
+  (let ((var (cond
+              ((string= lang "purs") ccap-temple-mode-default-purs-target)
+              ((string= lang "scala") ccap-temple-mode-default-scala-target))))
+    (if (string= var "")
+        nil
+      var)))
+
 (defun ccap-temple-buffer-get-target (lang)
   "Parse the current buffer for the LANG target annotation."
   (let ((target nil))
@@ -99,7 +118,9 @@ Assumes that the tmpl file is in <project-dir>/main/resources/."
           (if parse
               (setq target parse)
             (forward-line)))))
-    target))
+    (if target
+        target
+      (ccap-temple-default-target lang))))
 
 (defun ccap-temple-target-filename (base-path lang target module)
   "Given all the pieces, create a filename for a target file in LANG."

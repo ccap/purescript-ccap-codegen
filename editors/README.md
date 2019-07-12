@@ -10,3 +10,9 @@ To use, add this code to your .init.el or .spacemacs file:
                ccap-temple-mode-codegen-repo
                "~/<path-to-your-repo>/purescript-ccap-codegen")))
 ```
+
+ccap-temple-mode has flycheck support. If you have flycheck installed, you can turn flycheck on in .tmpl files by adding this line after the above:
+
+```
+(add-hook 'ccap-temple-mode-hook 'flycheck-mode)
+```
