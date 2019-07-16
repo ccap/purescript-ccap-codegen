@@ -10,7 +10,7 @@ import Ccap.Codegen.Purescript as Purescript
 import Ccap.Codegen.Scala as Scala
 import Ccap.Codegen.Shared (OutputSpec)
 import Ccap.Codegen.Types (Module)
-import Ccap.Codegen.Util (liftEffectSafely, processResult, scrubEolSpaces)
+import Ccap.Codegen.Util (ensureNewline, liftEffectSafely, processResult, scrubEolSpaces)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (ExceptT(..), except, runExcept, withExceptT)
 import Data.Array as Array
@@ -115,7 +115,7 @@ writeOutput config mod outputSpec = do
       liftEffectSafely $ Sync.writeTextFile
         UTF8
         outputFile
-        (scrubEolSpaces <<< outputSpec.render $ mod)
+        (ensureNewline <<< scrubEolSpaces <<< outputSpec.render $ mod)
       where
         filePath = [ dir, (outputSpec.filePath mod) ]
 
