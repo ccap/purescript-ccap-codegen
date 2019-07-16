@@ -9,6 +9,7 @@ import Data.Either (either)
 import Data.String.Regex (regex)
 import Data.String.Regex (replace) as Regex
 import Data.String.Regex.Flags (global, multiline) as Regex.Flags
+import Data.String.Utils as String
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
@@ -34,3 +35,7 @@ scrubEolSpaces i =
   regex " +$" (Regex.Flags.multiline <> Regex.Flags.global) # either
     (const i)
     (\r -> Regex.replace r "" i)
+
+--| Ensure newline
+ensureNewline :: String -> String
+ensureNewline s = if String.endsWith "\n" s then s else s <> "\n"
