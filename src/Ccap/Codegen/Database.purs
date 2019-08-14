@@ -41,7 +41,7 @@ domainModule pool = withExceptT show $ withConnection pool \conn -> do
                                 'integer', 'smallint', 'text',
                                 'boolean', 'date', 'time without time zone',
                                 'timestamp with time zone') and
-                  domain_name <> 'BatchIDT'
+                  domain_name not in ('BatchIDT', 'XMLT')
           """
 
 type DbColumn =
