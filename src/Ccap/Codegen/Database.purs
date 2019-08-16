@@ -38,7 +38,7 @@ domainModule pool = withExceptT show $ withConnection pool \conn -> do
           from information_schema.domains
           where domain_schema = 'public' and
                   data_type in ('numeric', 'character varying',
-                                'integer', 'smallint', 'text',
+                                'integer', 'smallint', 'text', 'uuid',
                                 'boolean', 'date', 'time without time zone',
                                 'timestamp with time zone') and
                   domain_name not in ('BatchIDT', 'XMLT')
@@ -68,7 +68,7 @@ queryColumns tableName conn = do
           from information_schema.columns
           where table_name = $1 and
                   data_type in ('numeric', 'character varying',
-                                'integer', 'smallint', 'text',
+                                'integer', 'smallint', 'text', 'uuid',
                                 'boolean', 'date', 'time without time zone',
                                 'timestamp with time zone')
           order by ordinal_position ;
@@ -103,4 +103,5 @@ dbNameToType =
     "date" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Date" }
     "time without time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Time" }
     "timestamp with time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Timestamp" }
+    "uuid" -> Ref emptyPos { mod: Just "UUIDSupport", typ: "UUID" }
     _ -> Primitive PString -- XXX
