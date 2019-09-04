@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "purescript-argonaut-codecs": "^6.0.0",
-    "purescript-boxes": "^2.0.0",
+    "purescript-boxes": "^2.0.1",
     "purescript-debug": "^4.0.0",
     "purescript-filterable": "^3.0.1",
     "purescript-generics-rep": "^6.1.1",
