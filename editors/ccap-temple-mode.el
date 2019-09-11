@@ -158,7 +158,7 @@ COMPILER-LOC the directory containing the compiler executable.
 TARGET-PACKAGE package or module to place the generated module.
 LANGUAGE either 'scala' or 'purs'.
 OUT-DIR directory to place the generated code file."
-  (let ((compile-command (concat compiler-loc "/compile"))
+  (let ((compile-command (concat compiler-loc "/codgen.js"))
         (module-argument (concat "-p " target-package))
         (lang-argument (concat "-m " language))
         (output-argument (concat "-o " out-dir))
@@ -338,7 +338,7 @@ OUT-DIR directory to place the generated code file."
   ;; Flycheck
   (add-to-list 'flycheck-checkers 'ccap-temple)
   (flycheck-add-mode 'ccap-temple 'ccap-temple-mode)
-  (setq flycheck-ccap-temple-executable (concat ccap-temple-mode-codegen-repo "/compile"))
+  (setq flycheck-ccap-temple-executable (concat ccap-temple-mode-codegen-repo "/codegen.js"))
 
   ;; Syntax highlighting.
   (setq font-lock-defaults '((ccap-temple-font-lock-keywords))))
