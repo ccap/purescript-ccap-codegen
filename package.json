@@ -3,6 +3,7 @@
   "scripts": {
     "clean": "rimraf output && rimraf .pulp-cache",
     "build": "pulp build -- --censor-lib --strict",
+    "postinstall": "bower install",
     "test": "./runtests"
   },
   "dependencies": {
