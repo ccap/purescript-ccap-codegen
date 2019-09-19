@@ -9,7 +9,9 @@ Status](https://travis-ci.org/ccap/purescript-ccap-codegen.svg)](https://travis-
 
 ```yarn```
 
-```bower install```
+### Building
+
+```yarn build```
 
 ### If after successful setup, pulp is not found (try pulp psci to test this)
 
@@ -19,11 +21,11 @@ Status](https://travis-ci.org/ccap/purescript-ccap-codegen.svg)](https://travis-
 
 For the most basic testing:
 
-    ./runtests
+    yarn test
 
 To additionally re-generate the auto-generated `tmpl`s from the DB, assuming you already have `~/.pgpass` set up and are on the CCAP network:
 
-    ./runtests ccap
+    yarn test ccap
 
 Print a computer-friendly (PureScript) representation of the template to the console. Useful for debugging.
 
