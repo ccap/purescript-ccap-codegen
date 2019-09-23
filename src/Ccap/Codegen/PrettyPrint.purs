@@ -18,12 +18,13 @@ prettyPrint = render <<< oneModule
 outputSpec :: OutputSpec
 outputSpec =
   { render: render <<< oneModule
-  , filePath: \(Module n _ _) -> n <> ".tmpl"
+  , filePath: \(Module n _ _ _) -> n <> ".tmpl"
   }
 
 oneModule :: Module -> Box
-oneModule (Module name decls annots) =
+oneModule (Module name decls annots imprts) =
   text ("module " <> name) <<+>> trailingSpace (annots <#> annotation) <<>> text "{"
+    // indentedList (imprts <#> text <<< \s -> "import " <> s)
     // indentedList (decls <#> typeDecl)
     // text "}"
 

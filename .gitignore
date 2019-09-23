@@ -7,3 +7,6 @@
 /pursuit.json
 yarn.lock
 /.idea
+.psc-ide-port
+package-lock.json
+.vscode/settings.json

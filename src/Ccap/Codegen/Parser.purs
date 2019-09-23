@@ -7,7 +7,7 @@ module Ccap.Codegen.Parser
 import Prelude
 
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Imports, Module(..), Primitive(..), RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..))
 import Control.Alt ((<|>))
 import Data.Array (fromFoldable, many) as Array
 import Data.Char.Unicode (isLower)
@@ -112,15 +112,22 @@ recordProp = ado
   ty <- tyType unit
   in RecordProp name ty
 
+imports :: ParserT String Identity Imports
+imports = Array.many
+  do
+    reserved "import"
+    moduleOrTypeName
+
 oneModule :: ParserT String Identity Module
 oneModule = ado
   reserved "module"
   name <- moduleOrTypeName
+  imprts <- imports
   annots <- Array.many annotation
   lexeme $ char '{'
   decls <- Array.many typeDecl
   lexeme $ char '}'
-  in Module name decls annots
+  in Module name decls annots imprts
 
 typeDecl :: ParserT String Identity TypeDecl
 typeDecl = ado

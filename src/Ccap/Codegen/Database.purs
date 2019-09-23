@@ -31,7 +31,7 @@ domainModule pool = withExceptT show $ withConnection pool \conn -> do
                           ])
                         maxLen
                 in TypeDecl domainName (Wrap (dbNameToType dataType)) annots)
-  pure $ Module "Domains" types []
+  pure $ Module "Domains" types [] []
   where
     sql = """
           select domain_name, data_type, character_maximum_length
@@ -55,7 +55,7 @@ tableModule :: Pool -> String -> ExceptT String Aff Module
 tableModule pool tableName = withExceptT show $ withConnection pool \conn -> do
   columns <- queryColumns tableName conn
   let decl = tableType tableName columns
-  pure $ Module tableName [ decl ] []
+  pure $ Module tableName [ decl ] [] []
 
 queryColumns :: String -> Connection -> ExceptT PGError Aff (Array DbColumn)
 queryColumns tableName conn = do

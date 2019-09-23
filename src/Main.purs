@@ -4,6 +4,7 @@ module Main
 
 import Prelude
 
+import Ccap.Codegen.Imports (validateImports)
 import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
 import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Purescript as Purescript
@@ -46,12 +47,15 @@ app strMode package outputDirectoryParam fs = launchAff_ $ processResult do
         files <- readFiles fs
         pure { mode, package, files, outputDirectory }
 
-  fileModules <- traverse (processFile config) config.files
+  fileModules <- traverse (parseFile config) config.files
 
   let all = fileModules <#> \(Tuple fileName mod) -> mod
+      fileNames = fileModules <#> \(Tuple fileName mod) -> fileName
+
+  validateImports fileNames all
 
   for_ fileModules \(Tuple fileName mod) ->
-    processModule config fileName mod all
+    writeModule config fileName mod all
 
 data Mode
   = Pretty
@@ -79,8 +83,8 @@ readMode = case _ of
 readFiles :: Array Foreign -> Either String (Array String)
 readFiles = lmap show <<< runExcept <<< traverse readString
 
-processFile :: Config -> String -> ExceptT String Aff (Tuple String Module)
-processFile config fileName = do
+parseFile :: Config -> String -> ExceptT String Aff (Tuple String Module)
+parseFile config fileName = do
   contents <- withExceptT Error.message
                 <<< ExceptT
                 <<< liftEffect
@@ -88,8 +92,8 @@ processFile config fileName = do
                 $ Sync.readTextFile UTF8 fileName
   except $ lmap (errorMessage fileName) (map (Tuple fileName) (runParser contents wholeFile))
 
-processModule :: Config -> String -> Module -> Array Module -> ExceptT String Aff Unit
-processModule config fileName mod all = do
+writeModule :: Config -> String -> Module -> Array Module -> ExceptT String Aff Unit
+writeModule config fileName mod all = do
   case config.mode of
     Pretty -> writeOutput config mod PrettyPrint.outputSpec
     Purs -> writeOutput config mod (Purescript.outputSpec config.package all)

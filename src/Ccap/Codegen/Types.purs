@@ -2,6 +2,7 @@ module Ccap.Codegen.Types
   ( Annotation(..)
   , Annotations
   , AnnotationParam(..)
+  , Imports(..)
   , Module(..)
   , ModuleName
   , Primitive(..)
@@ -20,9 +21,12 @@ import Data.Maybe (Maybe)
 import Prelude (class Eq, class Show)
 import Text.Parsing.Parser.Pos (Position)
 
-data Module = Module ModuleName (Array TypeDecl) Annotations
+data Module = Module ModuleName (Array TypeDecl) Annotations Imports
 
 type ModuleName = String
+
+--change this type to allow qualified imports?
+type Imports = Array String
 
 data TypeDecl = TypeDecl String TopType Annotations
 
