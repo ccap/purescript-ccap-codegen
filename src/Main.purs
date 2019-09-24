@@ -4,6 +4,7 @@ module Main
 
 import Prelude
 
+import Ccap.Codegen.Config (Config, Mode(..), config)
 import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
 import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Purescript as Purescript
@@ -16,10 +17,10 @@ import Control.Monad.Except (ExceptT(..), except, runExcept, withExceptT)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Maybe (Maybe, fromMaybe, maybe)
 import Data.String as String
-import Data.Traversable (for_, scanl, traverse)
-import Data.Tuple (Tuple(..))
+import Data.Traversable (for_, scanl, traverse, traverse_)
+import Data.Tuple (Tuple(..), snd, uncurry)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
@@ -29,58 +30,23 @@ import Foreign (readString)
 import Foreign.Generic (Foreign)
 import Node.Encoding (Encoding(..))
 import Node.FS.Sync as Sync
-import Node.Yargs.Applicative (rest, runY, yarg)
+import Node.Yargs.Applicative (rest, runY)
 import Node.Yargs.Setup (usage)
 import Text.Parsing.Parser (runParser)
 
-app :: String -> String -> String -> Array Foreign -> Effect Unit
-app strMode package outputDirectoryParam fs = launchAff_ $ processResult do
-  let checkString s =
-        if String.length s > 0
-          then Just s
-          else Nothing
-      outputDirectory = checkString outputDirectoryParam
-
-  config <- except do
-        mode <- readMode strMode
-        files <- readFiles fs
-        pure { mode, package, files, outputDirectory }
-
-  fileModules <- traverse (processFile config) config.files
-
-  let all = fileModules <#> \(Tuple fileName mod) -> mod
-
-  for_ fileModules \(Tuple fileName mod) ->
-    processModule config fileName mod all
-
-data Mode
-  = Pretty
-  | Purs
-  | Scala
-  | Show
-  | Test
-
-type Config =
-  { mode :: Mode
-  , package :: String
-  , files :: Array String
-  , outputDirectory :: Maybe String
-  }
-
-readMode :: String -> Either String Mode
-readMode = case _ of
-  "pretty" -> Right Pretty
-  "purs" -> Right Purs
-  "scala" -> Right Scala
-  "show" -> Right Show
-  "test" -> Right Test
-  m -> Left $ "Unknown mode " <> show m
+app :: Either String Config -> Array Foreign -> Effect Unit
+app eConfig fs = launchAff_ $ processResult do
+  config <- except eConfig
+  files <- except $ readFiles fs
+  fileModules <- traverse parseFile files
+  let all = fileModules <#> snd
+  traverse_ (uncurry $ writeModule config all) fileModules
 
 readFiles :: Array Foreign -> Either String (Array String)
 readFiles = lmap show <<< runExcept <<< traverse readString
 
-processFile :: Config -> String -> ExceptT String Aff (Tuple String Module)
-processFile config fileName = do
+parseFile :: String -> ExceptT String Aff (Tuple String Module)
+parseFile fileName = do
   contents <- withExceptT Error.message
                 <<< ExceptT
                 <<< liftEffect
@@ -88,8 +54,8 @@ processFile config fileName = do
                 $ Sync.readTextFile UTF8 fileName
   except $ lmap (errorMessage fileName) (map (Tuple fileName) (runParser contents wholeFile))
 
-processModule :: Config -> String -> Module -> Array Module -> ExceptT String Aff Unit
-processModule config fileName mod all = do
+writeModule :: Config -> Array Module -> String -> Module -> ExceptT String Aff Unit
+writeModule config all fileName mod = do
   case config.mode of
     Pretty -> writeOutput config mod PrettyPrint.outputSpec
     Purs -> writeOutput config mod (Purescript.outputSpec config.package all)
@@ -142,24 +108,6 @@ ensureDirectoryExists filePath =
         (if rootPath then fromMaybe parts (Array.modifyAt 0 ("/" <> _) parts) else parts)
 
 main :: Effect Unit
-main = do
+main =
   let setup = usage "$0 --package <package> --mode <mode> a.tmpl"
-  runY setup $ app <$> yarg
-                        "m"
-                        [ "mode" ]
-                        (Just "The output mode (must be one of pretty, purs, scala, show, or test)")
-                        (Right "Mode is required")
-                        true
-                   <*> yarg
-                        "p"
-                        [ "package" ]
-                        (Just "The package (Scala) or module prefix (PureScript) to use")
-                        (Right "Package is required")
-                        true
-                   <*> yarg
-                        "o"
-                        [ "output-directory" ]
-                        (Just "Files will be written to this directory")
-                        (Left "")
-                        true
-                  <*> rest
+  in runY setup $ app <$> config <*> rest
