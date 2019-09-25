@@ -5,6 +5,7 @@ module Main
 import Prelude
 
 import Ccap.Codegen.Config (Config, Mode(..), config)
+import Ccap.Codegen.FileSystem (mkDirP)
 import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
 import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Purescript as Purescript
@@ -14,12 +15,10 @@ import Ccap.Codegen.Types (Module)
 import Ccap.Codegen.Util (ensureNewline, liftEffectSafely, processResult, scrubEolSpaces)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (ExceptT(..), except, runExcept, withExceptT)
-import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Maybe (Maybe, fromMaybe, maybe)
-import Data.String as String
-import Data.Traversable (for_, scanl, traverse, traverse_)
+import Data.Maybe (maybe)
+import Data.Traversable (traverse, traverse_)
 import Data.Tuple (Tuple(..), snd, uncurry)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
@@ -30,6 +29,7 @@ import Foreign (readString)
 import Foreign.Generic (Foreign)
 import Node.Encoding (Encoding(..))
 import Node.FS.Sync as Sync
+import Node.Path as Path
 import Node.Yargs.Applicative (rest, runY)
 import Node.Yargs.Setup (usage)
 import Text.Parsing.Parser (runParser)
@@ -75,37 +75,15 @@ writeOutput config mod outputSpec = do
   where
     writeOutput_ :: String -> ExceptT String Aff Unit
     writeOutput_ dir = do
-      let outputFile = String.joinWith "/" filePath
+      let
+        filePath = [ dir, (outputSpec.filePath mod) ]
+        outputFile = Path.concat filePath
       Console.info $ "Writing " <> outputFile
-      ensureDirectoryExists outputFile
+      mkDirP (Path.dirname outputFile)
       liftEffectSafely $ Sync.writeTextFile
         UTF8
         outputFile
         (ensureNewline <<< scrubEolSpaces <<< outputSpec.render $ mod)
-      where
-        filePath = [ dir, (outputSpec.filePath mod) ]
-
-ensureDirectoryExists :: String -> ExceptT String Aff Unit
-ensureDirectoryExists filePath =
-  dirPath filePath # maybe (pure unit) \dir -> do
-    let parts = Array.filter (not <<< String.null) (String.split (String.Pattern "/") dir)
-    for_ (outputDirectories (String.take 1 filePath == "/") parts) \d ->
-      liftEffectSafely do
-        ifM (Sync.exists d)
-          (pure unit)
-          (Sync.mkdir d)
-  where
-    dirPath :: String -> Maybe String
-    dirPath p =
-      let idx = String.lastIndexOf (String.Pattern "/") p
-      in map (flip String.take filePath) idx
-
-    outputDirectories :: Boolean -> Array String -> Array String
-    outputDirectories rootPath parts =
-      scanl
-        (\b a -> if b == "" then a else b <> "/" <> a)
-        ""
-        (if rootPath then fromMaybe parts (Array.modifyAt 0 ("/" <> _) parts) else parts)
 
 main :: Effect Unit
 main =
