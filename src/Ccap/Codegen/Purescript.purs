@@ -20,6 +20,7 @@ import Data.String (Pattern(..))
 import Data.String as String
 import Data.Traversable (for, for_, traverse)
 import Data.Tuple (Tuple(..))
+import Node.Path (sep)
 import Text.PrettyPrint.Boxes (Box, char, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (bottom, left) as Boxes
 
@@ -71,8 +72,8 @@ outputSpec defaultModulePrefix modules = --take out def prefix
   , filePath: \mod ->
       let path = String.replaceAll
                     (String.Pattern ".")
-                    (String.Replacement "/")
-                    (mod.exports.pursPkg)
+                    (String.Replacement sep)
+                    (modulePrefix defaultModulePrefix mod.annots)
       in path <> "/" <> mod.name <> ".purs"
   }
 

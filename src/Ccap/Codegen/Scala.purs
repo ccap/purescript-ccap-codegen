@@ -13,6 +13,7 @@ import Data.Array as Array
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String as String
 import Data.Traversable (for, traverse)
+import Node.Path (sep)
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hcat, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
 
@@ -27,7 +28,7 @@ outputSpec defaultPackage modules = --remove defaultPackage
   , filePath: \mod ->
       let path = String.replaceAll
                     (String.Pattern ".")
-                    (String.Replacement "/")
+                    (String.Replacement sep)
                     (mod.exports.scalaPkg)
       in path <> "/" <> mod.name <> ".scala"
   }
