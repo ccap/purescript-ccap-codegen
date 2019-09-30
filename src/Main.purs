@@ -6,6 +6,7 @@ import Prelude
 
 import Ccap.Codegen.Config (Config, Mode(..), config)
 import Ccap.Codegen.FileSystem (mkDirP)
+import Ccap.Codegen.Imports (validateImports)
 import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
 import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Purescript as Purescript
