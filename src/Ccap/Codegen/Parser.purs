@@ -7,7 +7,7 @@ module Ccap.Codegen.Parser
 import Prelude
 
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Imports, Module(..), Primitive(..), RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Exports, Imports, Module, Primitive(..), RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..))
 import Control.Alt ((<|>))
 import Data.Array (fromFoldable, many) as Array
 import Data.Char.Unicode (isLower)
@@ -69,14 +69,14 @@ identifier = tokenParser.identifier
 lexeme :: forall a. ParserT String Identity a -> ParserT String Identity a
 lexeme = tokenParser.lexeme
 
-moduleOrTypeName :: ParserT String Identity String
-moduleOrTypeName = lexeme $ mkModuleOrTypeName <$> upper <*> Array.many alphaNum
-  where mkModuleOrTypeName :: Char -> Array Char -> String
-        mkModuleOrTypeName c s = SCU.singleton c <> SCU.fromCharArray s
+importOrTypeName :: ParserT String Identity String
+importOrTypeName = lexeme $ mkImportOrTypeName <$> upper <*> Array.many (alphaNum <|> char '.')
+  where mkImportOrTypeName :: Char -> Array Char -> String
+        mkImportOrTypeName c s = SCU.singleton c <> SCU.fromCharArray s
 
 tRef :: ParserT String Identity TRef
 tRef = ado
-  parts <- moduleOrTypeName `sepBy1Nel` char '.'
+  parts <- importOrTypeName `sepBy1Nel` char '.'
   let { init, last: typ } = NonEmpty.unsnoc parts
   let mod = if init == Nil then Nothing else Just $ intercalate "." init
   in { mod, typ }
@@ -102,7 +102,7 @@ topType :: ParserT String Identity TopType
 topType =
   (tyType unit <#> Type)
     <|> (braces $ Array.many recordProp <#> Record)
-    <|> (brackets $ pipeSep1 moduleOrTypeName <#> Sum)
+    <|> (brackets $ pipeSep1 importOrTypeName <#> Sum)
     <|> (reserved "wrap" >>= tyType <#> Wrap)
 
 recordProp :: ParserT String Identity RecordProp
@@ -112,27 +112,36 @@ recordProp = ado
   ty <- tyType unit
   in RecordProp name ty
 
-imports :: ParserT String Identity Imports
+exports :: ParserT String Identity Exports --not yet battle-tested
+exports = ado
+  reserved "export"
+  lexeme $ reserved "scala"
+  scalaPkg <- importOrTypeName
+  reserved "export"
+  lexeme $ reserved "purs"
+  pursPkg <- importOrTypeName
+  in { scalaPkg, pursPkg }
+
+imports :: ParserT String Identity Imports --not yet battle-tested
 imports = Array.many
   do
     reserved "import"
-    moduleOrTypeName
+    importOrTypeName
 
 oneModule :: ParserT String Identity Module
 oneModule = ado
   reserved "module"
-  name <- moduleOrTypeName
+  name <- importOrTypeName
+  expts <- exports
   imprts <- imports
   annots <- Array.many annotation
-  lexeme $ char '{'
-  decls <- Array.many typeDecl
-  lexeme $ char '}'
-  in Module name decls annots imprts
+  types <- Array.many typeDecl
+  in  { name, types, annots, imports: imprts, exports: expts }
 
 typeDecl :: ParserT String Identity TypeDecl
 typeDecl = ado
   reserved "type"
-  name <- moduleOrTypeName
+  name <- importOrTypeName
   lexeme $ char ':'
   ty <- topType
   annots <- Array.many annotation

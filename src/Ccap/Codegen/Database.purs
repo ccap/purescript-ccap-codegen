@@ -5,7 +5,7 @@ module Ccap.Codegen.Database
 
 import Prelude
 
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module, Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
 import Control.Monad.Except (ExceptT, withExceptT)
 import Data.Maybe (Maybe(..), maybe)
 import Database.PostgreSQL (Connection, PGError)
@@ -31,7 +31,7 @@ domainModule pool = withExceptT show $ withConnection pool \conn -> do
                           ])
                         maxLen
                 in TypeDecl domainName (Wrap (dbNameToType dataType)) annots)
-  pure $ Module "Domains" types [] []
+  pure $ { name: "Domains", types, annots: [], imports: [], exports: { scalaPkg: "TODO: put in legitimate value", pursPkg: "here too" } }
   where
     sql = """
           select domain_name, data_type, character_maximum_length
@@ -55,7 +55,7 @@ tableModule :: Pool -> String -> ExceptT String Aff Module
 tableModule pool tableName = withExceptT show $ withConnection pool \conn -> do
   columns <- queryColumns tableName conn
   let decl = tableType tableName columns
-  pure $ Module tableName [ decl ] [] []
+  pure $ { name: tableName, types: [ decl ], annots: [], imports: [], exports: { scalaPkg: "just for now", pursPkg: "fix later" } }
 
 queryColumns :: String -> Connection -> ExceptT PGError Aff (Array DbColumn)
 queryColumns tableName conn = do

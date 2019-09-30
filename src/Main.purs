@@ -48,11 +48,13 @@ app strMode package outputDirectoryParam fs = launchAff_ $ processResult do
         pure { mode, package, files, outputDirectory }
 
   fileModules <- traverse (parseFile config) config.files
+  --importableModules <- traverse (parseFile config) (findImports includePaths)
+
 
   let all = fileModules <#> \(Tuple fileName mod) -> mod
       fileNames = fileModules <#> \(Tuple fileName mod) -> fileName
 
-  validateImports fileNames all
+  -- validateImports moduleToValidate importableModules
 
   for_ fileModules \(Tuple fileName mod) ->
     writeModule config fileName mod all

@@ -1,16 +1,15 @@
 module Ccap.Codegen.Imports
   ( validateImports
-
+  , findImports
   ) where
 
 import Prelude
 
-import Ccap.Codegen.Types (Module(..), TypeDecl(..))
+import Ccap.Codegen.Types (Module, TopType(..), Type(..), TypeDecl(..), ValidatedModule)
 import Control.Monad.Except (ExceptT, except)
 import Data.Array ((\\))
 import Data.Array as Array
 import Data.Either (Either(..))
-import Data.Foldable (for_)
 import Data.Maybe (fromMaybe, maybe)
 import Data.String as String
 import Data.Traversable (for)
@@ -37,41 +36,47 @@ findImports paths = do
       append (paths \\ directories) <$>
         (findImports =<< Array.concat <$> for directories readdir)
 
-validateImports :: Array String -> Array Module -> ExceptT String Aff Unit
-validateImports fileNames modules =
-  for_ modules \(Module name decls annots imports) -> do
-    let fileFailIdx = Array.findIndex
-          (eq false)
-          (imports <#> \imprt -> Array.elem imprt fileNames)
-        typeFailIdx = Array.findIndex
-          (eq false)
-          (decls <#> ensureTypeDeclExists)
-        fileFailError idx =
-          maybe
-            (pure unit)
-            (\i -> except $ Left
-              $ name
-              <> " tried to import module: "
-              <> fromMaybe "" (Array.index fileNames i)
-              <>  " but it does not exist, or was not added as input."
-            )
-            idx
-        typeFailError idx =
-          maybe
-            (pure unit)
-            (\i -> except $ Left
-              $ name
-              <> " tried to import type: "
-              <> fromMaybe "" ((Array.index decls i) <#> \(TypeDecl tName _ _) -> tName)
-              <> " but it is not included in any imports"
-            )
-            idx
+-- | take a module and imported modules, and make sure the imports exist and the types exist.
+validateImports :: Module -> Array Module -> ExceptT String Aff ValidatedModule
+validateImports mod importedModules = do
+  let fileFailIdx = Array.findIndex
+        (eq false)
+        (mod.imports <#> \imprt -> Array.elem imprt (importedModules <#> _.name)) -- ensure all module imports are in the imported modules
+      typeFailIdx = Array.findIndex
+        (eq false)
+        (mod.types <#> ensureTypeDeclExists)
+      fileFailError idx =
+        maybe
+          (pure unit)
+          (\i -> except $ Left
+            $ mod.name
+            <> " tried to import module: "
+            <> fromMaybe "" (Array.index (importedModules <#> _.name) i)
+            <>  " but it does not exist, or was not added as input."
+          )
+          idx
+      typeFailError idx =
+        maybe
+          (pure unit)
+          (\i -> except $ Left
+            $ mod.name
+            <> " tried to import type: "
+            <> fromMaybe "" ((Array.index mod.types i) <#> \(TypeDecl tName _ _) -> tName)
+            <> " but it is not included in any imports"
+          )
+          idx
 
-    fileFailError fileFailIdx
-    typeFailError typeFailIdx
+  fileFailError fileFailIdx
+  typeFailError typeFailIdx
+  pure $ mod
+    { imports = (Array.filter (\impt -> Array.elem impt.name mod.imports) importedModules) <#> _.exports }
 
   where
     ensureTypeDeclExists typeDecl =
       not $ Array.elem
         true
-        (modules <#> \(Module _ decls _ _) -> Array.elem typeDecl decls)
+        (mod.types <#> \t@(TypeDecl _ typ _) ->
+          case typ of
+            Type (Ref _ _) -> Array.elem true (Array.elem t <$> (importedModules <#> _.types))
+            _ -> true
+        )
