@@ -129,7 +129,7 @@ imports :: ParserT String Identity Imports --not yet battle-tested
 imports = Array.many
   do
     reserved "import"
-    importOrTypeName
+    packageName
 
 oneModule :: ParserT String Identity Module
 oneModule = ado

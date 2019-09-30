@@ -3,8 +3,9 @@ module Ccap.Codegen.Types
   , Annotations
   , AnnotationParam(..)
   , Exports
-  , Imports(..)
-  , Module(..)
+  , Import
+  , Imports
+  , Module
   , ModuleName
   , Primitive(..)
   , Type(..)
@@ -41,8 +42,11 @@ type ValidatedModule =
 
 type ModuleName = String
 
+-- TODO: newtype Import (to distinguish between the import statement and the actual file)
+type Import = String
+
 --change this type to allow qualified imports?
-type Imports = Array String
+type Imports = Array Import
 
 --| package names for generating imports from a tmpl file
 type Exports =

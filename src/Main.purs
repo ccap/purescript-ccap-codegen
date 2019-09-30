@@ -29,11 +29,13 @@ import Foreign (readString)
 import Foreign.Generic (Foreign)
 import Node.Encoding (Encoding(..))
 import Node.FS.Sync as Sync
+import Node.Path (FilePath)
 import Node.Path as Path
 import Node.Yargs.Applicative (rest, runY)
 import Node.Yargs.Setup (usage)
 import Text.Parsing.Parser (runParser)
 
+-- NOTE: Absolutely do not parse an included file unless it is imported
 app :: Either String Config -> Array Foreign -> Effect Unit
 app eConfig fs = launchAff_ $ processResult do
   config <- except eConfig
@@ -46,7 +48,7 @@ app eConfig fs = launchAff_ $ processResult do
 readFiles :: Array Foreign -> Either String (Array String)
 readFiles = lmap show <<< runExcept <<< traverse readString
 
-parseFile :: String -> ExceptT String Aff (Tuple String Module)
+parseFile :: FilePath -> ExceptT String Aff (Tuple FilePath Module)
 parseFile fileName = do
   contents <- withExceptT Error.message
                 <<< ExceptT
