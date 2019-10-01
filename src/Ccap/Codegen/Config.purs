@@ -7,9 +7,9 @@ module Ccap.Codegen.Config
 import Prelude
 
 import Data.Either (Either(..))
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.String (Pattern(..))
-import Data.String (length, split) as String
+import Data.String (split) as String
 import Node.Yargs.Applicative (Y, yarg)
 
 data Mode
@@ -21,15 +21,16 @@ data Mode
 
 type Config =
   { mode :: Mode
+  , includes :: Array String
   , package :: String
   , outputDirectory :: Maybe String
   }
 
 config :: Y (Either String Config)
-config = mkConfig <$> yMode <*> yPackage <*> yOutput
+config = mkConfig <$> yMode <*> yPackage <*> yOutput <*> yIncludes
   where
-    mkConfig mode package outputDirectory =
-      mode <#> { mode: _, package, outputDirectory }
+    mkConfig mode package outputDirectory includes =
+      mode <#> { mode: _, package, outputDirectory, includes }
 
 yMode :: Y (Either String Mode)
 yMode = yarg "m" alts desc def true <#> readMode
@@ -53,9 +54,22 @@ yPackage = yarg "p" alts desc def true
     def = Right "Package is required"
 
 yOutput :: Y (Maybe String)
-yOutput = yarg "o" alts desc def true <#> checkString
+yOutput = yarg "o" alts desc def true <#> nonEmpty
   where
     alts = [ "output-directory" ]
     desc = Just "Files will be written to this directory"
     def = Left ""
-    checkString s = if String.length s > 0 then Just s else Nothing
+
+yIncludes :: Y (Array String)
+yIncludes = yarg "I" alts desc def false <#> parse
+  where
+    alts = [ "include" ]
+    desc = Just "Template definitions to include in scope"
+    def = Left ""
+    parse = maybe [] split <<< nonEmpty
+    split = String.split (Pattern ",")
+
+-- Data.String.NonEmpty exist if more is needed
+nonEmpty :: String -> Maybe String
+nonEmpty "" = Nothing
+nonEmpty str = Just str

@@ -30,6 +30,7 @@
     "purescript-yargs": "^4.0.0"
   },
   "devDependencies": {
-    "purescript-psci-support": "^4.0.0"
+    "purescript-psci-support": "^4.0.0",
+    "purescript-spec": "^4.0.1"
   }
 }

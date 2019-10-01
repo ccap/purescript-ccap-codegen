@@ -5,21 +5,20 @@ module Main
 import Prelude
 
 import Ccap.Codegen.Config (Config, Mode(..), config)
+import Ccap.Codegen.FileSystem (mkDirP)
 import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
 import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Purescript as Purescript
 import Ccap.Codegen.Scala as Scala
 import Ccap.Codegen.Shared (OutputSpec)
-import Ccap.Codegen.Types (Module)
+import Ccap.Codegen.Types (Module, ValidatedModule)
 import Ccap.Codegen.Util (ensureNewline, liftEffectSafely, processResult, scrubEolSpaces)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (ExceptT(..), except, runExcept, withExceptT)
-import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Maybe (Maybe, fromMaybe, maybe)
-import Data.String as String
-import Data.Traversable (for_, scanl, traverse, traverse_)
+import Data.Maybe (maybe)
+import Data.Traversable (traverse, traverse_)
 import Data.Tuple (Tuple(..), snd, uncurry)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
@@ -30,6 +29,7 @@ import Foreign (readString)
 import Foreign.Generic (Foreign)
 import Node.Encoding (Encoding(..))
 import Node.FS.Sync as Sync
+import Node.Path as Path
 import Node.Yargs.Applicative (rest, runY)
 import Node.Yargs.Setup (usage)
 import Text.Parsing.Parser (runParser)
@@ -39,8 +39,9 @@ app eConfig fs = launchAff_ $ processResult do
   config <- except eConfig
   files <- except $ readFiles fs
   fileModules <- traverse parseFile files
+  --validatedModules <- validateImports <$> fileModules
   let all = fileModules <#> snd
-  traverse_ (uncurry $ writeModule config all) fileModules
+  traverse_ (uncurry $ writeModule config all) (fileModules <#> \(Tuple fir sec) -> Tuple fir (sec { imports = [], name = fir {-- grab name from filepath --}, exports { tmplPath = fir }}))
 
 readFiles :: Array Foreign -> Either String (Array String)
 readFiles = lmap show <<< runExcept <<< traverse readString
@@ -54,7 +55,7 @@ parseFile fileName = do
                 $ Sync.readTextFile UTF8 fileName
   except $ lmap (errorMessage fileName) (map (Tuple fileName) (runParser contents wholeFile))
 
-writeModule :: Config -> Array Module -> String -> Module -> ExceptT String Aff Unit
+writeModule :: Config -> Array Module -> String -> ValidatedModule -> ExceptT String Aff Unit
 writeModule config all fileName mod = do
   case config.mode of
     Pretty -> writeOutput config mod PrettyPrint.outputSpec
@@ -67,7 +68,7 @@ writeModule config all fileName mod = do
         then Console.info "Round-trip passed"
         else except $ Left "Round-trip failed"
 
-writeOutput :: Config -> Module -> OutputSpec -> ExceptT String Aff Unit
+writeOutput :: Config -> ValidatedModule -> OutputSpec -> ExceptT String Aff Unit
 writeOutput config mod outputSpec = do
   config.outputDirectory # maybe
     (Console.info <<< scrubEolSpaces <<< outputSpec.render $ mod)
@@ -75,37 +76,15 @@ writeOutput config mod outputSpec = do
   where
     writeOutput_ :: String -> ExceptT String Aff Unit
     writeOutput_ dir = do
-      let outputFile = String.joinWith "/" filePath
+      let
+        filePath = [ dir, (outputSpec.filePath mod) ]
+        outputFile = Path.concat filePath
       Console.info $ "Writing " <> outputFile
-      ensureDirectoryExists outputFile
+      mkDirP (Path.dirname outputFile)
       liftEffectSafely $ Sync.writeTextFile
         UTF8
         outputFile
         (ensureNewline <<< scrubEolSpaces <<< outputSpec.render $ mod)
-      where
-        filePath = [ dir, (outputSpec.filePath mod) ]
-
-ensureDirectoryExists :: String -> ExceptT String Aff Unit
-ensureDirectoryExists filePath =
-  dirPath filePath # maybe (pure unit) \dir -> do
-    let parts = Array.filter (not <<< String.null) (String.split (String.Pattern "/") dir)
-    for_ (outputDirectories (String.take 1 filePath == "/") parts) \d ->
-      liftEffectSafely do
-        ifM (Sync.exists d)
-          (pure unit)
-          (Sync.mkdir d)
-  where
-    dirPath :: String -> Maybe String
-    dirPath p =
-      let idx = String.lastIndexOf (String.Pattern "/") p
-      in map (flip String.take filePath) idx
-
-    outputDirectories :: Boolean -> Array String -> Array String
-    outputDirectories rootPath parts =
-      scanl
-        (\b a -> if b == "" then a else b <> "/" <> a)
-        ""
-        (if rootPath then fromMaybe parts (Array.modifyAt 0 ("/" <> _) parts) else parts)
 
 main :: Effect Unit
 main =
