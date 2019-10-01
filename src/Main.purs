@@ -6,13 +6,12 @@ import Prelude
 
 import Ccap.Codegen.Config (Config, Mode(..), config)
 import Ccap.Codegen.FileSystem (mkDirP)
-import Ccap.Codegen.Imports (validateImports)
 import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
 import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Purescript as Purescript
 import Ccap.Codegen.Scala as Scala
 import Ccap.Codegen.Shared (OutputSpec)
-import Ccap.Codegen.Types (Module)
+import Ccap.Codegen.Types (Module, ValidatedModule)
 import Ccap.Codegen.Util (ensureNewline, liftEffectSafely, processResult, scrubEolSpaces)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (ExceptT(..), except, runExcept, withExceptT)
@@ -40,8 +39,9 @@ app eConfig fs = launchAff_ $ processResult do
   config <- except eConfig
   files <- except $ readFiles fs
   fileModules <- traverse parseFile files
+  --validatedModules <- validateImports <$> fileModules
   let all = fileModules <#> snd
-  traverse_ (uncurry $ writeModule config all) fileModules
+  traverse_ (uncurry $ writeModule config all) (fileModules <#> \(Tuple fir sec) -> Tuple fir (sec { imports = [], name = fir {-- grab name from filepath --}, exports { tmplPath = fir }}))
 
 readFiles :: Array Foreign -> Either String (Array String)
 readFiles = lmap show <<< runExcept <<< traverse readString
@@ -55,7 +55,7 @@ parseFile fileName = do
                 $ Sync.readTextFile UTF8 fileName
   except $ lmap (errorMessage fileName) (map (Tuple fileName) (runParser contents wholeFile))
 
-writeModule :: Config -> Array Module -> String -> Module -> ExceptT String Aff Unit
+writeModule :: Config -> Array Module -> String -> ValidatedModule -> ExceptT String Aff Unit
 writeModule config all fileName mod = do
   case config.mode of
     Pretty -> writeOutput config mod PrettyPrint.outputSpec
@@ -68,7 +68,7 @@ writeModule config all fileName mod = do
         then Console.info "Round-trip passed"
         else except $ Left "Round-trip failed"
 
-writeOutput :: Config -> Module -> OutputSpec -> ExceptT String Aff Unit
+writeOutput :: Config -> ValidatedModule -> OutputSpec -> ExceptT String Aff Unit
 writeOutput config mod outputSpec = do
   config.outputDirectory # maybe
     (Console.info <<< scrubEolSpaces <<< outputSpec.render $ mod)
