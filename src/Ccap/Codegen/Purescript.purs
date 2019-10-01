@@ -72,7 +72,7 @@ outputSpec defaultModulePrefix modules = --take out def prefix
       let path = String.replaceAll
                     (String.Pattern ".")
                     (String.Replacement "/")
-                    (modulePrefix defaultModulePrefix mod.annots)
+                    (mod.exports.pursPkg)
       in path <> "/" <> mod.name <> ".purs"
   }
 
