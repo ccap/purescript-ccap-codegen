@@ -6,25 +6,26 @@ module Ccap.Codegen.PrettyPrint
 import Prelude
 
 import Ccap.Codegen.Shared (OutputSpec)
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), ValidatedModule)
 import Data.Array as Array
 import Data.Maybe (Maybe(..), maybe)
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
 
-prettyPrint :: Module -> String
+prettyPrint :: ValidatedModule -> String
 prettyPrint = render <<< oneModule
 
 outputSpec :: OutputSpec
 outputSpec =
   { render: render <<< oneModule
-  , filePath: \(Module n _ _) -> n <> ".tmpl"
+  , filePath: \mod -> mod.name <> ".tmpl"
   }
 
-oneModule :: Module -> Box
-oneModule (Module name decls annots) =
-  text ("module " <> name) <<+>> trailingSpace (annots <#> annotation) <<>> text "{"
-    // indentedList (decls <#> typeDecl)
+oneModule :: ValidatedModule -> Box
+oneModule mod =
+  text ("module " <> mod.name) <<+>> trailingSpace (mod.annots <#> annotation) <<>> text "{"
+    // indentedList ((mod.imports <#> _.tmplPath)  <#> text <<< \s -> "import " <> s)
+    // indentedList (mod.types <#> typeDecl)
     // text "}"
 
 trailingSpace :: Array Box -> Box

@@ -2,6 +2,8 @@ module Ccap.Codegen.Types
   ( Annotation(..)
   , Annotations
   , AnnotationParam(..)
+  , Exports
+  , Imports(..)
   , Module(..)
   , ModuleName
   , Primitive(..)
@@ -10,6 +12,7 @@ module Ccap.Codegen.Types
   , RecordProp(..)
   , TopType(..)
   , TypeDecl(..)
+  , ValidatedModule
   , Variant
   , isRecord
   ) where
@@ -20,9 +23,33 @@ import Data.Maybe (Maybe)
 import Prelude (class Eq, class Show)
 import Text.Parsing.Parser.Pos (Position)
 
-data Module = Module ModuleName (Array TypeDecl) Annotations
+type Module =
+  { name :: ModuleName
+  , types :: Array TypeDecl
+  , annots :: Annotations
+  , imports :: Imports
+  , exports :: Exports
+  }
+
+type ValidatedModule =
+  { name :: ModuleName
+  , types :: Array TypeDecl
+  , annots :: Annotations
+  , imports :: Array Exports
+  , exports :: Exports
+  }
 
 type ModuleName = String
+
+--change this type to allow qualified imports?
+type Imports = Array String
+
+--| package names for generating imports from a tmpl file
+type Exports =
+  { scalaPkg :: String
+  , pursPkg :: String
+  , tmplPath :: String
+  }
 
 data TypeDecl = TypeDecl String TopType Annotations
 
@@ -61,11 +88,6 @@ data Primitive
   | PString
 
 -- Instances here to avoid cluttering the above
-
-derive instance eqModule :: Eq Module
-derive instance genericModule :: Generic Module _
-instance showModule :: Show Module where
-  show = genericShow
 
 derive instance eqType :: Eq Type
 derive instance genericType :: Generic Type _
