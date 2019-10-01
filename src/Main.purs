@@ -6,7 +6,6 @@ import Prelude
 
 import Ccap.Codegen.Config (Config, Mode(..), config)
 import Ccap.Codegen.FileSystem (mkDirP)
-import Ccap.Codegen.Imports (validateImports)
 import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
 import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Purescript as Purescript
@@ -42,7 +41,7 @@ app eConfig fs = launchAff_ $ processResult do
   fileModules <- traverse parseFile files
   --validatedModules <- validateImports <$> fileModules
   let all = fileModules <#> snd
-  traverse_ (uncurry $ writeModule config all) fileModules
+  traverse_ (uncurry $ writeModule config all) (fileModules <#> \(Tuple fir sec) -> Tuple fir (sec { imports = [] }))
 
 readFiles :: Array Foreign -> Either String (Array String)
 readFiles = lmap show <<< runExcept <<< traverse readString

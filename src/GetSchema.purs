@@ -7,7 +7,7 @@ import Prelude
 import Ccap.Codegen.Database as Database
 import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Shared (OutputSpec)
-import Ccap.Codegen.Types (Module, ValidatedModule)
+import Ccap.Codegen.Types (ValidatedModule)
 import Ccap.Codegen.Util (liftEffectSafely, processResult, scrubEolSpaces)
 import Control.Monad.Except (ExceptT, except)
 import Data.Array (singleton) as Array
