@@ -70,9 +70,12 @@ lexeme :: forall a. ParserT String Identity a -> ParserT String Identity a
 lexeme = tokenParser.lexeme
 
 importOrTypeName :: ParserT String Identity String
-importOrTypeName = lexeme $ mkImportOrTypeName <$> upper <*> Array.many (alphaNum <|> char '.')
+importOrTypeName = lexeme $ mkImportOrTypeName <$> upper <*> Array.many alphaNum
   where mkImportOrTypeName :: Char -> Array Char -> String
         mkImportOrTypeName c s = SCU.singleton c <> SCU.fromCharArray s
+
+packageName :: ParserT String Identity String
+packageName = lexeme $ Array.many (alphaNum <|> char '.') <#> SCU.fromCharArray
 
 tRef :: ParserT String Identity TRef
 tRef = ado
@@ -114,12 +117,12 @@ recordProp = ado
 
 exports :: ParserT String Identity Exports --not yet battle-tested
 exports = ado
-  reserved "export"
-  lexeme $ reserved "scala"
-  scalaPkg <- importOrTypeName
-  reserved "export"
-  lexeme $ reserved "purs"
-  pursPkg <- importOrTypeName
+  reserved "export-scala"
+  lexeme $ char ':'
+  scalaPkg <- lexeme $ packageName
+  reserved "export-purs"
+  lexeme $ char ':'
+  pursPkg <- lexeme $ packageName
   in { scalaPkg, pursPkg, tmplPath: "" }
 
 imports :: ParserT String Identity Imports --not yet battle-tested
@@ -130,13 +133,11 @@ imports = Array.many
 
 oneModule :: ParserT String Identity Module
 oneModule = ado
-  reserved "module"
-  name <- importOrTypeName
   expts <- exports
   imprts <- imports
   annots <- Array.many annotation
   types <- Array.many typeDecl
-  in  { name, types, annots, imports: imprts, exports: expts }
+  in  { name: "", types, annots, imports: imprts, exports: expts }
 
 typeDecl :: ParserT String Identity TypeDecl
 typeDecl = ado
