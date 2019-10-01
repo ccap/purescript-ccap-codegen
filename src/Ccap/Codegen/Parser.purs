@@ -117,11 +117,7 @@ recordProp = ado
 
 exports :: ParserT String Identity Exports --not yet battle-tested
 exports = ado
-  reserved "export-scala"
-  lexeme $ char ':'
   scalaPkg <- lexeme $ packageName
-  reserved "export-purs"
-  lexeme $ char ':'
   pursPkg <- lexeme $ packageName
   in { scalaPkg, pursPkg, tmplPath: "" }
 

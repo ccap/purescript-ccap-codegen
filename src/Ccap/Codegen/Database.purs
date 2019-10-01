@@ -5,7 +5,7 @@ module Ccap.Codegen.Database
 
 import Prelude
 
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module, Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), ValidatedModule)
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), ValidatedModule)
 import Control.Monad.Except (ExceptT, withExceptT)
 import Data.Maybe (Maybe(..), maybe)
 import Database.PostgreSQL (Connection, PGError)

@@ -23,10 +23,10 @@ outputSpec =
 
 oneModule :: ValidatedModule -> Box
 oneModule mod =
-  text ("module " <> mod.name) <<+>> trailingSpace (mod.annots <#> annotation) <<>> text "{"
+  text mod.exports.scalaPkg
+    // text mod.exports.pursPkg
     // indentedList ((mod.imports <#> _.tmplPath)  <#> text <<< \s -> "import " <> s)
     // indentedList (mod.types <#> typeDecl)
-    // text "}"
 
 trailingSpace :: Array Box -> Box
 trailingSpace boxes =

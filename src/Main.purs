@@ -41,7 +41,7 @@ app eConfig fs = launchAff_ $ processResult do
   fileModules <- traverse parseFile files
   --validatedModules <- validateImports <$> fileModules
   let all = fileModules <#> snd
-  traverse_ (uncurry $ writeModule config all) (fileModules <#> \(Tuple fir sec) -> Tuple fir (sec { imports = [] }))
+  traverse_ (uncurry $ writeModule config all) (fileModules <#> \(Tuple fir sec) -> Tuple fir (sec { imports = [], name = fir {-- grab name from filepath --}, exports { tmplPath = fir }}))
 
 readFiles :: Array Foreign -> Either String (Array String)
 readFiles = lmap show <<< runExcept <<< traverse readString
