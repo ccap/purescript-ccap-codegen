@@ -17,8 +17,8 @@ import Text.Parsing.Parser.Pos (Position(..))
 emptyPos :: Position
 emptyPos = Position { line: 0, column: 0 }
 
-domainModule :: Pool -> ExceptT String Aff ValidatedModule
-domainModule pool = withExceptT show $ withConnection pool \conn -> do
+domainModule :: Pool -> String -> String -> ExceptT String Aff ValidatedModule
+domainModule pool scalaPkg pursPkg = withExceptT show $ withConnection pool \conn -> do
   results <- query conn (Query sql) Row0
   let types = results <#> (\(Row3 domainName dataType (maxLen :: Maybe Int)) ->
                 let annots =
@@ -31,7 +31,7 @@ domainModule pool = withExceptT show $ withConnection pool \conn -> do
                           ])
                         maxLen
                 in TypeDecl domainName (Wrap (dbNameToType dataType)) annots)
-  pure $ { name: "Domains", types, annots: [], imports: [], exports: { scalaPkg: "TODO: put in legitimate value", pursPkg: "here too", tmplPath: "TODO" } }
+  pure $ { name: "Domains", types, annots: [], imports: [], exports: { scalaPkg, pursPkg, tmplPath: "Domains.tmpl" } }
   where
     sql = """
           select domain_name, data_type, character_maximum_length
@@ -51,11 +51,11 @@ type DbColumn =
   , isNullable :: String
   }
 
-tableModule :: Pool -> String -> ExceptT String Aff ValidatedModule
-tableModule pool tableName = withExceptT show $ withConnection pool \conn -> do
+tableModule :: Pool -> String -> String -> String -> ExceptT String Aff ValidatedModule
+tableModule pool tableName scalaPkg pursPkg = withExceptT show $ withConnection pool \conn -> do
   columns <- queryColumns tableName conn
   let decl = tableType tableName columns
-  pure $ { name: tableName, types: [ decl ], annots: [], imports: [], exports: { scalaPkg: "just for now", pursPkg: "fix later", tmplPath: "plz" } }
+  pure $ { name: tableName, types: [ decl ], annots: [], imports: [], exports: { scalaPkg, pursPkg, tmplPath: tableName <> ".tmpl" } }
 
 queryColumns :: String -> Connection -> ExceptT PGError Aff (Array DbColumn)
 queryColumns tableName conn = do

@@ -115,7 +115,7 @@ recordProp = ado
   ty <- tyType unit
   in RecordProp name ty
 
-exports :: ParserT String Identity Exports --not yet battle-tested
+exports :: ParserT String Identity Exports
 exports = ado
   reserved "scala"
   lexeme $ char ':'
@@ -135,7 +135,7 @@ oneModule :: ParserT String Identity Module
 oneModule = ado
   expts <- exports
   imprts <- imports
-  annots <- Array.many annotation
+  annots <- Array.many annotation --we can probably remove this
   types <- Array.many typeDecl
   in  { name: "", types, annots, imports: imprts, exports: expts }
 

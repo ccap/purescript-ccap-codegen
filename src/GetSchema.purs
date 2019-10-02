@@ -24,15 +24,15 @@ import Effect.Class.Console as Console
 import Node.Yargs.Applicative (flag, runY, yarg)
 import Node.Yargs.Setup (usage)
 
-app :: Boolean -> String -> String -> Effect Unit
-app domains dbConfig tableParam = launchAff_ $ processResult do
+app :: Boolean -> String -> String -> String -> String -> String -> String -> Effect Unit
+app domains dbConfig tableParam tableScala tablePurs domainScala domainPurs = launchAff_ $ processResult do
   let checkString s =
         if String.length s > 0
           then Just s
           else Nothing
       table = checkString tableParam
   poolConfig <- except (readPoolConfig dbConfig)
-  let config = { domains, table, poolConfig }
+  let config = { domains, table, poolConfig, tableScala, tablePurs, domainScala, domainPurs }
   fromDb <- dbModules config
   processModules config fromDb
   where
@@ -63,18 +63,22 @@ dbModules config = do
   pool <- liftEffect $ newPool config.poolConfig
   ds <-
     if config.domains
-      then map Array.singleton (Database.domainModule pool)
+      then map Array.singleton (Database.domainModule pool config.domainScala config.domainPurs)
       else pure []
   ts <-
     config.table # maybe
       (pure [])
-      (map Array.singleton <<< Database.tableModule pool)
+      (map Array.singleton <<< Database.tableModule pool config.tableScala config.tablePurs)
   pure $ ds <> ts
 
 type Config =
   { domains :: Boolean
   , table :: Maybe String
   , poolConfig :: PoolConfiguration
+  , domainScala :: String
+  , domainPurs :: String
+  , tableScala :: String
+  , tablePurs :: String
   }
 
 processModules :: Config -> Array ValidatedModule -> ExceptT String Aff Unit
@@ -106,5 +110,29 @@ main = do
                         "t"
                         [ "table" ]
                         (Just "Query the provided database table")
+                        (Left "")
+                        true
+                   <*> yarg
+                        "ts"
+                        [ "table-scala-pkg" ]
+                        (Just "scala package name for table")
+                        (Left "")
+                        true
+                   <*> yarg
+                        "tp"
+                        [ "table-purs-pkg" ]
+                        (Just "purescript package name for table")
+                        (Left "")
+                        true
+                   <*> yarg
+                        "ds"
+                        [ "domain-scala-pkg" ]
+                        (Just "scala package name for domain")
+                        (Left "")
+                        true
+                   <*> yarg
+                        "dp"
+                        [ "domain-purs-pkg" ]
+                        (Just "purescript package name for domain")
                         (Left "")
                         true
