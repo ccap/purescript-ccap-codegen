@@ -5,7 +5,7 @@ module Test.Ccap.Codegen.Imports
 import Prelude
 
 import Ccap.Codegen.FileSystem as FS
-import Ccap.Codegen.Imports (Scope, checkImportsExist)
+import Ccap.Codegen.Imports (importsInScope)
 import Ccap.Codegen.ValidationError (printError)
 import Control.Monad.Error.Class (class MonadThrow)
 import Control.Monad.Except (ExceptT(..), runExceptT, withExceptT)
@@ -52,12 +52,6 @@ externalSource = internal "SourceExternal.tmpl"
 allSources :: Array FilePath
 allSources = [ plainSource, internalSource, submoduleSource, externalSource ]
 
-scope_ :: Scope
-scope_ =
-  { source: internal_
-  , included: [] -- TODO expand by default
-  }
-
 specs :: Spec Unit
 specs =
   let
@@ -66,15 +60,15 @@ specs =
         <<< (shouldBeRight <=< liftEffect <<< FS.parseFile)
     itHasImports source imports =
       it "parsed the imports as expected" do
-        sourceImports <- FS.parseFile source <#> (map _.imports) # liftEffect
+        sourceImports <- FS.parseFile source <#> (map _.contents.imports) # liftEffect
         shouldSatisfy sourceImports $ either (const false) (eqElems imports)
-    itCanFindImports source scope =
+    itCanFindImports source includes =
       it "Has imports that exist" do
         imports <- liftEffect $ runExceptT do
           mod <- ExceptT $ FS.parseFile source
           withExceptT (intercalate "\n" <<< map printError)
             $ ExceptT
-            $ checkImportsExist scope [ mod ]
+            $ importsInScope includes mod
         shouldBeRight imports
   in
     describe "template include syntax" do
@@ -84,13 +78,12 @@ specs =
       describe "a file with an neighboring reference" do
         itCanBeParsed internalSource
         itHasImports internalSource [ "Internal" ]
-        itCanFindImports internalSource scope_
+        itCanFindImports internalSource []
       describe "a file with an submodule reference" do
         itCanBeParsed submoduleSource
         itHasImports submoduleSource [ "submodule.Submodule" ]
-        itCanFindImports submoduleSource scope_
+        itCanFindImports submoduleSource []
       describe "a file with an external reference" do
-        let scope = scope_ { included = [ external_ ] }
         itCanBeParsed externalSource
         itHasImports externalSource [ "External" ]
-        itCanFindImports externalSource scope
+        itCanFindImports externalSource [ external_ ]

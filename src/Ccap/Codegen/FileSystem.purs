@@ -1,5 +1,6 @@
 module Ccap.Codegen.FileSystem
   ( isFile
+  , joinPaths
   , mkDirP
   , parseFile
   , readTextFile
@@ -8,7 +9,7 @@ module Ccap.Codegen.FileSystem
 import Prelude
 
 import Ccap.Codegen.Parser (errorMessage, wholeFile)
-import Ccap.Codegen.Types (Module)
+import Ccap.Codegen.Types (Source, Module)
 import Ccap.Codegen.Util (liftEffectSafely)
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (ExceptT(..), except, runExceptT)
@@ -23,7 +24,7 @@ import Node.Encoding (Encoding(..))
 import Node.FS.Stats as Stat
 import Node.FS.Sync as Sync
 import Node.Path (FilePath)
-import Node.Path (concat, normalize, sep) as Path
+import Node.Path (basenameWithoutExt, concat, normalize, sep) as Path
 import Text.Parsing.Parser (runParser)
 
 mkDirP :: FilePath -> ExceptT String Aff Unit
@@ -53,7 +54,10 @@ isFile filePath =
 readTextFile :: FilePath -> Effect (Either String String)
 readTextFile = map (lmap Error.message) <<< try <<< Sync.readTextFile UTF8
 
-parseFile :: FilePath -> Effect (Either String Module)
+-- | Read and parse a tmpl file
+parseFile :: FilePath -> Effect (Either String (Source Module))
 parseFile filePath = runExceptT do
   contents <- ExceptT $ readTextFile filePath
-  except $ lmap (errorMessage filePath) $ runParser contents wholeFile
+  mod <- except $ lmap (errorMessage filePath) $ runParser contents wholeFile
+  let moduleName = Path.basenameWithoutExt filePath ".tmpl" -- TODO: or "tmpl"
+  pure { source: filePath, contents: mod { name = moduleName } }

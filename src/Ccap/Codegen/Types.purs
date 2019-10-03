@@ -11,6 +11,7 @@ module Ccap.Codegen.Types
   , Type(..)
   , TRef
   , RecordProp(..)
+  , Source
   , TopType(..)
   , TypeDecl(..)
   , ValidatedModule
@@ -21,8 +22,14 @@ module Ccap.Codegen.Types
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe)
+import Node.Path (FilePath)
 import Prelude (class Eq, class Show)
 import Text.Parsing.Parser.Pos (Position)
+
+type Source a =
+  { source :: FilePath
+  , contents :: a
+  }
 
 type Module =
   { name :: ModuleName

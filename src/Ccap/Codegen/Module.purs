@@ -1,13 +1,13 @@
 module Ccap.Codegen.Module
-  ( validateModule
+  ( validateModules
   , exportsForModule
   ) where
 
 import Prelude
 
-import Ccap.Codegen.Imports (Scope, validateImports)
+import Ccap.Codegen.Imports (Includes, validateImports)
 import Ccap.Codegen.TypeRef (validateAllTypeRefs)
-import Ccap.Codegen.Types (Module, ValidatedModule, Exports)
+import Ccap.Codegen.Types (Exports, Module, ValidatedModule, Source)
 import Ccap.Codegen.ValidationError (class ValidationError, printError)
 import Control.Monad.Except (ExceptT(..), except, runExceptT, withExceptT)
 import Data.Array as Array
@@ -16,11 +16,19 @@ import Data.Foldable (for_)
 import Effect (Effect)
 
 -- | Validate imports and type references against the compile scope.
-validateModule :: Scope -> Array Module -> Effect (Either (Array String) (Array ValidatedModule))
-validateModule scope modules = runExceptT do
-  imports <- withErrors $ ExceptT $ validateImports scope modules
+validateModules
+  :: Includes
+  -> Array (Source Module)
+  -> Effect (Either (Array String) (Array (Source ValidatedModule)))
+validateModules includes sources = runExceptT do
+  imports <- withErrors $ ExceptT $ validateImports includes sources
+  let modules = sources <#> _.contents
   withErrors $ except $ for_ modules $ flip validateAllTypeRefs imports
-  pure $ modules <#> \m -> m { imports = exportsForModule m imports }
+  pure $ sources <#> \source -> source
+    { contents = source.contents
+      { imports = exportsForModule source.contents imports
+      }
+    }
 
 withErrors
   :: forall f e a. Functor f

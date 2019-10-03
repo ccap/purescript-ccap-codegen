@@ -5,26 +5,25 @@ module Main
 import Prelude
 
 import Ccap.Codegen.Config (Config, Mode(..), config)
-import Ccap.Codegen.FileSystem (mkDirP)
-import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
+import Ccap.Codegen.FileSystem (mkDirP, parseFile)
+import Ccap.Codegen.Module (validateModules)
+import Ccap.Codegen.Parser (errorMessage, roundTrip)
 import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Purescript as Purescript
 import Ccap.Codegen.Scala as Scala
 import Ccap.Codegen.Shared (OutputSpec)
-import Ccap.Codegen.Types (Module, ValidatedModule)
+import Ccap.Codegen.Types (Module, ValidatedModule, Source)
 import Ccap.Codegen.Util (ensureNewline, liftEffectSafely, processResult, scrubEolSpaces)
-import Control.Monad.Error.Class (try)
-import Control.Monad.Except (ExceptT(..), except, runExcept, withExceptT)
+import Ccap.Codegen.ValidationError (joinErrors, toValidation)
+import Control.Monad.Except (ExceptT(..), except, runExcept)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
 import Data.Maybe (maybe)
 import Data.Traversable (traverse, traverse_)
-import Data.Tuple (Tuple(..), snd, uncurry)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Class.Console as Console
-import Effect.Exception as Error
 import Foreign (readString)
 import Foreign.Generic (Foreign)
 import Node.Encoding (Encoding(..))
@@ -33,32 +32,21 @@ import Node.Path (FilePath)
 import Node.Path as Path
 import Node.Yargs.Applicative (rest, runY)
 import Node.Yargs.Setup (usage)
-import Text.Parsing.Parser (runParser)
 
--- NOTE: Absolutely do not parse an included file unless it is imported
 app :: Either String Config -> Array Foreign -> Effect Unit
 app eConfig fs = launchAff_ $ processResult do
   config <- except eConfig
   files <- except $ readFiles fs
-  fileModules <- traverse parseFile files
-  --validatedModules <- validateImports <$> fileModules
-  let all = fileModules <#> snd
-  traverse_ (uncurry $ writeModule config all) (fileModules <#> \(Tuple fir sec) -> Tuple fir (sec { imports = [], name = fir {-- grab name from filepath --}, exports { tmplPath = fir }}))
+  sources <- ExceptT $ liftEffect $ traverse parseFile files <#> toValidation >>> joinErrors
+  validated <- ExceptT $ liftEffect $ validateModules config.includes sources <#> joinErrors
+  let modules = sources <#> _.contents
+  traverse_ (writeModule config modules) validated
 
-readFiles :: Array Foreign -> Either String (Array String)
+readFiles :: Array Foreign -> Either String (Array FilePath)
 readFiles = lmap show <<< runExcept <<< traverse readString
 
-parseFile :: FilePath -> ExceptT String Aff (Tuple FilePath Module)
-parseFile fileName = do
-  contents <- withExceptT Error.message
-                <<< ExceptT
-                <<< liftEffect
-                <<< try
-                $ Sync.readTextFile UTF8 fileName
-  except $ lmap (errorMessage fileName) (map (Tuple fileName) (runParser contents wholeFile))
-
-writeModule :: Config -> Array Module -> String -> ValidatedModule -> ExceptT String Aff Unit
-writeModule config all fileName mod = do
+writeModule :: Config -> Array Module -> Source ValidatedModule -> ExceptT String Aff Unit
+writeModule config all { source: fileName, contents: mod } =
   case config.mode of
     Pretty -> writeOutput config mod PrettyPrint.outputSpec
     Purs -> writeOutput config mod (Purescript.outputSpec config.package all)
