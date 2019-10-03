@@ -52,11 +52,10 @@ writeModule config all { source: fileName, contents: mod } =
     Purs -> writeOutput config mod (Purescript.outputSpec config.package all)
     Scala -> writeOutput config mod (Scala.outputSpec config.package all)
     Show -> Console.info $ show mod
-    Test -> do
-      b <- except $ lmap (errorMessage fileName) (roundTrip mod)
-      if b
-        then Console.info "Round-trip passed"
-        else except $ Left "Round-trip failed"
+    Test ->
+      ifM (except $ lmap (errorMessage fileName) (roundTrip mod))
+        (Console.info "Round-trip passed")
+        (except $ Left "Round-trip failed")
 
 writeOutput :: Config -> ValidatedModule -> OutputSpec -> ExceptT String Aff Unit
 writeOutput config mod outputSpec = do
