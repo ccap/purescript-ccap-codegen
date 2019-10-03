@@ -2,12 +2,13 @@ module Ccap.Codegen.Parser
  ( errorMessage
  , roundTrip
  , wholeFile
+ , parseSource
  ) where
 
 import Prelude
 
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Exports, Imports, Module, Primitive(..), RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..), ValidatedModule)
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Exports, Import, Module, Primitive(..), RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..), ValidatedModule, Source)
 import Control.Alt ((<|>))
 import Data.Array (fromFoldable, many) as Array
 import Data.Char.Unicode (isLower)
@@ -21,6 +22,8 @@ import Data.List.NonEmpty as NonEmpty
 import Data.Maybe (Maybe(..))
 import Data.NonEmpty ((:|))
 import Data.String.CodeUnits (fromCharArray, singleton) as SCU
+import Node.Path (FilePath)
+import Node.Path as Path
 import Text.Parsing.Parser (ParseError, ParserT, parseErrorMessage, parseErrorPosition, position, runParser)
 import Text.Parsing.Parser.Combinators (option, sepBy1, (<?>))
 import Text.Parsing.Parser.Language (javaStyle)
@@ -125,7 +128,7 @@ exports = ado
   pursPkg <- lexeme $ packageName
   in { scalaPkg, pursPkg, tmplPath: "" }
 
-imports :: ParserT String Identity Imports --not yet battle-tested
+imports :: ParserT String Identity (Array Import) --not yet battle-tested
 imports = Array.many
   do
     reserved "import"
@@ -167,6 +170,21 @@ annotationParam = ado
 wholeFile :: ParserT String Identity Module
 wholeFile = whiteSpace *> oneModule
 
+parseSource :: FilePath -> String -> Either ParseError (Source Module)
+parseSource filePath contents =
+  let
+    moduleName = Path.basenameWithoutExt filePath ".tmpl"
+  in
+    runParser contents wholeFile <#> \mod ->
+      { source: filePath
+      , contents: mod
+        { name = moduleName
+        , exports = mod.exports
+          { tmplPath = moduleName
+          }
+        }
+      }
+
 errorMessage :: String -> ParseError -> String
 errorMessage fileName err =
   let Position pos = parseErrorPosition err
@@ -184,7 +202,7 @@ roundTrip :: ValidatedModule -> Either ParseError Boolean
 roundTrip module1 = do
   let prettyPrinted1 = PrettyPrinter.prettyPrint module1
   module2 <- runParser prettyPrinted1 wholeFile
-  let prettyPrinted2 = PrettyPrinter.prettyPrint module2 { imports = module2.imports <#> \val -> { scalaPkg: val, pursPkg: val, tmplPath: val } }
+  let prettyPrinted2 = PrettyPrinter.prettyPrint $ module2 { imports = module1.imports }
   pure $ prettyPrinted1 == prettyPrinted2
 
 

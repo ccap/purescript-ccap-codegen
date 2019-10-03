@@ -5,14 +5,14 @@ module Main
 import Prelude
 
 import Ccap.Codegen.Config (Config, Mode(..), config)
-import Ccap.Codegen.FileSystem (mkDirP, parseFile)
+import Ccap.Codegen.FileSystem (mkDirP, sourceFile)
 import Ccap.Codegen.Module (validateModules)
 import Ccap.Codegen.Parser (errorMessage, roundTrip)
 import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Purescript as Purescript
 import Ccap.Codegen.Scala as Scala
 import Ccap.Codegen.Shared (OutputSpec)
-import Ccap.Codegen.Types (Module, ValidatedModule, Source)
+import Ccap.Codegen.Types (ValidatedModule, Source)
 import Ccap.Codegen.Util (ensureNewline, liftEffectSafely, processResult, scrubEolSpaces)
 import Ccap.Codegen.ValidationError (joinErrors, toValidation)
 import Control.Monad.Except (ExceptT(..), except, runExcept)
@@ -37,20 +37,19 @@ app :: Either String Config -> Array Foreign -> Effect Unit
 app eConfig fs = launchAff_ $ processResult do
   config <- except eConfig
   files <- except $ readFiles fs
-  sources <- ExceptT $ liftEffect $ traverse parseFile files <#> toValidation >>> joinErrors
+  sources <- ExceptT $ liftEffect $ traverse sourceFile files <#> toValidation >>> joinErrors
   validated <- ExceptT $ liftEffect $ validateModules config.includes sources <#> joinErrors
-  let modules = sources <#> _.contents
-  traverse_ (writeModule config modules) validated
+  traverse_ (writeModule config) validated
 
 readFiles :: Array Foreign -> Either String (Array FilePath)
 readFiles = lmap show <<< runExcept <<< traverse readString
 
-writeModule :: Config -> Array Module -> Source ValidatedModule -> ExceptT String Aff Unit
-writeModule config all { source: fileName, contents: mod } =
+writeModule :: Config -> Source ValidatedModule -> ExceptT String Aff Unit
+writeModule config { source: fileName, contents: mod } =
   case config.mode of
     Pretty -> writeOutput config mod PrettyPrint.outputSpec
-    Purs -> writeOutput config mod (Purescript.outputSpec config.package all)
-    Scala -> writeOutput config mod (Scala.outputSpec config.package all)
+    Purs -> writeOutput config mod $ Purescript.outputSpec config.package
+    Scala -> writeOutput config mod $ Scala.outputSpec config.package
     Show -> Console.info $ show mod
     Test ->
       ifM (except $ lmap (errorMessage fileName) (roundTrip mod))

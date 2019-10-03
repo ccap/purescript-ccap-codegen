@@ -25,8 +25,8 @@ oneModule :: ValidatedModule -> Box
 oneModule mod =
   text ("scala: " <> mod.exports.scalaPkg)
     // text ("purs: " <> mod.exports.pursPkg)
-    // indentedList ((mod.imports <#> _.tmplPath)  <#> text <<< \s -> "import " <> s)
-    // indentedList (mod.types <#> typeDecl)
+    // (vcat Boxes.left $ (mod.imports <#> _.exports.tmplPath >>> append "import " >>> text))
+    // (vcat Boxes.left $ mod.types <#> typeDecl)
 
 trailingSpace :: Array Box -> Box
 trailingSpace boxes =

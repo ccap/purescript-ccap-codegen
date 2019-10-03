@@ -80,7 +80,7 @@ importsInScopes includes sources =
 -- | complicated later.
 parseImports :: Array FilePath -> Effect (Either (Array ImportError) (Array Module))
 parseImports imports = traverse parse imports <#> toValidation
-  where parse imprt = bimap (ParseError imprt) _.contents <$> FS.parseFile imprt
+  where parse imprt = bimap (ParseError imprt) _.contents <$> FS.sourceFile imprt
 
 -- | Validate that the imports of the given modules exist and parse the imported modules
 -- | Note: Does not validate the contents of the imported files.

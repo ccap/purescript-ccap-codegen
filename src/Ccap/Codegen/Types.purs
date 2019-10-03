@@ -4,7 +4,6 @@ module Ccap.Codegen.Types
   , AnnotationParam(..)
   , Exports
   , Import
-  , Imports
   , Module
   , ModuleName
   , Primitive(..)
@@ -35,7 +34,7 @@ type Module =
   { name :: ModuleName
   , types :: Array TypeDecl
   , annots :: Annotations
-  , imports :: Imports
+  , imports :: Array Import
   , exports :: Exports
   }
 
@@ -43,7 +42,7 @@ type ValidatedModule =
   { name :: ModuleName
   , types :: Array TypeDecl
   , annots :: Annotations
-  , imports :: Array Exports
+  , imports :: Array Module
   , exports :: Exports
   }
 
@@ -52,14 +51,12 @@ type ModuleName = String
 -- TODO: newtype Import (to distinguish between the import statement and the actual file)
 type Import = String
 
---change this type to allow qualified imports?
-type Imports = Array Import
 
 --| package names for generating imports from a tmpl file
 type Exports =
   { scalaPkg :: String
   , pursPkg :: String
-  , tmplPath :: String
+  , tmplPath :: String -- What is the purpose of this?
   }
 
 data TypeDecl = TypeDecl String TopType Annotations

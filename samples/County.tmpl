@@ -24,6 +24,8 @@
 scala: Test.Generated.County
 purs: Test.Generated.County
 
+import Domains
+
 type CountyNo: Domains.CountyNoT
 type CountyName: String <validations maxLength="32">
 type OtherCountyName: wrap String <validations maxLength="32">

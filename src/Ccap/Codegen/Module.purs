@@ -1,16 +1,16 @@
 module Ccap.Codegen.Module
   ( validateModules
-  , exportsForModule
+  , importsForModule
   ) where
 
 import Prelude
 
 import Ccap.Codegen.Imports (Includes, validateImports)
 import Ccap.Codegen.TypeRef (validateAllTypeRefs)
-import Ccap.Codegen.Types (Exports, Module, ValidatedModule, Source)
+import Ccap.Codegen.Types (Module, Source, ValidatedModule)
 import Ccap.Codegen.ValidationError (class ValidationError, printError)
 import Control.Monad.Except (ExceptT(..), except, runExceptT, withExceptT)
-import Data.Array as Array
+import Control.MonadPlus (guard)
 import Data.Either (Either)
 import Data.Foldable (for_)
 import Effect (Effect)
@@ -26,7 +26,7 @@ validateModules includes sources = runExceptT do
   withErrors $ except $ for_ modules $ flip validateAllTypeRefs imports
   pure $ sources <#> \source -> source
     { contents = source.contents
-      { imports = exportsForModule source.contents imports
+      { imports = importsForModule source.contents imports
       }
     }
 
@@ -37,6 +37,9 @@ withErrors
    -> ExceptT (Array String) f a
 withErrors = withExceptT $ map printError
 
-exportsForModule :: Module -> Array Module -> Array Exports
-exportsForModule mod imports = Array.filter isImported imports <#> _.exports
-  where isImported = flip Array.elem mod.imports <<< _.name
+importsForModule :: Module -> Array Module -> Array Module
+importsForModule mod imports = do
+  imported <- imports
+  imprt <- mod.imports
+  guard $ imprt == imported.name
+  pure $ imported
