@@ -6,26 +6,27 @@ module Ccap.Codegen.PrettyPrint
 import Prelude
 
 import Ccap.Codegen.Shared (OutputSpec)
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Module(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), ValidatedModule)
 import Data.Array as Array
 import Data.Maybe (Maybe(..), maybe)
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
 
-prettyPrint :: Module -> String
+prettyPrint :: ValidatedModule -> String
 prettyPrint = render <<< oneModule
 
 outputSpec :: OutputSpec
 outputSpec =
   { render: render <<< oneModule
-  , filePath: \(Module n _ _) -> n <> ".tmpl"
+  , filePath: \mod -> mod.name <> ".tmpl"
   }
 
-oneModule :: Module -> Box
-oneModule (Module name decls annots) =
-  text ("module " <> name) <<+>> trailingSpace (annots <#> annotation) <<>> text "{"
-    // indentedList (decls <#> typeDecl)
-    // text "}"
+oneModule :: ValidatedModule -> Box
+oneModule mod =
+  text ("scala: " <> mod.exports.scalaPkg)
+    // text ("purs: " <> mod.exports.pursPkg)
+    // (vcat Boxes.left $ (mod.imports <#> _.exports.tmplPath >>> append "import " >>> text))
+    // (vcat Boxes.left $ mod.types <#> typeDecl)
 
 trailingSpace :: Array Box -> Box
 trailingSpace boxes =

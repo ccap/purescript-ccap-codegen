@@ -21,49 +21,51 @@
 //     in an Array type.
 //
 
-module County /* <scala package="gov.wicourts.codegen"> <purs modulePrefix="Ccap.Codegen"> */ {
-  type CountyNo: Domains.CountyNoT
-  type CountyName: String <validations maxLength="32">
-  type OtherCountyName: wrap String <validations maxLength="32">
-  type AssessFacilityId: wrap Int
-  type SomethingMoney: wrap Decimal
+scala: test.generated.County
+purs: Test.Generated.County
 
-  type County: {
-    countyNo: Domains.CountyNoT
-    countyNoX: CountyNo
-    countyName: CountyName
-    assessFacilityId: Maybe AssessFacilityId
-    soapPort: Int
-  }
+import Domains
 
-  type Big: {
-    a1: Int
-    b1: String
-    c1: Decimal
-    d1: Boolean
-    a2: Int
-    b2: String
-    c2: Decimal
-    d2: Boolean
-    a3: Int
-    b3: String
-    c3: Decimal
-    d3: Boolean
-    a4: Int
-    b4: String
-    c4: Decimal
-    d4: Boolean
-  }
+type CountyNo: Domains.CountyNoT
+type CountyName: String <validations maxLength="32">
+type OtherCountyName: wrap String <validations maxLength="32">
+type AssessFacilityId: wrap Int
+type SomethingMoney: wrap Decimal
 
-  type Response: {
-    counties: Array County
-  }
-
-  type CountyEnum: [
-    | Adams
-    | Ashland
-    | Baron
-    | Etc
-  ]
-
+type County: {
+  countyNo: Domains.CountyNoT
+  countyNoX: CountyNo
+  countyName: CountyName
+  assessFacilityId: Maybe AssessFacilityId
+  soapPort: Int
 }
+
+type Big: {
+  a1: Int
+  b1: String
+  c1: Decimal
+  d1: Boolean
+  a2: Int
+  b2: String
+  c2: Decimal
+  d2: Boolean
+  a3: Int
+  b3: String
+  c3: Decimal
+  d3: Boolean
+  a4: Int
+  b4: String
+  c4: Decimal
+  d4: Boolean
+}
+
+type Response: {
+  counties: Array County
+}
+
+type CountyEnum: [
+  | Adams
+  | Ashland
+  | Baron
+  | Etc
+]

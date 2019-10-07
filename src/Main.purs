@@ -4,104 +4,59 @@ module Main
 
 import Prelude
 
-import Ccap.Codegen.Parser (errorMessage, roundTrip, wholeFile)
+import Ccap.Codegen.Config (Config, Mode(..), config)
+import Ccap.Codegen.FileSystem (mkDirP, sourceFile)
+import Ccap.Codegen.Module (validateModules)
+import Ccap.Codegen.Parser (errorMessage, roundTrip)
 import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Purescript as Purescript
 import Ccap.Codegen.Scala as Scala
 import Ccap.Codegen.Shared (OutputSpec)
-import Ccap.Codegen.Types (Module)
+import Ccap.Codegen.Types (ValidatedModule, Source)
 import Ccap.Codegen.Util (ensureNewline, liftEffectSafely, processResult, scrubEolSpaces)
-import Control.Monad.Error.Class (try)
-import Control.Monad.Except (ExceptT(..), except, runExcept, withExceptT)
-import Data.Array as Array
+import Ccap.Codegen.ValidationError (joinErrors, toValidation)
+import Control.Monad.Except (ExceptT(..), except, runExcept)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
-import Data.String as String
-import Data.Traversable (for_, scanl, traverse)
-import Data.Tuple (Tuple(..))
+import Data.Maybe (maybe)
+import Data.Traversable (traverse, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Class.Console as Console
-import Effect.Exception as Error
 import Foreign (readString)
 import Foreign.Generic (Foreign)
 import Node.Encoding (Encoding(..))
 import Node.FS.Sync as Sync
-import Node.Yargs.Applicative (rest, runY, yarg)
+import Node.Path (FilePath)
+import Node.Path as Path
+import Node.Yargs.Applicative (rest, runY)
 import Node.Yargs.Setup (usage)
-import Text.Parsing.Parser (runParser)
 
-app :: String -> String -> String -> Array Foreign -> Effect Unit
-app strMode package outputDirectoryParam fs = launchAff_ $ processResult do
-  let checkString s =
-        if String.length s > 0
-          then Just s
-          else Nothing
-      outputDirectory = checkString outputDirectoryParam
+app :: Either String Config -> Array Foreign -> Effect Unit
+app eConfig fs = launchAff_ $ processResult do
+  config <- except eConfig
+  files <- except $ readFiles fs
+  sources <- ExceptT $ liftEffect $ traverse sourceFile files <#> toValidation >>> joinErrors
+  validated <- ExceptT $ liftEffect $ validateModules config.includes sources <#> joinErrors
+  traverse_ (writeModule config) validated
 
-  config <- except do
-        mode <- readMode strMode
-        files <- readFiles fs
-        pure { mode, package, files, outputDirectory }
-
-  fileModules <- traverse (processFile config) config.files
-
-  let all = fileModules <#> \(Tuple fileName mod) -> mod
-
-  for_ fileModules \(Tuple fileName mod) ->
-    processModule config fileName mod all
-
-data Mode
-  = Pretty
-  | Purs
-  | Scala
-  | Show
-  | Test
-
-type Config =
-  { mode :: Mode
-  , package :: String
-  , files :: Array String
-  , outputDirectory :: Maybe String
-  }
-
-readMode :: String -> Either String Mode
-readMode = case _ of
-  "pretty" -> Right Pretty
-  "purs" -> Right Purs
-  "scala" -> Right Scala
-  "show" -> Right Show
-  "test" -> Right Test
-  m -> Left $ "Unknown mode " <> show m
-
-readFiles :: Array Foreign -> Either String (Array String)
+readFiles :: Array Foreign -> Either String (Array FilePath)
 readFiles = lmap show <<< runExcept <<< traverse readString
 
-processFile :: Config -> String -> ExceptT String Aff (Tuple String Module)
-processFile config fileName = do
-  contents <- withExceptT Error.message
-                <<< ExceptT
-                <<< liftEffect
-                <<< try
-                $ Sync.readTextFile UTF8 fileName
-  except $ lmap (errorMessage fileName) (map (Tuple fileName) (runParser contents wholeFile))
-
-processModule :: Config -> String -> Module -> Array Module -> ExceptT String Aff Unit
-processModule config fileName mod all = do
+writeModule :: Config -> Source ValidatedModule -> ExceptT String Aff Unit
+writeModule config { source: fileName, contents: mod } =
   case config.mode of
     Pretty -> writeOutput config mod PrettyPrint.outputSpec
-    Purs -> writeOutput config mod (Purescript.outputSpec config.package all)
-    Scala -> writeOutput config mod (Scala.outputSpec config.package all)
+    Purs -> writeOutput config mod $ Purescript.outputSpec config.package
+    Scala -> writeOutput config mod $ Scala.outputSpec config.package
     Show -> Console.info $ show mod
-    Test -> do
-      b <- except $ lmap (errorMessage fileName) (roundTrip mod)
-      if b
-        then Console.info "Round-trip passed"
-        else except $ Left "Round-trip failed"
+    Test ->
+      ifM (except $ lmap (errorMessage fileName) (roundTrip mod))
+        (Console.info "Round-trip passed")
+        (except $ Left "Round-trip failed")
 
-writeOutput :: Config -> Module -> OutputSpec -> ExceptT String Aff Unit
+writeOutput :: Config -> ValidatedModule -> OutputSpec -> ExceptT String Aff Unit
 writeOutput config mod outputSpec = do
   config.outputDirectory # maybe
     (Console.info <<< scrubEolSpaces <<< outputSpec.render $ mod)
@@ -109,57 +64,17 @@ writeOutput config mod outputSpec = do
   where
     writeOutput_ :: String -> ExceptT String Aff Unit
     writeOutput_ dir = do
-      let outputFile = String.joinWith "/" filePath
+      let
+        filePath = [ dir, (outputSpec.filePath mod) ]
+        outputFile = Path.concat filePath
       Console.info $ "Writing " <> outputFile
-      ensureDirectoryExists outputFile
+      mkDirP (Path.dirname outputFile)
       liftEffectSafely $ Sync.writeTextFile
         UTF8
         outputFile
         (ensureNewline <<< scrubEolSpaces <<< outputSpec.render $ mod)
-      where
-        filePath = [ dir, (outputSpec.filePath mod) ]
-
-ensureDirectoryExists :: String -> ExceptT String Aff Unit
-ensureDirectoryExists filePath =
-  dirPath filePath # maybe (pure unit) \dir -> do
-    let parts = Array.filter (not <<< String.null) (String.split (String.Pattern "/") dir)
-    for_ (outputDirectories (String.take 1 filePath == "/") parts) \d ->
-      liftEffectSafely do
-        ifM (Sync.exists d)
-          (pure unit)
-          (Sync.mkdir d)
-  where
-    dirPath :: String -> Maybe String
-    dirPath p =
-      let idx = String.lastIndexOf (String.Pattern "/") p
-      in map (flip String.take filePath) idx
-
-    outputDirectories :: Boolean -> Array String -> Array String
-    outputDirectories rootPath parts =
-      scanl
-        (\b a -> if b == "" then a else b <> "/" <> a)
-        ""
-        (if rootPath then fromMaybe parts (Array.modifyAt 0 ("/" <> _) parts) else parts)
 
 main :: Effect Unit
-main = do
+main =
   let setup = usage "$0 --package <package> --mode <mode> a.tmpl"
-  runY setup $ app <$> yarg
-                        "m"
-                        [ "mode" ]
-                        (Just "The output mode (must be one of pretty, purs, scala, show, or test)")
-                        (Right "Mode is required")
-                        true
-                   <*> yarg
-                        "p"
-                        [ "package" ]
-                        (Just "The package (Scala) or module prefix (PureScript) to use")
-                        (Right "Package is required")
-                        true
-                   <*> yarg
-                        "o"
-                        [ "output-directory" ]
-                        (Just "Files will be written to this directory")
-                        (Left "")
-                        true
-                  <*> rest
+  in runY setup $ app <$> config <*> rest

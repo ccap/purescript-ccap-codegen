@@ -2,14 +2,18 @@ module Ccap.Codegen.Types
   ( Annotation(..)
   , Annotations
   , AnnotationParam(..)
-  , Module(..)
+  , Exports
+  , Import
+  , Module
   , ModuleName
   , Primitive(..)
   , Type(..)
   , TRef
   , RecordProp(..)
+  , Source
   , TopType(..)
   , TypeDecl(..)
+  , ValidatedModule
   , Variant
   , isRecord
   ) where
@@ -17,12 +21,43 @@ module Ccap.Codegen.Types
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe)
+import Node.Path (FilePath)
 import Prelude (class Eq, class Show)
 import Text.Parsing.Parser.Pos (Position)
 
-data Module = Module ModuleName (Array TypeDecl) Annotations
+type Source a =
+  { source :: FilePath
+  , contents :: a
+  }
+
+type Module =
+  { name :: ModuleName
+  , types :: Array TypeDecl
+  , annots :: Annotations
+  , imports :: Array Import
+  , exports :: Exports
+  }
+
+type ValidatedModule =
+  { name :: ModuleName
+  , types :: Array TypeDecl
+  , annots :: Annotations
+  , imports :: Array Module
+  , exports :: Exports
+  }
 
 type ModuleName = String
+
+-- TODO: newtype Import (to distinguish between the import statement and the actual file)
+type Import = String
+
+
+--| package names for generating imports from a tmpl file
+type Exports =
+  { scalaPkg :: String
+  , pursPkg :: String
+  , tmplPath :: String -- What is the purpose of this?
+  }
 
 data TypeDecl = TypeDecl String TopType Annotations
 
@@ -61,11 +96,6 @@ data Primitive
   | PString
 
 -- Instances here to avoid cluttering the above
-
-derive instance eqModule :: Eq Module
-derive instance genericModule :: Generic Module _
-instance showModule :: Show Module where
-  show = genericShow
 
 derive instance eqType :: Eq Type
 derive instance genericType :: Generic Type _

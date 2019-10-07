@@ -1,13 +1,14 @@
-module DateTimeSupport {
-  type Date: wrap String
-    <scala
-      t="org.joda.time.LocalDate"
-      decode="Decoder.date"
-      encode="gov.wicourts.common.LocalDateOps.sortableDateFormat.print">
-    <purs
-      t="Ccap.Common.DateTime.Date.Date"
-      decode="Ccap.Common.DateTime.Date.decodeIsoMadison"
-      encode="Ccap.Common.DateTime.Date.inIso8601ExtendedDateFormat">
-  type Time: wrap String
-  type Timestamp: wrap String
-}
+scala: test.generated.DateTimeSupport
+purs: Test.Generated.DateTimeSupport
+
+type Date: wrap String
+  <scala
+    t="org.joda.time.LocalDate"
+    decode="Decoder.date"
+    encode="gov.wicourts.common.LocalDateOps.sortableDateFormat.print">
+  <purs
+    t="Ccap.Common.DateTime.Date.Date"
+    decode="Ccap.Common.DateTime.Date.decodeIsoMadison"
+    encode="Ccap.Common.DateTime.Date.inIso8601ExtendedDateFormat">
+type Time: wrap String
+type Timestamp: wrap String
