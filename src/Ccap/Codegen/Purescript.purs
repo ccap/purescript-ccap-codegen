@@ -78,8 +78,8 @@ mergeImports imps =
                 >>> Array.sort >>> Array.nub >>> intercalate ", "
       }
 
-outputSpec :: String -> OutputSpec
-outputSpec defaultModulePrefix = --take out def prefix
+outputSpec :: OutputSpec
+outputSpec =
   { render: render <<< oneModule
   , filePath: modulePath
   }
