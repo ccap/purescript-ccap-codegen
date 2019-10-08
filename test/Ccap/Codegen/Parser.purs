@@ -8,6 +8,7 @@ import Ccap.Codegen.FileSystem (joinPaths, readTextFile)
 import Ccap.Codegen.PrettyPrint (prettyPrint)
 import Ccap.Codegen.Purescript as Purescript
 import Ccap.Codegen.Scala as Scala
+import Ccap.Codegen.Shared (OutputSpec)
 import Ccap.Codegen.Types (Source, ValidatedModule)
 import Ccap.Codegen.Util (ensureNewline, scrubEolSpaces)
 import Control.Monad.Except (ExceptT(..), runExceptT)
@@ -42,6 +43,9 @@ pursFile = base <> ".purs_" -- purs_ so pulp doesn't try to compile it.
 importedFile :: FilePath
 importedFile = joinPaths parseDir "Imported.tmpl"
 
+print :: OutputSpec -> Source ValidatedModule -> String
+print { render } { contents } = ensureNewline $ scrubEolSpaces $ render contents
+
 specs :: Spec Unit
 specs = describe "The .tmpl file parser" do
   it "Pretty prints a file is parsed as an identical Module" do
@@ -57,9 +61,7 @@ specs = describe "The .tmpl file parser" do
     results <-
       liftEffect $ runExceptT do
         validated <- ExceptT $ sourceTmpl tmplFile
-        let
-          spec = Scala.outputSpec "Test"
-          printed = ensureNewline $ scrubEolSpaces $ spec.render validated.contents
+        let printed = print Scala.outputSpec validated
         scala <- ExceptT $ readTextFile scalaFile
         pure $ Tuple printed scala
     either fail (uncurry diffByLine) results
@@ -67,9 +69,7 @@ specs = describe "The .tmpl file parser" do
     results <-
       liftEffect $ runExceptT do
         validated <- ExceptT $ sourceTmpl tmplFile
-        let
-          spec = Purescript.outputSpec "Test"
-          printed = ensureNewline $ scrubEolSpaces $ spec.render validated.contents
+        let printed = print Purescript.outputSpec validated
         purs <- ExceptT $ readTextFile pursFile
         pure $ Tuple printed purs
     either fail (uncurry diffByLine) results

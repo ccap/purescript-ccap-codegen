@@ -23,8 +23,8 @@ type Codegen = Reader Env
 runCodegen :: forall a. Env -> Codegen a -> a
 runCodegen = flip runReader
 
-outputSpec :: String -> OutputSpec
-outputSpec defaultPackage = --remove defaultPackage
+outputSpec :: OutputSpec
+outputSpec =
   { render: render <<< oneModule
   , filePath: modulePath
   }

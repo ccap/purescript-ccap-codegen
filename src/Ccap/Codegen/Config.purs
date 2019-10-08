@@ -22,15 +22,14 @@ data Mode
 type Config =
   { mode :: Mode
   , includes :: Array String
-  , package :: String
   , outputDirectory :: Maybe String
   }
 
 config :: Y (Either String Config)
-config = mkConfig <$> yMode <*> yPackage <*> yOutput <*> yIncludes
+config = mkConfig <$> yMode <*> yOutput <*> yIncludes
   where
-    mkConfig mode package outputDirectory includes =
-      mode <#> { mode: _, package, outputDirectory, includes }
+    mkConfig mode outputDirectory includes =
+      mode <#> { mode: _, outputDirectory, includes }
 
 yMode :: Y (Either String Mode)
 yMode = yarg "m" alts desc def true <#> readMode
@@ -45,13 +44,6 @@ yMode = yarg "m" alts desc def true <#> readMode
       "show" -> Right Show
       "test" -> Right Test
       m -> Left $ "Unknown mode " <> show m
-
-yPackage :: Y String
-yPackage = yarg "p" alts desc def true
-  where
-    alts = [ "package" ]
-    desc = Just "The package (Scala) or module prefix (PureScript) to use"
-    def = Right "Package is required"
 
 yOutput :: Y (Maybe String)
 yOutput = yarg "o" alts desc def true <#> nonEmpty
