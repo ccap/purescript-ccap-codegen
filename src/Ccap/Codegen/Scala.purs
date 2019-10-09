@@ -47,7 +47,7 @@ oneModule mod = do
         declsOutput <- traverse (typeDecl CompanionObject) mod.types
         pure $
           Array.fromFoldable modDeclOutput
-            <> [ text ("object " <> mod.name <> " {") ]
+            <> [ text ("object " <> (objectName mod) <> " {") ]
             <> (declsOutput <#> indented)
             <> [ char '}']
   vsep 1 Boxes.left do
@@ -55,6 +55,9 @@ oneModule mod = do
     , text ("package " <> classPackage mod)
     , imports (mod.imports <#> _.exports.scalaPkg)
     ] <> body
+
+objectName :: ValidatedModule -> String
+objectName { exports: { scalaPkg } } = fromMaybe scalaPkg $ Array.last $ Export.split scalaPkg
 
 classPackage :: ValidatedModule -> String
 classPackage { exports: { scalaPkg } } =

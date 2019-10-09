@@ -1,36 +1,55 @@
 module Test.Ccap.Codegen.Util
   ( diffByLine
   , eqElems
+  , exceptAffT
+  , findLine
   , onlyOne
   , parse
+  , print
+  , runOrFail
   , shouldBeLeft
   , shouldBeRight
+  , sourceTmpl
+  , splitLines
 --  , traceFile
   , validateModule
   ) where
 
 import Prelude
 
+import Ccap.Codegen.FileSystem (readTextFile)
 import Ccap.Codegen.Module as Module
 import Ccap.Codegen.Parser (errorMessage, parseSource)
+import Ccap.Codegen.Shared (OutputSpec)
 import Ccap.Codegen.Types (Module, Source, ValidatedModule)
+import Ccap.Codegen.Util (ensureNewline, scrubEolSpaces)
 import Ccap.Codegen.ValidationError (joinErrors)
 import Control.Monad.Error.Class (class MonadThrow)
+import Control.Monad.Except (ExceptT(..), except, runExceptT)
 import Data.Array (sort)
 import Data.Array as Array
 import Data.Bifunctor (lmap)
-import Data.Either (Either(..), isLeft, isRight)
+import Data.Either (Either(..), either, isLeft, isRight)
 import Data.Foldable (traverse_)
 import Data.List (List(..))
 import Data.List as List
+import Data.List.Lazy (find)
+import Data.Maybe (Maybe)
 import Data.String (Pattern(..))
 import Data.String as String
 import Data.Tuple (uncurry)
 import Effect (Effect)
 import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
 import Effect.Exception (Error)
 import Node.Path (FilePath)
-import Test.Spec.Assertions (shouldEqual, shouldSatisfy)
+import Test.Spec.Assertions (fail, shouldEqual, shouldSatisfy)
+
+exceptAffT :: forall a b. Effect (Either a b) -> ExceptT a Aff b
+exceptAffT = ExceptT <<< liftEffect
+
+runOrFail :: ExceptT String Aff (Aff Unit) -> Aff Unit
+runOrFail = either fail identity <=< runExceptT
 
 validateModule :: Source Module -> Effect (Either String (Source ValidatedModule))
 validateModule = Array.singleton >>> Module.validateModules [] >>> map (joinErrors >=> onlyOne)
@@ -53,6 +72,9 @@ eqElems xs ys = sort xs == sort ys
 parse :: FilePath -> String -> Either String (Source Module)
 parse filePath = lmap (errorMessage filePath) <<< parseSource filePath
 
+print :: OutputSpec -> Source ValidatedModule -> String
+print { render } { contents } = ensureNewline $ scrubEolSpaces $ render contents
+
 splitLines :: String -> Array String
 splitLines = String.split (Pattern "\n")
 
@@ -65,5 +87,14 @@ diffByLine x y = do
   traverse_ (uncurry shouldEqual) xys
   (Array.length xs) `shouldEqual` (Array.length ys)
 
+findLine :: (String -> Boolean) -> String -> Maybe String
+findLine pred = find pred <<< splitLines
+
 --traceFile :: forall m. Monad m => String -> m Unit
 --traceFile = traverse_ traceM <<< splitLines
+
+sourceTmpl :: FilePath -> Effect (Either String (Source ValidatedModule))
+sourceTmpl filePath = runExceptT do
+  text <- ExceptT $ readTextFile filePath
+  sourced <- except $ parse filePath text
+  ExceptT $ validateModule sourced

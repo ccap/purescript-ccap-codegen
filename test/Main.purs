@@ -4,6 +4,7 @@ import Prelude
 
 import Effect (Effect)
 import Effect.Aff (launchAff_)
+import Test.Ccap.Codegen.Exports (specs) as Exports
 import Test.Ccap.Codegen.FileSystem (specs) as FileSystem
 import Test.Ccap.Codegen.Imports (specs) as Imports
 import Test.Ccap.Codegen.Parser (specs) as Parser
@@ -15,3 +16,4 @@ main = launchAff_ $ runSpec [ consoleReporter ] do
   FileSystem.specs
   Imports.specs
   Parser.specs
+  Exports.specs
