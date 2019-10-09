@@ -48,8 +48,8 @@ writeModule :: Config -> Source ValidatedModule -> ExceptT String Aff Unit
 writeModule config { source: fileName, contents: mod } =
   case config.mode of
     Pretty -> writeOutput config mod PrettyPrint.outputSpec
-    Purs -> writeOutput config mod $ Purescript.outputSpec config.package
-    Scala -> writeOutput config mod $ Scala.outputSpec config.package
+    Purs -> writeOutput config mod Purescript.outputSpec
+    Scala -> writeOutput config mod Scala.outputSpec
     Show -> Console.info $ show mod
     Test ->
       ifM (except $ lmap (errorMessage fileName) (roundTrip mod))
@@ -76,5 +76,5 @@ writeOutput config mod outputSpec = do
 
 main :: Effect Unit
 main =
-  let setup = usage "$0 --package <package> --mode <mode> a.tmpl"
+  let setup = usage "$0 --mode <mode> a.tmpl"
   in runY setup $ app <$> config <*> rest

@@ -9,18 +9,17 @@ import Ccap.Codegen.PrettyPrint (prettyPrint)
 import Ccap.Codegen.Purescript as Purescript
 import Ccap.Codegen.Scala as Scala
 import Ccap.Codegen.Types (Source, ValidatedModule)
-import Ccap.Codegen.Util (ensureNewline, scrubEolSpaces)
+import Ccap.Codegen.Util (scrubEolSpaces)
 import Control.Monad.Except (ExceptT(..), runExceptT)
 import Control.Monad.Except.Trans (except)
 import Data.Array as Array
-import Data.Either (Either, either)
+import Data.Either (either)
 import Data.Foldable (traverse_)
 import Data.Tuple (Tuple(..), uncurry)
-import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Node.Path (FilePath)
-import Test.Ccap.Codegen.Util (diffByLine, parse, validateModule)
+import Test.Ccap.Codegen.Util (diffByLine, parse, print, sourceTmpl, validateModule)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual)
 
@@ -57,9 +56,7 @@ specs = describe "The .tmpl file parser" do
     results <-
       liftEffect $ runExceptT do
         validated <- ExceptT $ sourceTmpl tmplFile
-        let
-          spec = Scala.outputSpec "Test"
-          printed = ensureNewline $ scrubEolSpaces $ spec.render validated.contents
+        let printed = print Scala.outputSpec validated
         scala <- ExceptT $ readTextFile scalaFile
         pure $ Tuple printed scala
     either fail (uncurry diffByLine) results
@@ -67,18 +64,10 @@ specs = describe "The .tmpl file parser" do
     results <-
       liftEffect $ runExceptT do
         validated <- ExceptT $ sourceTmpl tmplFile
-        let
-          spec = Purescript.outputSpec "Test"
-          printed = ensureNewline $ scrubEolSpaces $ spec.render validated.contents
+        let printed = print Purescript.outputSpec validated
         purs <- ExceptT $ readTextFile pursFile
         pure $ Tuple printed purs
     either fail (uncurry diffByLine) results
-
-sourceTmpl :: FilePath -> Effect (Either String (Source ValidatedModule))
-sourceTmpl filePath = runExceptT do
-  text <- ExceptT $ readTextFile filePath
-  sourced <- except $ parse filePath text
-  ExceptT $ validateModule sourced
 
 compareModules :: Source ValidatedModule -> Source ValidatedModule -> Aff Unit
 compareModules x y = do

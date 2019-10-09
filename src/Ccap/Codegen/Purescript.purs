@@ -6,6 +6,7 @@ import Prelude
 
 import Ccap.Codegen.Annotations (field) as Annotations
 import Ccap.Codegen.Annotations (getWrapOpts)
+import Ccap.Codegen.Parser.Export as Export
 import Ccap.Codegen.Shared (DelimitedLiteralDir(..), OutputSpec, Env, delimitedLiteral, indented, invalidate)
 import Ccap.Codegen.Types (Annotations, Module, Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), ValidatedModule)
 import Control.Alt ((<|>))
@@ -21,7 +22,7 @@ import Data.String (Pattern(..))
 import Data.String as String
 import Data.Traversable (for, traverse)
 import Data.Tuple (Tuple(..))
-import Node.Path (sep)
+import Node.Path (FilePath)
 import Text.PrettyPrint.Boxes (Box, char, hsep, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (bottom, left) as Boxes
 
@@ -77,16 +78,14 @@ mergeImports imps =
                 >>> Array.sort >>> Array.nub >>> intercalate ", "
       }
 
-outputSpec :: String -> OutputSpec
-outputSpec defaultModulePrefix = --take out def prefix
+outputSpec :: OutputSpec
+outputSpec =
   { render: render <<< oneModule
-  , filePath: \mod ->
-      let path = String.replaceAll
-                    (String.Pattern ".")
-                    (String.Replacement sep)
-                    (modulePrefix defaultModulePrefix mod.annots)
-      in path <> "/" <> mod.name <> ".purs"
+  , filePath: modulePath
   }
+
+modulePath :: ValidatedModule -> FilePath
+modulePath mod = (Export.toPath mod.exports.pursPkg) <> ".purs"
 
 modulePrefix :: String -> Annotations -> String
 modulePrefix defaultPrefix annots =
