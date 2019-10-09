@@ -8,20 +8,18 @@ import Ccap.Codegen.FileSystem (joinPaths, readTextFile)
 import Ccap.Codegen.PrettyPrint (prettyPrint)
 import Ccap.Codegen.Purescript as Purescript
 import Ccap.Codegen.Scala as Scala
-import Ccap.Codegen.Shared (OutputSpec)
 import Ccap.Codegen.Types (Source, ValidatedModule)
-import Ccap.Codegen.Util (ensureNewline, scrubEolSpaces)
+import Ccap.Codegen.Util (scrubEolSpaces)
 import Control.Monad.Except (ExceptT(..), runExceptT)
 import Control.Monad.Except.Trans (except)
 import Data.Array as Array
-import Data.Either (Either, either)
+import Data.Either (either)
 import Data.Foldable (traverse_)
 import Data.Tuple (Tuple(..), uncurry)
-import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Node.Path (FilePath)
-import Test.Ccap.Codegen.Util (diffByLine, parse, validateModule)
+import Test.Ccap.Codegen.Util (diffByLine, parse, print, sourceTmpl, validateModule)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual)
 
@@ -42,9 +40,6 @@ pursFile = base <> ".purs_" -- purs_ so pulp doesn't try to compile it.
 
 importedFile :: FilePath
 importedFile = joinPaths parseDir "Imported.tmpl"
-
-print :: OutputSpec -> Source ValidatedModule -> String
-print { render } { contents } = ensureNewline $ scrubEolSpaces $ render contents
 
 specs :: Spec Unit
 specs = describe "The .tmpl file parser" do
@@ -73,12 +68,6 @@ specs = describe "The .tmpl file parser" do
         purs <- ExceptT $ readTextFile pursFile
         pure $ Tuple printed purs
     either fail (uncurry diffByLine) results
-
-sourceTmpl :: FilePath -> Effect (Either String (Source ValidatedModule))
-sourceTmpl filePath = runExceptT do
-  text <- ExceptT $ readTextFile filePath
-  sourced <- except $ parse filePath text
-  ExceptT $ validateModule sourced
 
 compareModules :: Source ValidatedModule -> Source ValidatedModule -> Aff Unit
 compareModules x y = do
