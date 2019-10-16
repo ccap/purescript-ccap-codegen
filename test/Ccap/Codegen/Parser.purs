@@ -8,6 +8,7 @@ import Ccap.Codegen.FileSystem (joinPaths, readTextFile)
 import Ccap.Codegen.PrettyPrint (prettyPrint)
 import Ccap.Codegen.Purescript as Purescript
 import Ccap.Codegen.Scala as Scala
+import Ccap.Codegen.Shared (invalidate)
 import Ccap.Codegen.Types (Source, ValidatedModule)
 import Ccap.Codegen.Util (scrubEolSpaces)
 import Control.Monad.Except (ExceptT(..), runExceptT)
@@ -47,7 +48,7 @@ specs = describe "The .tmpl file parser" do
     results <-
       liftEffect $ runExceptT do
         validated <- ExceptT $ sourceTmpl tmplFile
-        let printed = scrubEolSpaces $ prettyPrint validated.contents
+        let printed = scrubEolSpaces $ prettyPrint (invalidate validated.contents)
         resourced <- except $ parse tmplFile printed
         revalidated <- ExceptT $ validateModule resourced
         pure $ Tuple validated revalidated

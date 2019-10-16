@@ -8,6 +8,7 @@ module Ccap.Codegen.Parser
 import Prelude
 
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
+import Ccap.Codegen.Shared (invalidate)
 import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Exports, Import, Module, Primitive(..), RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..), ValidatedModule, Source)
 import Control.Alt ((<|>))
 import Data.Array (fromFoldable, many) as Array
@@ -200,9 +201,9 @@ errorMessage fileName err =
 
 roundTrip :: ValidatedModule -> Either ParseError Boolean
 roundTrip module1 = do
-  let prettyPrinted1 = PrettyPrinter.prettyPrint module1
+  let prettyPrinted1 = PrettyPrinter.prettyPrint $ invalidate module1
   module2 <- runParser prettyPrinted1 wholeFile
-  let prettyPrinted2 = PrettyPrinter.prettyPrint $ module2 { imports = module1.imports }
+  let prettyPrinted2 = PrettyPrinter.prettyPrint $ invalidate $ module2 { imports = module1.imports }
   pure $ prettyPrinted1 == prettyPrinted2
 
 

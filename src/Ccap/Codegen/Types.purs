@@ -16,6 +16,9 @@ module Ccap.Codegen.Types
   , ValidatedModule
   , Variant
   , isRecord
+  , recordPropType
+  , typeDeclName
+  , typeDeclTopType
   ) where
 
 import Data.Generic.Rep (class Generic)
@@ -131,3 +134,15 @@ derive instance eqPrimitive :: Eq Primitive
 derive instance genericPrimitive :: Generic Primitive _
 instance showPrimitive :: Show Primitive where
   show = genericShow
+
+-- | Get the type name of a type declaration.
+typeDeclName :: TypeDecl -> String
+typeDeclName (TypeDecl typeName _ _) = typeName
+
+-- | Get the top most type of a type declaration.
+typeDeclTopType :: TypeDecl -> TopType
+typeDeclTopType (TypeDecl _ topType _) = topType
+
+-- | Get the type of a record's property.
+recordPropType :: RecordProp -> Type
+recordPropType (RecordProp _ typ) = typ

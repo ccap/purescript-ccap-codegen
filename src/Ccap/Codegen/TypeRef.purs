@@ -1,11 +1,12 @@
 module Ccap.Codegen.TypeRef
   ( TypeRefError
+  , topTypeReferences
   , validateAllTypeRefs
   ) where
 
 import Prelude
 
-import Ccap.Codegen.Types (Import, Module, ModuleName, RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..))
+import Ccap.Codegen.Types (Import, Module, ModuleName, TRef, TopType(..), Type(..), TypeDecl, recordPropType, typeDeclTopType, typeDeclName)
 import Ccap.Codegen.ValidationError (class ValidationError, toValidation)
 import Data.Array ((:))
 import Data.Array as Array
@@ -73,18 +74,6 @@ fromTRef :: TRef -> TypeRef
 fromTRef = case _ of
   { mod: Just moduleName, typ: typeName } -> Qualified { moduleName, typeName }
   { mod: Nothing, typ: typeName } -> Unqualified typeName
-
--- | Get the type name of a type declaration.
-typeDeclName :: TypeDecl -> String
-typeDeclName (TypeDecl typeName _ _) = typeName
-
--- | Get the top most type of a type declaration.
-typeDeclTopType :: TypeDecl -> TopType
-typeDeclTopType (TypeDecl _ topType _) = topType
-
--- | Get the type of a record's property.
-recordPropType :: RecordProp -> Type
-recordPropType (RecordProp _ typ) = typ
 
 -- | Find a type declaration in a module.
 findDeclaration :: TypeName -> Module -> Maybe TypeDecl
