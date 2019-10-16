@@ -1,0 +1,44 @@
+scala: getSchema.Case
+purs: GetSchema.Case
+
+import Domains
+
+type Case: {
+  caseNo: Domains.CaseNoT
+  countyNo: Domains.CountyNoT
+  caseType: Domains.CaseTypeT
+  filingDate: Domains.DateT
+  isConfidential: Boolean
+  isFiledWoCtofc: Boolean
+  lastChargeSeqNo: Domains.ChargeSeqNoT
+  lastCvJgSeqNo: Domains.CivilJdgmtSeqNoT
+  lastHistSeqNo: Domains.HistSeqNoT
+  lastPartySeqNo: Domains.PartyNoT
+  lastRelSeqNo: Domains.RelSeqNoT
+  statusCode: Domains.StatusCodeT
+  bondId: Maybe Domains.BondIdT
+  branchId: Maybe Domains.BranchIdT
+  caption: Maybe Domains.CaptionT
+  daCaseNo: Maybe Domains.DaCaseNoT
+  dispCtofcNo: Maybe Domains.CtofcNoT
+  fileCtofcDate: Maybe Domains.DateT
+  filingCtofcNo: Maybe Domains.CtofcNoT
+  issAgencyNo: Maybe Domains.IssAgencyNoT
+  maintCode: Maybe Domains.MaintCodeT
+  oldCaseNo: Maybe String
+  plntfAgencyNo: Maybe Domains.PlntfAgencyNoT
+  previousRespCo: Maybe Domains.CtofcNoT
+  prosAgencyNo: Maybe Domains.ProsAgencyNoT
+  prosAtty: Maybe Domains.AttyNoT
+  respCtofcNo: Maybe Domains.CtofcNoT
+  wcisClsCode: Maybe Domains.WcisClsCodeT
+  isSeal: Boolean
+  isExpunge: Boolean
+  isElectronicFiling: Boolean
+  isPartySeal: Maybe Boolean
+  unifiedCaseNo: Maybe Domains.UnifiedCaseNoT
+  statClsCode: Maybe Domains.WcisClsCodeT
+  rawCaption: Maybe String
+  optInCode: Maybe Domains.PublicOptInCodeT
+  lastDocNumber: Domains.CaseDocNoT
+}

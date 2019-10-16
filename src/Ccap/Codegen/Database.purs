@@ -5,8 +5,10 @@ module Ccap.Codegen.Database
 
 import Prelude
 
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), ValidatedModule)
+import Ccap.Codegen.TypeRef (topTypeReferences)
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import, Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), Module, typeDeclTopType)
 import Control.Monad.Except (ExceptT, withExceptT)
+import Data.Array as Array
 import Data.Maybe (Maybe(..), maybe)
 import Database.PostgreSQL (Connection, PGError)
 import Database.PostgreSQL.PG (Pool, Query(..), query, withConnection)
@@ -17,7 +19,7 @@ import Text.Parsing.Parser.Pos (Position(..))
 emptyPos :: Position
 emptyPos = Position { line: 0, column: 0 }
 
-domainModule :: Pool -> String -> String -> ExceptT String Aff ValidatedModule
+domainModule :: Pool -> String -> String -> ExceptT String Aff Module
 domainModule pool scalaPkg pursPkg = withExceptT show $ withConnection pool \conn -> do
   results <- query conn (Query sql) Row0
   let types = results <#> (\(Row3 domainName dataType (maxLen :: Maybe Int)) ->
@@ -51,11 +53,24 @@ type DbColumn =
   , isNullable :: String
   }
 
-tableModule :: Pool -> String -> String -> String -> ExceptT String Aff ValidatedModule
+tableModule :: Pool -> String -> String -> String -> ExceptT String Aff Module
 tableModule pool tableName scalaPkg pursPkg = withExceptT show $ withConnection pool \conn -> do
   columns <- queryColumns tableName conn
   let decl = tableType tableName columns
-  pure $ { name: tableName, types: [ decl ], annots: [], imports: [], exports: { scalaPkg, pursPkg, tmplPath: tableName <> ".tmpl" } }
+  pure
+    { name: tableName
+    , types: [ decl ]
+    , annots: []
+    , imports: tableImports decl
+    , exports:
+      { scalaPkg
+      , pursPkg
+      , tmplPath: tableName
+      }
+    }
+
+tableImports :: TypeDecl -> Array Import
+tableImports = typeDeclTopType >>> topTypeReferences >>> map _.mod >>> Array.catMaybes >>> Array.nub
 
 queryColumns :: String -> Connection -> ExceptT PGError Aff (Array DbColumn)
 queryColumns tableName conn = do
