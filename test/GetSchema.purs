@@ -56,7 +56,7 @@ specs = describe "Case" do
         fileSource <- ExceptT <<< liftEffect $ sourceTmpl caseTmplFile
         let { scalaPkg, pursPkg } = fileSource.contents.exports
         pool <- ExceptT <<< liftEffect <<< map pure $ poolConfig >>= newPool
-        dbModule <- tableModule pool fileSource.contents.name scalaPkg pursPkg
+        dbModule <- tableModule pool scalaPkg pursPkg fileSource.contents.name
         pure $ Tuple (invalidate fileSource.contents) dbModule
     either fail (uncurry printAndDiff) results
 
