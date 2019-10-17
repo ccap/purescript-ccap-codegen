@@ -6,7 +6,7 @@ module Ccap.Codegen.Database
 import Prelude
 
 import Ccap.Codegen.TypeRef (topTypeReferences)
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import, Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), Module, typeDeclTopType)
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import, Module, Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), typeDeclName, typeDeclTopType)
 import Control.Monad.Except (ExceptT, withExceptT)
 import Data.Array as Array
 import Data.Maybe (Maybe(..), maybe)
@@ -22,18 +22,30 @@ emptyPos = Position { line: 0, column: 0 }
 domainModule :: Pool -> String -> String -> ExceptT String Aff Module
 domainModule pool scalaPkg pursPkg = withExceptT show $ withConnection pool \conn -> do
   results <- query conn (Query sql) Row0
-  let types = results <#> (\(Row3 domainName dataType (maxLen :: Maybe Int)) ->
-                let annots =
-                      maybe
-                        []
-                        (\l ->
-                          [ Annotation "validations" emptyPos
-                              [ AnnotationParam "maxLength" emptyPos (Just $ show l)
-                              ]
-                          ])
-                        maxLen
-                in TypeDecl domainName (Wrap (dbNameToType dataType)) annots)
-  pure $ { name: "Domains", types, annots: [], imports: [], exports: { scalaPkg, pursPkg, tmplPath: "Domains.tmpl" } }
+  let
+    types =
+      Array.sortWith typeDeclName $ results <#> (\(Row3 domainName dataType (maxLen :: Maybe Int)) ->
+        let annots =
+              maybe
+                []
+                (\l ->
+                  [ Annotation "validations" emptyPos
+                      [ AnnotationParam "maxLength" emptyPos (Just $ show l)
+                      ]
+                  ])
+                maxLen
+        in TypeDecl domainName (Wrap (dbNameToType dataType)) annots)
+  pure $
+    { name: "Domains"
+    , types
+    , annots: []
+    , imports: types >>= tableImports # Array.nub # Array.sort
+    , exports:
+      { scalaPkg
+      , pursPkg
+      , tmplPath: "Domains.tmpl"
+      }
+    }
   where
     sql = """
           select domain_name, data_type, character_maximum_length
@@ -61,7 +73,7 @@ tableModule pool scalaPkg pursPkg tableName = withExceptT show $ withConnection 
     { name: tableName
     , types: [ decl ]
     , annots: []
-    , imports: tableImports decl
+    , imports: tableImports decl # Array.sort
     , exports:
       { scalaPkg
       , pursPkg
