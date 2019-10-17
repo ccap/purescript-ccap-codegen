@@ -12,7 +12,7 @@ import Ccap.Codegen.ValidationError (class ValidationError, printError)
 import Control.Monad.Except (ExceptT(..), except, runExceptT, withExceptT)
 import Control.MonadPlus (guard)
 import Data.Either (Either)
-import Data.Foldable (for_)
+import Data.Traversable (for)
 import Effect (Effect)
 
 -- | Validate imports and type references against the compile scope.
@@ -21,14 +21,13 @@ validateModules
   -> Array (Source Module)
   -> Effect (Either (Array String) (Array (Source ValidatedModule)))
 validateModules includes sources = runExceptT do
-  imports <- withErrors $ ExceptT $ validateImports includes sources
-  let modules = sources <#> _.contents
-  withErrors $ except $ for_ modules $ flip validateAllTypeRefs imports
-  pure $ sources <#> \source -> source
-    { contents = source.contents
-      { imports = importsForModule source.contents imports
-      }
-    }
+  allImports <- withErrors $ ExceptT $ validateImports includes sources
+  withErrors $ except $ for sources \source -> do
+    let
+      mod = source.contents
+      imports = importsForModule mod allImports
+    _ <- validateAllTypeRefs mod imports
+    pure $ source { contents = mod { imports = imports } }
 
 withErrors
   :: forall f e a. Functor f
