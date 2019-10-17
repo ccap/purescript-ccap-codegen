@@ -5,7 +5,6 @@ package test
 import gov.wicourts.jsoncommon.Decoder
 import gov.wicourts.jsoncommon.Encoder
 import scalaz.Monad
-import test.Imported
 
 object Printed {
 
