@@ -54,7 +54,7 @@ type DbColumn =
   }
 
 tableModule :: Pool -> String -> String -> String -> ExceptT String Aff Module
-tableModule pool tableName scalaPkg pursPkg = withExceptT show $ withConnection pool \conn -> do
+tableModule pool scalaPkg pursPkg tableName = withExceptT show $ withConnection pool \conn -> do
   columns <- queryColumns tableName conn
   let decl = tableType tableName columns
   pure
