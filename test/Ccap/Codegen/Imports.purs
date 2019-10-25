@@ -41,8 +41,8 @@ submoduleSource = internal "SourceSubmodule.tmpl"
 externalSource :: FilePath
 externalSource = internal "SourceExternal.tmpl"
 
-allSources :: Array FilePath
-allSources = [ plainSource, internalSource, submoduleSource, externalSource ]
+externalSubmoduleSource :: FilePath
+externalSubmoduleSource = internal "SourceExternalSubmodule.tmpl"
 
 specs :: Spec Unit
 specs =
@@ -70,6 +70,15 @@ specs =
             $ ExceptT
             $ validateImports includes [ source ]
         shouldBeRight imports
+    itFailsWithoutIncludes filePath =
+      it "Fails validation without including the external folder" do
+        let includes = []
+        imports <- liftEffect $ runExceptT do
+          source <- ExceptT $ FS.sourceFile filePath
+          withExceptT (fold <<< map printError)
+            $ ExceptT
+            $ validateImports includes [ source ]
+        shouldBeLeft imports
   in
     describe "template include syntax" do
       describe "a plain file with no references" do
@@ -90,11 +99,10 @@ specs =
         itHasImports externalSource [ "External" ]
         itCanFindImports externalSource [ external_ ]
         itCanValidateImports externalSource [ external_ ]
-        it "Fails validation without including the external folder" do
-          let includes = []
-          imports <- liftEffect $ runExceptT do
-            source <- ExceptT $ FS.sourceFile externalSource
-            withExceptT (fold <<< map printError)
-              $ ExceptT
-              $ validateImports includes [ source ]
-          shouldBeLeft imports
+        itFailsWithoutIncludes externalSource
+      describe "a file with an external reference to a submodule" do
+        itCanBeParsed externalSubmoduleSource
+        itHasImports externalSubmoduleSource [ "submodule.ExternalSubmodule" ]
+        itCanFindImports externalSubmoduleSource [ external_ ]
+        itCanValidateImports externalSubmoduleSource [ external_ ]
+        itFailsWithoutIncludes externalSubmoduleSource
