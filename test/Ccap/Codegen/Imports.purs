@@ -82,7 +82,7 @@ specs =
         typeDecls <- liftEffect $ runExceptT do
           source <- ExceptT $ FS.sourceFile filePath
           imports <- withPrintErrors $ ExceptT $ validateImports includes [ source ]
-          withPrintErrors $ except $ validateAllTypeRefs source.contents imports
+          withPrintErrors $ except $ validateAllTypeRefs source.contents (imports <#> _.mod)
         shouldBeRight typeDecls
   in
     describe "template include syntax" do
