@@ -5,7 +5,7 @@ module Ccap.Codegen.Module
 
 import Prelude
 
-import Ccap.Codegen.Imports (Includes, validateImports)
+import Ccap.Codegen.Imports (Imported, Includes, validateImports)
 import Ccap.Codegen.TypeRef (validateAllTypeRefs)
 import Ccap.Codegen.Types (Module, Source, ValidatedModule)
 import Ccap.Codegen.ValidationError (class ValidationError, printError)
@@ -36,9 +36,9 @@ withErrors
    -> ExceptT (Array String) f a
 withErrors = withExceptT $ map printError
 
-importsForModule :: Module -> Array Module -> Array Module
+importsForModule :: Module -> Array Imported -> Array Module
 importsForModule mod imports = do
   imported <- imports
   imprt <- mod.imports
-  guard $ imprt == imported.name
-  pure $ imported
+  guard $ imprt == imported.imprt
+  pure $ imported.mod

@@ -1,6 +1,7 @@
 module Ccap.Codegen.Imports
-  ( Includes
-  , ImportError
+  ( ImportError
+  , Imported
+  , Includes
   , importInScope
   , importsInScope
   , importsInScopes
@@ -27,6 +28,10 @@ import Node.Path as Path
 
 type Includes = Array FilePath
 
+type FoundImport = { imprt :: Import, filePath :: FilePath }
+
+type Imported = { imprt :: Import, mod :: Module }
+
 data ImportError
   = NotFound Module Import
 --  | MultipleFound Module Import
@@ -48,20 +53,20 @@ possibleImportPaths includes source imprt =
   in
     sourceDirs <#> flip FS.joinPaths importPath <#> flip append ".tmpl"
 
-importInScope :: Includes -> Source Module -> Import -> Effect (Either ImportError FilePath)
+importInScope :: Includes -> Source Module -> Import -> Effect (Either ImportError FoundImport)
 importInScope included { source, contents } imprt =
   let
     options = possibleImportPaths included source imprt
     existing = Array.filterA FS.isFile options
-  in
-    existing <#> Array.head >>> note (NotFound contents imprt) -- TODO error if multiple found
+  in -- TODO error if multiple found
+    existing <#> Array.head >>> map { imprt, filePath: _ } >>> note (NotFound contents imprt)
 
 -- | Get the file paths for all imports or _an_ error message for _all_ imports that cannot be
 -- | found. This is done over a batch of modules to avoid parsing the same file twice.
 importsInScope
   :: Includes
   -> Source Module
-  -> Effect (Either (Array ImportError) (Array FilePath))
+  -> Effect (Either (Array ImportError) (Array FoundImport))
 importsInScope includes source =
   traverse (importInScope includes source) source.contents.imports
     <#> toValidation
@@ -69,25 +74,27 @@ importsInScope includes source =
 importsInScopes
   :: Includes
   -> Array (Source Module)
-  -> Effect (Either (Array ImportError) (Array FilePath))
+  -> Effect (Either (Array ImportError) (Array FoundImport))
 importsInScopes includes sources =
   let
-    validations :: Effect (Array (Either (Array ImportError) (Array FilePath)))
+    validations :: Effect (Array (Either (Array ImportError) (Array FoundImport)))
     validations = traverse (importsInScope includes) sources
   in validations <#> sequence <#> rmap (join >>> Array.nub)
 
 -- | Really is just parsing an array of files right now but the Import type might get more
 -- | complicated later.
-parseImports :: Array FilePath -> Effect (Either (Array ImportError) (Array Module))
+parseImports :: Array FoundImport -> Effect (Either (Array ImportError) (Array Imported))
 parseImports imports = traverse parse imports <#> toValidation
-  where parse imprt = bimap (ParseError imprt) _.contents <$> FS.sourceFile imprt
+  where
+    parse { imprt, filePath } =
+      bimap (ParseError imprt) (\source -> { imprt, mod: source.contents }) <$> FS.sourceFile filePath
 
 -- | Validate that the imports of the given modules exist and parse the imported modules
 -- | Note: Does not validate the contents of the imported files.
 validateImports
   :: Includes
   -> Array (Source Module)
-  -> Effect (Either (Array ImportError) (Array Module))
+  -> Effect (Either (Array ImportError) (Array Imported))
 validateImports includes sources = runExceptT do
   imports  <- ExceptT $ importsInScopes includes sources
   ExceptT $ parseImports imports
