@@ -5,9 +5,10 @@ module Test.Ccap.Codegen.Imports
 import Prelude
 
 import Ccap.Codegen.FileSystem as FS
-import Ccap.Codegen.Imports (importsInScope, validateImports)
-import Ccap.Codegen.ValidationError (printError)
-import Control.Monad.Except (ExceptT(..), runExceptT, withExceptT)
+import Ccap.Codegen.Imports (ImportError, importsInScope, validateImports)
+import Ccap.Codegen.TypeRef (validateAllTypeRefs)
+import Ccap.Codegen.ValidationError (class ValidationError, printError)
+import Control.Monad.Except (ExceptT(..), except, runExceptT, withExceptT)
 import Data.Either (either)
 import Data.Foldable (fold)
 import Effect.Class (liftEffect)
@@ -44,6 +45,9 @@ externalSource = internal "SourceExternal.tmpl"
 externalSubmoduleSource :: FilePath
 externalSubmoduleSource = internal "SourceExternalSubmodule.tmpl"
 
+withPrintErrors ∷ ∀ e m a. ValidationError e ⇒ Monad m ⇒ ExceptT (Array e) m a → ExceptT String m a
+withPrintErrors = withExceptT $ fold <<< map printError
+
 specs :: Spec Unit
 specs =
   let
@@ -58,51 +62,57 @@ specs =
       it "Has imports that exist" do
         imports <- liftEffect $ runExceptT do
           source <- ExceptT $ FS.sourceFile filePath
-          withExceptT (fold <<< map printError)
-            $ ExceptT
-            $ importsInScope includes source
+          withPrintErrors $ ExceptT $ importsInScope includes source
         shouldBeRight imports
     itCanValidateImports filePath includes =
       it "Can validate it's imports" do
         imports <- liftEffect $ runExceptT do
           source <- ExceptT $ FS.sourceFile filePath
-          withExceptT (fold <<< map printError)
-            $ ExceptT
-            $ validateImports includes [ source ]
+          withPrintErrors $ ExceptT $ validateImports includes [ source ]
         shouldBeRight imports
     itFailsWithoutIncludes filePath =
       it "Fails validation without including the external folder" do
         let includes = []
         imports <- liftEffect $ runExceptT do
           source <- ExceptT $ FS.sourceFile filePath
-          withExceptT (fold <<< map printError)
-            $ ExceptT
-            $ validateImports includes [ source ]
+          withPrintErrors $ ExceptT $ validateImports includes [ source ]
         shouldBeLeft imports
+    itHasValidTypeReferences filePath includes =
+      it "Has valid type references to imported types" do
+        typeDecls <- liftEffect $ runExceptT do
+          source <- ExceptT $ FS.sourceFile filePath
+          imports <- withPrintErrors $ ExceptT $ validateImports includes [ source ]
+          withPrintErrors $ except $ validateAllTypeRefs source.contents imports
+        shouldBeRight typeDecls
   in
     describe "template include syntax" do
       describe "a plain file with no references" do
         itCanBeParsed plainSource
         itHasImports plainSource []
+        itHasValidTypeReferences plainSource []
       describe "a file with an neighboring reference" do
         itCanBeParsed internalSource
         itHasImports internalSource [ "Internal" ]
         itCanFindImports internalSource []
         itCanValidateImports internalSource []
+        itHasValidTypeReferences internalSource []
       describe "a file with an submodule reference" do
         itCanBeParsed submoduleSource
         itHasImports submoduleSource [ "submodule.Submodule" ]
         itCanFindImports submoduleSource []
         itCanValidateImports submoduleSource []
+        itHasValidTypeReferences submoduleSource []
       describe "a file with an external reference" do
         itCanBeParsed externalSource
         itHasImports externalSource [ "External" ]
         itCanFindImports externalSource [ external_ ]
         itCanValidateImports externalSource [ external_ ]
         itFailsWithoutIncludes externalSource
+        itHasValidTypeReferences externalSource [ external_ ]
       describe "a file with an external reference to a submodule" do
         itCanBeParsed externalSubmoduleSource
         itHasImports externalSubmoduleSource [ "submodule.ExternalSubmodule" ]
         itCanFindImports externalSubmoduleSource [ external_ ]
         itCanValidateImports externalSubmoduleSource [ external_ ]
         itFailsWithoutIncludes externalSubmoduleSource
+        itHasValidTypeReferences externalSubmoduleSource [ external_ ]
