@@ -5,7 +5,7 @@ module Test.Ccap.Codegen.Imports
 import Prelude
 
 import Ccap.Codegen.FileSystem as FS
-import Ccap.Codegen.Imports (ImportError, importsInScope, validateImports)
+import Ccap.Codegen.Imports (importsInScope, validateImports)
 import Ccap.Codegen.TypeRef (validateAllTypeRefs)
 import Ccap.Codegen.ValidationError (class ValidationError, printError)
 import Control.Monad.Except (ExceptT(..), except, runExceptT, withExceptT)

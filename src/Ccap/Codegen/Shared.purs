@@ -1,17 +1,17 @@
 module Ccap.Codegen.Shared
   ( DelimitedLiteralDir(..)
-  , Env
   , OutputSpec
   , delimitedLiteral
   , indented
   , invalidate
+  , modulesInScope
   ) where
 
 import Prelude
 
 import Ccap.Codegen.Types (Module, ValidatedModule)
+import Data.Array ((:))
 import Data.Array as Array
-import Data.Maybe (Maybe)
 import Record (merge)
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hcat, vcat, (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
@@ -27,14 +27,11 @@ indent = emptyBox 0 2
 indented :: Box -> Box
 indented = (<<>>) indent
 
-type Env =
-  { allModules :: Array Module
-  , currentModule :: Module
-  , defaultPrefix :: Maybe String
-  }
-
 invalidate :: ValidatedModule -> Module
 invalidate vmod = merge { imports: (vmod.imports <#> _.name) } vmod
+
+modulesInScope :: ValidatedModule -> Array Module
+modulesInScope vmod = invalidate vmod : vmod.imports
 
 data DelimitedLiteralDir = Vert | Horiz
 
