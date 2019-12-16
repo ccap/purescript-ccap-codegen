@@ -18,6 +18,9 @@ import Test.Spec.Assertions (shouldEqual)
 tmplFile :: FilePath
 tmplFile = "./test/resources/exports/Exports.tmpl"
 
+importFile :: FilePath
+importFile = "./test/resources/exports/Imports.tmpl"
+
 specs :: Spec Unit
 specs = describe "Exports" do
   describe "Scala exports" do
@@ -32,6 +35,16 @@ specs = describe "Exports" do
       matchOutputPath Purescript.outputSpec "Test/PurescriptExport.purs"
     it "uses the pursPkg for the module path" $
       matchKeyLine "module" Purescript.outputSpec "module Test.PurescriptExport where"
+  describe "Imports of custom Exports" do
+    let check = matchKeyLine_ importFile "ImportedType"
+    describe "Scala imports" do
+      it "References type with it's scala object name" $
+        check Scala.outputSpec "  type ImportedType = ScalaExport.ExportedType"
+      it "Uses the imported module qualifier when defining record fields" $
+        matchKeyLine_ importFile "field" Scala.outputSpec "  field: ScalaExport.ExportedType,"
+    describe "Scala imports" do
+      it "References with it's purescript module name" $
+        check Purescript.outputSpec "type ImportedType = PurescriptExport.ExportedType"
 
 matchOutputPath :: OutputSpec -> FilePath -> Aff Unit
 matchOutputPath outSpec outPath = runOrFail do
@@ -40,9 +53,12 @@ matchOutputPath outSpec outPath = runOrFail do
   pure $ path `shouldEqual` outPath
 
 matchKeyLine :: String -> OutputSpec -> String -> Aff Unit
-matchKeyLine keyWord outSpec line = runOrFail do
-  source <- exceptAffT $ sourceTmpl tmplFile
+matchKeyLine = matchKeyLine_ tmplFile
+
+matchKeyLine_ :: FilePath -> String -> OutputSpec -> String -> Aff Unit
+matchKeyLine_ file keyWord outSpec line = runOrFail do
+  source <- exceptAffT $ sourceTmpl file
   let printed = print outSpec source
-      keyLine = findLine (String.startsWith keyWord) printed
+      keyLine = findLine (String.includes keyWord) printed
         # fromMaybe ("Keyword, " <> keyWord <> ", not found")
   pure $ keyLine `shouldEqual` line

@@ -5,12 +5,14 @@ module Ccap.Codegen.Scala
 import Prelude
 
 import Ccap.Codegen.Annotations (getMaxLength, getWrapOpts, field) as Annotations
+import Ccap.Codegen.Env (Env, askModule, askTypeDecl, lookupModule, lookupTypeDecl)
 import Ccap.Codegen.Parser.Export as Export
-import Ccap.Codegen.Shared (DelimitedLiteralDir(..), Env, OutputSpec, delimitedLiteral, indented, invalidate)
-import Ccap.Codegen.Types (Annotations, Module, Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), ValidatedModule, Exports, isRecord)
+import Ccap.Codegen.Shared (DelimitedLiteralDir(..), OutputSpec, delimitedLiteral, indented, modulesInScope)
+import Ccap.Codegen.Types (Annotations, Exports, Module, ModuleName, Primitive(..), RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..), ValidatedModule, isRecord, typeDeclName, typeDeclTopType)
 import Control.Monad.Reader (Reader, ask, asks, runReader)
 import Data.Array ((:))
 import Data.Array as Array
+import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String as String
 import Data.Traversable (for, traverse)
@@ -34,13 +36,13 @@ modulePath mod = (Export.toPath mod.exports.scalaPkg) <> ".scala"
 
 oneModule :: ValidatedModule -> Box
 oneModule mod = do
-  let modDecl = Array.find (\(TypeDecl n tt _) -> n == mod.name && isRecord tt) mod.types
+  let modDecl = classFileType mod
       env =
         { defaultPrefix: Nothing
         , currentModule: mod
           { imports = mod.imports <#> _.exports.scalaPkg
           }
-        , allModules: (invalidate mod: mod.imports)
+        , allModules: modulesInScope mod
         }
       body = runCodegen env do
         modDeclOutput <- traverse (typeDecl TopLevelCaseClass) modDecl
@@ -132,7 +134,7 @@ typeDecl outputMode (TypeDecl name tt an) =
   case tt of
     Type t -> do
       dTy <- decoderType t
-      ty <- tyType Nothing t
+      ty <- typeDef t
       e <- encoder t
       d <- topDecoder an t
       pure $
@@ -143,7 +145,7 @@ typeDecl outputMode (TypeDecl name tt an) =
       case Annotations.getWrapOpts "scala" an of
         Nothing -> do
           dTy <- decoderType t
-          ty <- tyType Nothing t
+          ty <- typeDef t
           e <- encoder t
           d <- topDecoder an t
           let
@@ -166,12 +168,7 @@ typeDecl outputMode (TypeDecl name tt an) =
               // wrappedDecoder
     Record props -> do
       mod <- asks _.currentModule
-      let
-        qualify =
-          if mod.name == name && outputMode == TopLevelCaseClass
-            then Just mod.name
-            else Nothing
-      recordFieldTypes <- traverse (recordFieldType qualify) props
+      recordFieldTypes <- traverse recordFieldType props
       recordFieldEncoders <- traverse recordFieldEncoder props
       let
         cls = (text "final case class" <<+>> text name) `paren` recordFieldTypes
@@ -220,49 +217,73 @@ fieldNames mod names =
       let { before, after } = String.splitAt 1 s
       in String.toUpper before <> after
 
-tyType :: Maybe String -> Type -> Codegen Box
-tyType qualify ty = do
-  allModules <- asks _.allModules
-  let wrap tycon t = do
-        ty_ <- tyType qualify t
-        pure $ text tycon <<>> char '[' <<>> ty_ <<>> char ']'
-  case ty of
-    Ref _ { mod, typ } ->
-      pure $ text (mod >>= fullyQualifiedRef allModules typ # fromMaybe (partiallyQualifiedRef qualify typ))
-    Array t -> wrap "List" t
-    Option t ->  wrap "Option" t
-    Primitive p -> pure $ text (case p of
-      PBoolean -> "Boolean"
-      PInt -> "Int"
-      PDecimal -> "BigDecimal"
-      PString -> "String"
-    )
+primitive :: Primitive -> Box
+primitive = text <<< case _ of
+  PBoolean -> "Boolean"
+  PInt -> "Int"
+  PDecimal -> "BigDecimal"
+  PString -> "String"
 
-partiallyQualifiedRef :: Maybe String -> String -> String
-partiallyQualifiedRef q typ =
-  maybe "" (_ <> ".") q <> typ
+generic :: String -> Box -> Box
+generic typeName param = text typeName <<>> char '[' <<>> param <<>> char ']'
 
-fullyQualifiedRef :: Array Module -> String -> String -> Maybe String
-fullyQualifiedRef all typ modName = do
-  { rec, pkg } <- refData all typ modName
-  pure
-    if modName == typ && rec
-      then pkg <> typ
-      else pkg <> modName <> "." <> typ
+list :: Box -> Box
+list = generic "List"
 
-refData :: Array Module -> String -> String -> Maybe { rec :: Boolean, pkg :: String }
-refData all typ modName = do
-  mod <- Array.find (\mod -> mod.name == modName) all
-  let rec = Array.find (\(TypeDecl n _ _) -> n == typ) mod.types
-              <#> (\(TypeDecl _ tt _) -> isRecord tt)
-              # fromMaybe false
-      pkg = Annotations.field "scala" "package" mod.annots <#> (_ <> ".") # fromMaybe ""
-  pure { rec, pkg }
+option :: Box -> Box
+option = generic "Option"
+
+typeDef :: Type -> Codegen Box
+typeDef = case _ of
+  Ref _ tRef -> typeRef tRef
+  Array t -> list <$> typeDef t
+  Option t -> option <$> typeDef t
+  Primitive p -> pure $ primitive p
+
+typeRef :: TRef -> Codegen Box
+typeRef { mod: Nothing, typ: typeName } = pure $ text typeName
+typeRef { mod: (Just moduleName), typ: typeName } = do
+  importedModule <- askModule moduleName
+  importedType <- askTypeDecl moduleName typeName
+  pure $ fromMaybe (text typeName) do
+    mod <- importedModule
+    typ <- importedType
+    pure (importedTypeRef mod typ)
+
+importedTypeRef :: Module -> TypeDecl -> Box
+importedTypeRef importedModule importedType =
+  let
+    scalaName = objectName importedModule
+    pkg = packageAnnotation importedModule
+    path = Array.snoc (Array.fromFoldable pkg) scalaName
+    typeName = typeDeclName importedType
+  in text
+    if needsQualifier scalaName importedType
+      then qualify path $ typeName
+      else typeName
+
+classFileType :: forall r. { name :: ModuleName, types :: Array TypeDecl | r } -> Maybe TypeDecl
+classFileType { name, types } = Array.find (isClassFile name) types
+
+isClassFile :: ModuleName -> TypeDecl -> Boolean
+isClassFile modName typeD = modName == typeDeclName typeD && (isRecord $ typeDeclTopType typeD)
+
+needsQualifier :: ModuleName -> TypeDecl -> Boolean
+needsQualifier modName = not <<< isClassFile modName
+
+packageAnnotation :: Module -> Maybe String
+packageAnnotation = Annotations.field "scala" "package" <<< _.annots
+
+qualify :: Array String -> String -> String
+qualify names = intercalate "." <<< Array.snoc names
 
 encoderDecoderRef :: Array Module -> String -> String -> String -> Maybe String
 encoderDecoderRef all typ which modName = do
-  { rec, pkg } <- refData all typ modName
-  let prefix = pkg <> modName <> ".json" <> which
+  mod <- lookupModule modName all
+  let rec = lookupTypeDecl typ mod <#> typeDeclTopType >>> isRecord # fromMaybe false
+      pkg = packageAnnotation mod
+      path = Array.snoc (Array.fromFoldable pkg) modName
+      prefix = qualify path $ "json" <> which
   pure
     if modName == typ && rec
       then prefix
@@ -321,9 +342,9 @@ encodeType :: Type -> Box -> Codegen Box
 encodeType t e =
   encoder t <#> (_ <<>> text ".encode" `paren1` [ e ])
 
-recordFieldType :: Maybe String -> RecordProp -> Codegen Box
-recordFieldType qualify (RecordProp n t) = do
-  ty <- tyType qualify t
+recordFieldType :: RecordProp -> Codegen Box
+recordFieldType (RecordProp n t) = do
+  ty <- typeDef t
   pure $ text n <<>> char ':' <<+>> ty <<>> char ','
 
 recordFieldEncoder :: RecordProp -> Codegen Box

@@ -1,0 +1,10 @@
+scala: test.Imports
+purs: Test.Imports
+
+import Exports
+
+type ImportedType: Exports.ExportedType
+
+type Imports: {
+  field: Exports.ExportedType
+}
