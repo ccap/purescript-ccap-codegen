@@ -9,7 +9,7 @@ import Ccap.Codegen.Annotations (getWrapOpts)
 import Ccap.Codegen.Env (Env, askModule, forM)
 import Ccap.Codegen.Parser.Export as Export
 import Ccap.Codegen.Shared (DelimitedLiteralDir(..), OutputSpec, delimitedLiteral, indented, modulesInScope)
-import Ccap.Codegen.Types (Module, Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), ValidatedModule, ModuleName)
+import Ccap.Codegen.Types (Module, Primitive(..), RecordProp, TopType(..), Type(..), TypeDecl(..), ValidatedModule, ModuleName)
 import Control.Alt ((<|>))
 import Control.Monad.Reader (ReaderT, ask, asks, runReaderT)
 import Control.Monad.Writer (class MonadTell, Writer, runWriter, tell)
@@ -289,8 +289,8 @@ defJsonCodec name def =
 record :: Array RecordProp -> Codegen Box
 record props = do
   tell [ { mod: "Data.Tuple", typ: Just "Tuple(..)", alias: Nothing } ]
-  types <- (\(RecordProp _ t) -> tyType t) `traverse` props
-  let labels = props <#> \(RecordProp name _) -> text name <<+>> text "::"
+  types <- for props $ _.typ >>> tyType
+  let labels = props <#> \{ name } -> text name <<+>> text "::"
   pure $ delimitedLiteral Vert '{' '}' (Array.zip labels types <#> \(Tuple l t) -> l <<+>> t)
 
 recordJsonCodec :: Array RecordProp -> Codegen Box
@@ -307,7 +307,7 @@ recordJsonCodec props = do
                 // indented
                       (text "FO.fromFoldable"
                         // indented encodeProps)
-      names = props <#> \(RecordProp name _) -> text name
+      names = props <#> _.name >>> text
       decode = text "decode: \\j -> do"
               // indented
                     (text "o <- R.obj j"
@@ -317,15 +317,14 @@ recordJsonCodec props = do
 
 recordWriteProps :: Array RecordProp -> Codegen Box
 recordWriteProps props = do
-  types <- for props (\(RecordProp name t) -> do
-    x <- jsonCodec t
-    pure $ text "Tuple" <<+>> text (show name) <<+>> parens (x <<>> text ".encode p." <<>> text name))
+  types <- for props \{ name, typ } -> do
+    x <- jsonCodec typ
+    pure $ text "Tuple" <<+>> text (show name) <<+>> parens (x <<>> text ".encode p." <<>> text name)
   pure $ delimitedLiteral Vert '[' ']' types
 
 recordReadProps :: Array RecordProp -> Codegen Box
 recordReadProps props = do
-  lines <- for props (\(RecordProp name t) -> do
-    x <- jsonCodec t
-    pure $ text name <<+>> text "<- R.decodeProperty"
-              <<+>> text (show name) <<+>> x <<+>> text "o")
+  lines <- for props \{ name, typ } -> do
+    x <- jsonCodec typ
+    pure $ text name <<+>> text "<- R.decodeProperty" <<+>> text (show name) <<+>> x <<+>> text "o"
   pure $ vcat Boxes.left lines

@@ -1,0 +1,13 @@
+scala: test.Annotations
+purs: Test.Annotations
+
+type Inline: String <validations maxLength="5">
+
+type NextLine: String
+  <validations maxLength="5">
+
+type Record: {
+  inline: String <validations maxLength="5">
+  nextLine: String
+    <validations maxLength="5">
+}

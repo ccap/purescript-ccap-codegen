@@ -6,35 +6,48 @@ module Ccap.Codegen.Database
 import Prelude
 
 import Ccap.Codegen.TypeRef (topTypeReferences)
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import, Module, Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), typeDeclName, typeDeclTopType)
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import, Module, Primitive(..), RecordProp, TopType(..), Type(..), TypeDecl(..), typeDeclName, typeDeclTopType)
 import Control.Monad.Except (ExceptT, withExceptT)
 import Data.Array as Array
 import Data.Maybe (Maybe(..), maybe)
 import Database.PostgreSQL (Connection, PGError)
 import Database.PostgreSQL.PG (Pool, Query(..), query, withConnection)
-import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row4(..))
+import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row5(..))
 import Effect.Aff (Aff)
 import Text.Parsing.Parser.Pos (Position(..))
 
 emptyPos :: Position
 emptyPos = Position { line: 0, column: 0 }
 
+type Domain =
+  { domainName :: String
+  , dataType :: String
+  , charMaxLen :: Maybe Int
+  }
+
+rowToDomain :: Row3 String String (Maybe Int) -> Domain
+rowToDomain (Row3 domainName dataType charMaxLen) =
+  { domainName
+  , dataType
+  , charMaxLen
+  }
+
+domainTypeDecl :: Domain -> TypeDecl
+domainTypeDecl domain =
+  TypeDecl domain.domainName (Wrap (dbType domain.dataType)) (annotations domain)
+
+annotations :: forall r. { charMaxLen :: Maybe Int | r } -> Array Annotation
+annotations = Array.fromFoldable <<< map maxLengthAnnotation <<< _.charMaxLen
+
+maxLengthAnnotation :: Int -> Annotation
+maxLengthAnnotation = Annotation "validations" emptyPos <<< Array.singleton <<< param
+  where param = AnnotationParam "maxLength" emptyPos <<< Just <<< show
+
 domainModule :: Pool -> String -> String -> ExceptT String Aff Module
 domainModule pool scalaPkg pursPkg = withExceptT show $ withConnection pool \conn -> do
   results <- query conn (Query sql) Row0
   let
-    types =
-      Array.sortWith typeDeclName $ results <#> (\(Row3 domainName dataType (maxLen :: Maybe Int)) ->
-        let annots =
-              maybe
-                []
-                (\l ->
-                  [ Annotation "validations" emptyPos
-                      [ AnnotationParam "maxLength" emptyPos (Just $ show l)
-                      ]
-                  ])
-                maxLen
-        in TypeDecl domainName (Wrap (dbNameToType dataType)) annots)
+    types = Array.sortWith typeDeclName $ domainTypeDecl <<< rowToDomain <$> results
   pure $
     { name: "Domains"
     , types
@@ -62,7 +75,17 @@ type DbColumn =
   { columnName :: String
   , dataType :: String
   , domainName :: Maybe String
+  , charMaxLen :: Maybe Int
   , isNullable :: String
+  }
+
+dbRowToColumn :: Row5 String String (Maybe String) (Maybe Int) String -> DbColumn
+dbRowToColumn (Row5 columnName dataType domainName charMaxLen isNullable) =
+  { columnName
+  , dataType
+  , domainName
+  , charMaxLen
+  , isNullable
   }
 
 tableModule :: Pool -> String -> String -> String -> ExceptT String Aff Module
@@ -87,11 +110,10 @@ tableImports = typeDeclTopType >>> topTypeReferences >>> map _.mod >>> Array.cat
 queryColumns :: String -> Connection -> ExceptT PGError Aff (Array DbColumn)
 queryColumns tableName conn = do
   results <- query conn (Query sql) (Row1 tableName)
-  pure (results <#> \(Row4 columnName dataType domainName isNullable) ->
-         { columnName, dataType, domainName, isNullable })
+  pure $ dbRowToColumn <$> results
   where
     sql = """
-          select column_name, data_type, domain_name, is_nullable
+          select column_name, data_type, domain_name, character_maximum_length, is_nullable
           from information_schema.columns
           where table_name = $1 and
                   data_type in ('numeric', 'character varying',
@@ -102,25 +124,23 @@ queryColumns tableName conn = do
           """
 
 tableType :: String -> Array DbColumn -> TypeDecl
-tableType tableName columns =
-  TypeDecl tableName (Record (map col columns)) []
-  where
-    col :: DbColumn -> RecordProp
-    col { columnName, dataType, domainName, isNullable } = do
-      let baseType = maybe (dbNameToType dataType) domain domainName
-          optioned =
-            if isNullable == "YES"
-              then Option baseType
-              else baseType
-      RecordProp columnName optioned
+tableType tableName columns = TypeDecl tableName (Record $ dbRecordProp <$> columns) []
 
-domain :: String -> Type
-domain name =
-  Ref emptyPos { mod: Just "Domains", typ: name }
+dbRecordProp :: DbColumn -> RecordProp
+dbRecordProp col@{ columnName, domainName, dataType, isNullable } =
+  let
+    baseType = maybe (dbType dataType) domainRef domainName
+    optioned = if isNullable == "YES" then Option baseType else baseType
+    annots = annotations col
+  in
+    { name: columnName, typ: optioned, annots }
 
-dbNameToType :: String -> Type
-dbNameToType =
-  case _ of
+domainRef :: String -> Type
+domainRef name = Ref emptyPos { mod: Just "Domains", typ: name }
+
+dbType :: String -> Type
+dbType dataType =
+  case dataType of
     "numeric" -> Primitive PDecimal
     "character varying" -> Primitive PString
     "integer" -> Primitive PInt

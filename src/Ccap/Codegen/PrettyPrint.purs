@@ -6,7 +6,7 @@ module Ccap.Codegen.PrettyPrint
 import Prelude
 
 import Ccap.Codegen.Shared (OutputSpec, invalidate)
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Primitive(..), RecordProp(..), TopType(..), Type(..), TypeDecl(..), Module)
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Primitive(..), RecordProp, TopType(..), Type(..), TypeDecl(..), Module)
 import Data.Array as Array
 import Data.Maybe (Maybe(..), maybe)
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, render, text, vcat, (//), (<<+>>), (<<>>))
@@ -76,8 +76,9 @@ annotationParam (AnnotationParam name _ value) =
  text name <<>> maybe (emptyBox 0 0) ((char '=' <<>> _) <<< text <<< show) value
 
 recordProp :: RecordProp -> Box
-recordProp (RecordProp s t) =
-  text s <<>> char ':' <<+>> tyType t
+recordProp { name, typ, annots } =
+  text name <<>> char ':' <<+>> tyType typ
+    // indentedList (annotation <$> annots)
 
 tyType :: Type -> Box
 tyType = case _ of

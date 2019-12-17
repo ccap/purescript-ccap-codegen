@@ -6,7 +6,7 @@ module Ccap.Codegen.TypeRef
 
 import Prelude
 
-import Ccap.Codegen.Types (Import, Module, ModuleName, TRef, TopType(..), Type(..), TypeDecl, recordPropType, typeDeclTopType, typeDeclName)
+import Ccap.Codegen.Types (Import, Module, ModuleName, TRef, TopType(..), Type(..), TypeDecl, typeDeclTopType, typeDeclName)
 import Ccap.Codegen.ValidationError (class ValidationError, toValidation)
 import Data.Array ((:))
 import Data.Array as Array
@@ -58,7 +58,7 @@ topTypeReferences :: TopType -> Array TRef
 topTypeReferences = case _ of
   Type typ -> typeReferences typ
   Wrap typ -> typeReferences typ
-  Record props -> props >>= recordPropType >>> typeReferences
+  Record props -> props >>= _.typ >>> typeReferences
   Sum variants -> mempty
 
 -- | Return all type references in any used type.

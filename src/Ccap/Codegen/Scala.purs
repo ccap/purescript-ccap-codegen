@@ -8,7 +8,7 @@ import Ccap.Codegen.Annotations (getMaxLength, getWrapOpts, field) as Annotation
 import Ccap.Codegen.Env (Env, askModule, askTypeDecl, lookupModule, lookupTypeDecl)
 import Ccap.Codegen.Parser.Export as Export
 import Ccap.Codegen.Shared (DelimitedLiteralDir(..), OutputSpec, delimitedLiteral, indented, modulesInScope)
-import Ccap.Codegen.Types (Annotations, Exports, Module, ModuleName, Primitive(..), RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..), ValidatedModule, isRecord, typeDeclName, typeDeclTopType)
+import Ccap.Codegen.Types (Annotations, Exports, Module, ModuleName, Primitive(..), RecordProp, TRef, TopType(..), Type(..), TypeDecl(..), ValidatedModule, isRecord, typeDeclName, typeDeclTopType)
 import Control.Monad.Reader (Reader, ask, asks, runReader)
 import Data.Array ((:))
 import Data.Array as Array
@@ -17,7 +17,7 @@ import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String as String
 import Data.Traversable (for, traverse)
 import Node.Path (FilePath)
-import Text.PrettyPrint.Boxes (Box, char, emptyBox, hcat, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
+import Text.PrettyPrint.Boxes (Box, char, emptyBox, hcat, nullBox, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
 
 type Codegen = Reader Env
@@ -184,7 +184,7 @@ typeDecl outputMode (TypeDecl name tt an) =
           if mod.name == name
             then Nothing
             else Just name
-        names = fieldNames fieldNamesTarget (props <#> \(RecordProp n _) -> n)
+        names = fieldNames fieldNamesTarget (props <#> _.name)
         output | mod.name == name && outputMode == TopLevelCaseClass = cls
         output | mod.name == name && outputMode == CompanionObject = enc // dec // names
         output | otherwise = cls // enc // dec // names
@@ -313,9 +313,13 @@ decoder :: Type -> Codegen Box
 decoder = encoderDecoder "Decoder"
 
 topDecoder :: Annotations -> Type -> Codegen Box
-topDecoder annots ty = do
-  let maxLength = Annotations.getMaxLength annots
-  decoder ty <#> (_ <<>> (maybe (emptyBox 0 0) (\s -> text (".maxLength(" <> s <> ")")) maxLength))
+topDecoder annots ty = decoder ty <#> (_ <<>> decoderValidations annots)
+
+decoderValidations :: Annotations -> Box
+decoderValidations = maybe nullBox maxLengthValidation <<< Annotations.getMaxLength
+
+maxLengthValidation :: String -> Box
+maxLengthValidation max = text $ ".maxLength(" <> max <> ")"
 
 decoderType :: Type -> Codegen String
 decoderType ty =
@@ -343,18 +347,21 @@ encodeType t e =
   encoder t <#> (_ <<>> text ".encode" `paren1` [ e ])
 
 recordFieldType :: RecordProp -> Codegen Box
-recordFieldType (RecordProp n t) = do
-  ty <- typeDef t
-  pure $ text n <<>> char ':' <<+>> ty <<>> char ','
+recordFieldType { name, typ } = do
+  ty <- typeDef typ
+  pure $ text name <<>> char ':' <<+>> ty <<>> char ','
 
 recordFieldEncoder :: RecordProp -> Codegen Box
-recordFieldEncoder (RecordProp n t) = do
-  ty <- encodeType t (text ("x." <> n))
-  pure $ text (show n <> " ->") <<+>> ty <<>> char ','
+recordFieldEncoder { name, typ } = do
+  ty <- encodeType typ (text ("x." <> name))
+  pure $ text (show name <> " ->") <<+>> ty <<>> char ','
 
 recordFieldDecoder :: RecordProp -> Codegen Box
-recordFieldDecoder (RecordProp n t) =
-  decoder t <#> (_ <<>> text ".property(" <<>> text (show n) <<>> char ')')
+recordFieldDecoder { name, typ, annots } =
+  decoder typ <#> (_ <<>> recordFieldProperty name <<>> decoderValidations annots)
+
+recordFieldProperty :: String -> Box
+recordFieldProperty name = text ".property(" <<>> text (show name) <<>> char ')'
 
 singletonRecordDecoder :: String -> RecordProp -> Codegen Box
 singletonRecordDecoder name prop =
@@ -398,10 +405,10 @@ bigRecordDecoder name props = do
         (text "case ")
         (parts <#> \part ->
             -- No trailing commas allowed when matching a tuple pattern
-            (delimitedLiteral Horiz '(' ')' (part <#> \(RecordProp n _) -> text n)) <<>> char ',')
+            (delimitedLiteral Horiz '(' ')' (part <#> _.name >>> text)) <<>> char ',')
         (text " =>" // indented applyAllConstructor)
     applyAllConstructor =
-      paren (text name) (props <#> \(RecordProp n _) -> text (n <> " = " <> n <> ","))
+      paren (text name) (props <#> \{ name: n } -> text (n <> " = " <> n <> ","))
 
 chunksOf :: forall a. Int -> Array a -> Array (Array a)
 chunksOf n as =
