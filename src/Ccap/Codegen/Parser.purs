@@ -1,12 +1,11 @@
 module Ccap.Codegen.Parser
- ( errorMessage
- , roundTrip
- , wholeFile
- , parseSource
- ) where
+  ( errorMessage
+  , roundTrip
+  , wholeFile
+  , parseSource
+  ) where
 
 import Prelude
-
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
 import Ccap.Codegen.Shared (invalidate)
 import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Exports, Import, Module, Primitive(..), RecordProp, TRef, TopType(..), Type(..), TypeDecl(..), ValidatedModule, Source)
@@ -33,11 +32,13 @@ import Text.Parsing.Parser.String (char, satisfy)
 import Text.Parsing.Parser.Token (GenLanguageDef(..), GenTokenParser, alphaNum, makeTokenParser, unGenLanguageDef, upper)
 
 tokenParser :: GenTokenParser String Identity
-tokenParser = makeTokenParser $
-  LanguageDef (unGenLanguageDef javaStyle)
-    { identStart = lower
-    , identLetter = alphaNum
-    }
+tokenParser =
+  makeTokenParser
+    $ LanguageDef
+        (unGenLanguageDef javaStyle)
+          { identStart = lower
+          , identLetter = alphaNum
+          }
 
 stringLiteral :: ParserT String Identity String
 stringLiteral = tokenParser.stringLiteral
@@ -45,20 +46,20 @@ stringLiteral = tokenParser.stringLiteral
 reserved :: String -> ParserT String Identity Unit
 reserved = tokenParser.reserved
 
-commaSep1 :: forall a.  ParserT String Identity a -> ParserT String Identity (Array a)
+commaSep1 :: forall a. ParserT String Identity a -> ParserT String Identity (Array a)
 commaSep1 inner = tokenParser.commaSep1 inner <#> Array.fromFoldable
 
-braces :: forall a. ParserT String Identity  a -> ParserT String Identity a
+braces :: forall a. ParserT String Identity a -> ParserT String Identity a
 braces = tokenParser.braces
 
-brackets :: forall a. ParserT String Identity  a -> ParserT String Identity a
+brackets :: forall a. ParserT String Identity a -> ParserT String Identity a
 brackets = tokenParser.brackets
 
 -- | Parse phrases prefixed by a separator, requiring at least one match.
 startBy1 :: forall m s a sep. Monad m => ParserT s m a -> ParserT s m sep -> ParserT s m (List a)
 startBy1 p sep = sep *> sepBy1 p sep
 
-pipeSep1 :: forall a.  ParserT String Identity a -> ParserT String Identity (Array a)
+pipeSep1 :: forall a. ParserT String Identity a -> ParserT String Identity (Array a)
 pipeSep1 a = (a `startBy1` (lexeme $ char '|')) <#> Array.fromFoldable
 
 whiteSpace :: ParserT String Identity Unit
@@ -75,8 +76,9 @@ lexeme = tokenParser.lexeme
 
 importOrTypeName :: ParserT String Identity String
 importOrTypeName = lexeme $ mkImportOrTypeName <$> upper <*> Array.many alphaNum
-  where mkImportOrTypeName :: Char -> Array Char -> String
-        mkImportOrTypeName c s = SCU.singleton c <> SCU.fromCharArray s
+  where
+  mkImportOrTypeName :: Char -> Array Char -> String
+  mkImportOrTypeName c s = SCU.singleton c <> SCU.fromCharArray s
 
 packageName :: ParserT String Identity String
 packageName = lexeme $ Array.many (alphaNum <|> char '.') <#> SCU.fromCharArray
@@ -84,8 +86,10 @@ packageName = lexeme $ Array.many (alphaNum <|> char '.') <#> SCU.fromCharArray
 tRef :: ParserT String Identity TRef
 tRef = ado
   parts <- importOrTypeName `sepBy1Nel` char '.'
-  let { init, last: typ } = NonEmpty.unsnoc parts
-  let mod = if init == Nil then Nothing else Just $ intercalate "." init
+  let
+    { init, last: typ } = NonEmpty.unsnoc parts
+  let
+    mod = if init == Nil then Nothing else Just $ intercalate "." init
   in { mod, typ }
 
 primitive :: String -> Primitive -> ParserT String Identity Type
@@ -131,8 +135,8 @@ exports = ado
   in { scalaPkg, pursPkg, tmplPath: "" }
 
 imports :: ParserT String Identity (Array Import) --not yet battle-tested
-imports = Array.many
-  do
+imports =
+  Array.many do
     reserved "import"
     packageName
 
@@ -142,7 +146,7 @@ oneModule = ado
   imprts <- imports
   annots <- Array.many annotation --we can probably remove this
   types <- Array.many typeDecl
-  in  { name: "", types, annots, imports: imprts, exports: expts }
+  in { name: "", types, annots, imports: imprts, exports: expts }
 
 typeDecl :: ParserT String Identity TypeDecl
 typeDecl = ado
@@ -177,19 +181,23 @@ parseSource filePath contents =
   let
     moduleName = Path.basenameWithoutExt filePath ".tmpl"
   in
-    runParser contents wholeFile <#> \mod ->
-      { source: filePath
-      , contents: mod
-        { name = moduleName
-        , exports = mod.exports
-          { tmplPath = moduleName
+    runParser contents wholeFile
+      <#> \mod ->
+          { source: filePath
+          , contents:
+            mod
+              { name = moduleName
+              , exports =
+                mod.exports
+                  { tmplPath = moduleName
+                  }
+              }
           }
-        }
-      }
 
 errorMessage :: String -> ParseError -> String
 errorMessage fileName err =
-  let Position pos = parseErrorPosition err
+  let
+    Position pos = parseErrorPosition err
   in
     "Could not parse "
       <> fileName
@@ -202,11 +210,12 @@ errorMessage fileName err =
 
 roundTrip :: ValidatedModule -> Either ParseError Boolean
 roundTrip module1 = do
-  let prettyPrinted1 = PrettyPrinter.prettyPrint $ invalidate module1
+  let
+    prettyPrinted1 = PrettyPrinter.prettyPrint $ invalidate module1
   module2 <- runParser prettyPrinted1 wholeFile
-  let prettyPrinted2 = PrettyPrinter.prettyPrint $ invalidate $ module2 { imports = module1.imports }
+  let
+    prettyPrinted2 = PrettyPrinter.prettyPrint $ invalidate $ module2 { imports = module1.imports }
   pure $ prettyPrinted1 == prettyPrinted2
-
 
 -- TODO: Push this upstream to purescript-parsing?
 -- | Parse phrases delimited by a separator, requiring at least one match.

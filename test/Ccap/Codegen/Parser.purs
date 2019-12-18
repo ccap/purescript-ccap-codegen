@@ -3,7 +3,6 @@ module Test.Ccap.Codegen.Parser
   ) where
 
 import Prelude
-
 import Ccap.Codegen.FileSystem (joinPaths, readTextFile)
 import Ccap.Codegen.PrettyPrint (prettyPrint)
 import Ccap.Codegen.Purescript as Purescript
@@ -43,32 +42,39 @@ importedFile :: FilePath
 importedFile = joinPaths parseDir "Imported.tmpl"
 
 specs :: Spec Unit
-specs = describe "The .tmpl file parser" do
-  it "Pretty prints a file is parsed as an identical Module" do
-    results <-
-      liftEffect $ runExceptT do
-        validated <- ExceptT $ sourceTmpl tmplFile
-        let printed = scrubEolSpaces $ prettyPrint (invalidate validated.contents)
-        resourced <- except $ parse tmplFile printed
-        revalidated <- ExceptT $ validateModule resourced
-        pure $ Tuple validated revalidated
-    either fail (uncurry compareModules) results
-  it "Prints a scala a file as expected" do
-    results <-
-      liftEffect $ runExceptT do
-        validated <- ExceptT $ sourceTmpl tmplFile
-        let printed = print Scala.outputSpec validated
-        scala <- ExceptT $ readTextFile scalaFile
-        pure $ Tuple printed scala
-    either fail (uncurry diffByLine) results
-  it "Prints a purs a file as expected" do
-    results <-
-      liftEffect $ runExceptT do
-        validated <- ExceptT $ sourceTmpl tmplFile
-        let printed = print Purescript.outputSpec validated
-        purs <- ExceptT $ readTextFile pursFile
-        pure $ Tuple printed purs
-    either fail (uncurry diffByLine) results
+specs =
+  describe "The .tmpl file parser" do
+    it "Pretty prints a file is parsed as an identical Module" do
+      results <-
+        liftEffect
+          $ runExceptT do
+              validated <- ExceptT $ sourceTmpl tmplFile
+              let
+                printed = scrubEolSpaces $ prettyPrint (invalidate validated.contents)
+              resourced <- except $ parse tmplFile printed
+              revalidated <- ExceptT $ validateModule resourced
+              pure $ Tuple validated revalidated
+      either fail (uncurry compareModules) results
+    it "Prints a scala a file as expected" do
+      results <-
+        liftEffect
+          $ runExceptT do
+              validated <- ExceptT $ sourceTmpl tmplFile
+              let
+                printed = print Scala.outputSpec validated
+              scala <- ExceptT $ readTextFile scalaFile
+              pure $ Tuple printed scala
+      either fail (uncurry diffByLine) results
+    it "Prints a purs a file as expected" do
+      results <-
+        liftEffect
+          $ runExceptT do
+              validated <- ExceptT $ sourceTmpl tmplFile
+              let
+                printed = print Purescript.outputSpec validated
+              purs <- ExceptT $ readTextFile pursFile
+              pure $ Tuple printed purs
+      either fail (uncurry diffByLine) results
 
 compareModules :: Source ValidatedModule -> Source ValidatedModule -> Aff Unit
 compareModules x y = do
@@ -78,6 +84,6 @@ compareModules x y = do
   x.contents.imports `shouldEqual` y.contents.imports
   x.contents.exports `shouldEqual` y.contents.exports
   (Array.length x.contents.types) `shouldEqual` (Array.length y.contents.types)
-  let types = Array.zip x.contents.types y.contents.types
+  let
+    types = Array.zip x.contents.types y.contents.types
   traverse_ (uncurry shouldEqual) types
-

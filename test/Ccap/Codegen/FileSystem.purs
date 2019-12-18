@@ -3,7 +3,6 @@ module Test.Ccap.Codegen.FileSystem
   ) where
 
 import Prelude
-
 import Ccap.Codegen.FileSystem (isFile, mkDirP, readTextFile)
 import Control.Monad.Except (runExceptT)
 import Data.Either (Either(..))
@@ -19,17 +18,25 @@ specs :: Spec Unit
 specs =
   let
     target = "./test/resources/filesystem"
+
     fstLevel = Path.concat [ target, "mkDirP" ]
+
     sndLevel = Path.concat [ fstLevel, "second-level" ]
 
     makeDir = (_ `shouldEqual` (Right unit)) <=< liftAff <<< runExceptT <<< mkDirP
+
     exists = (_ `shouldEqual` true) <=< liftEffect <<< Sync.exists
+
     doesNotExist = (_ `shouldEqual` false) <=< liftEffect <<< Sync.exists
+
     rmdir = liftEffect <<< Sync.rmdir
 
     checkExists dir = it ("Check that " <> dir <> " exists") $ exists dir
+
     checkDoesNotExist dir = it ("Check that " <> dir <> " does not exist") $ doesNotExist dir
+
     checkMakeDir dir = it ("Make " <> dir <> " doesn't fail") $ makeDir dir
+
     checkMade dir = it (dir <> " was created") $ exists dir *> rmdir dir *> doesNotExist dir
   in
     describe "file system helpers" do
@@ -69,4 +76,3 @@ specs =
         it "Returns a string of a files contents" do
           result <- liftEffect $ readTextFile $ Path.concat [ target, "readTextFile" ]
           result `shouldEqual` (Right "hello\nworld\n")
-

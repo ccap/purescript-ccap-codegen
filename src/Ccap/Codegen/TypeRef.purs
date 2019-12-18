@@ -5,7 +5,6 @@ module Ccap.Codegen.TypeRef
   ) where
 
 import Prelude
-
 import Ccap.Codegen.Types (Import, Module, ModuleName, TRef, TopType(..), Type(..), TypeDecl, typeDeclTopType, typeDeclName)
 import Ccap.Codegen.ValidationError (class ValidationError, toValidation)
 import Data.Array ((:))
@@ -19,12 +18,13 @@ import Data.List.NonEmpty as NonEmptyList
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..), fst, snd)
 
-type TypeName = String
+type TypeName
+  = String
 
-type QTRef =
-  { moduleName :: ModuleName
-  , typeName :: TypeName
-  }
+type QTRef
+  = { moduleName :: ModuleName
+    , typeName :: TypeName
+    }
 
 data TypeRef
   = Qualified QTRef
@@ -38,16 +38,16 @@ data TypeRefError
 
 instance typeRefValidationError :: ValidationError TypeRefError where
   printError = case _ of
-    QualifiedNotDefined mod { moduleName, typeName } ->
-      mod.name <> ": qualified reference of " <> typeName <> " is not defined in " <> moduleName
+    QualifiedNotDefined mod { moduleName, typeName } -> mod.name <> ": qualified reference of " <> typeName <> " is not defined in " <> moduleName
     QualifiedNotImported mod { moduleName, typeName } ->
       mod.name <> ": does not import module " <> moduleName
-        <> " but uses it in qualified reference of " <> typeName
-    UnqualifiedNotDefined mod typeName ->
-      mod.name <> ": unqualified reference, " <> typeName <> ", is not defined."
+        <> " but uses it in qualified reference of "
+        <> typeName
+    UnqualifiedNotDefined mod typeName -> mod.name <> ": unqualified reference, " <> typeName <> ", is not defined."
     UnqualifiedMultipleDefinitions mod typeName imports ->
       mod.name <> ": unqualified reference, " <> typeName
-      <> ", defined multiple times: " <> (intercalate ", " imports)
+        <> ", defined multiple times: "
+        <> (intercalate ", " imports)
 
 -- | Return all type references in a module
 moduleTypeReferences :: Module -> Array TRef
@@ -87,7 +87,8 @@ findModule moduleName = Array.find $ eq moduleName <<< _.name
 -- | it's imports.
 validateAllTypeRefs :: Module -> Array Module -> Either (Array TypeRefError) (Array TypeDecl)
 validateAllTypeRefs mod imports = moduleTypeReferences mod <#> fromTRef >>> validate # toValidation
-  where validate typeRef = validateTypeRef typeRef mod imports
+  where
+  validate typeRef = validateTypeRef typeRef mod imports
 
 -- | Validate a type reference by finding its declaration.
 validateTypeRef :: TypeRef -> Module -> Array Module -> Either TypeRefError TypeDecl
@@ -99,25 +100,25 @@ validateTypeRef = case _ of
 validateQtRef :: QTRef -> Module -> Array Module -> Either TypeRefError TypeDecl
 validateQtRef qtRef mod imports = do
   importedModule <-
-    note (QualifiedNotImported mod qtRef) $
-      findModule qtRef.moduleName imports
-  note (QualifiedNotDefined mod qtRef) $
-    findDeclaration qtRef.typeName importedModule
+    note (QualifiedNotImported mod qtRef)
+      $ findModule qtRef.moduleName imports
+  note (QualifiedNotDefined mod qtRef)
+    $ findDeclaration qtRef.typeName importedModule
 
 -- | Validate a unqualified reference against the current module and all imported modules.
 validateUnQRef :: TypeName -> Module -> Array Module -> Either TypeRefError TypeDecl
 validateUnQRef typeName mod imports =
   let
     findDecl imprt = findDeclaration typeName imprt <#> Tuple imprt
+
     matches = List.fromFoldable $ Array.catMaybes $ findDecl <$> (mod : imports)
   in
     case matches of
-      Cons match maybeMore ->
-        case NonEmptyList.fromList maybeMore of
-          Nothing ->
-            Right $ snd match
-          Just moreMatches ->
-            let multipleMatches = NonEmptyList.cons match moreMatches <#> fst >>> _.name
-            in Left $ UnqualifiedMultipleDefinitions mod typeName multipleMatches
-      Nil ->
-        Left $ UnqualifiedNotDefined mod typeName
+      Cons match maybeMore -> case NonEmptyList.fromList maybeMore of
+        Nothing -> Right $ snd match
+        Just moreMatches ->
+          let
+            multipleMatches = NonEmptyList.cons match moreMatches <#> fst >>> _.name
+          in
+            Left $ UnqualifiedMultipleDefinitions mod typeName multipleMatches
+      Nil -> Left $ UnqualifiedNotDefined mod typeName

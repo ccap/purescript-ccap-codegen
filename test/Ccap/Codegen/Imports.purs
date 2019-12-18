@@ -3,7 +3,6 @@ module Test.Ccap.Codegen.Imports
   ) where
 
 import Prelude
-
 import Ccap.Codegen.FileSystem as FS
 import Ccap.Codegen.Imports (importsInScope, validateImports)
 import Ccap.Codegen.TypeRef (validateAllTypeRefs)
@@ -54,35 +53,49 @@ specs =
     itCanBeParsed =
       it "can be parsed with no errors"
         <<< (shouldBeRight <=< liftEffect <<< FS.sourceFile)
+
     itHasImports filePath imports =
       it "parsed the imports as expected" do
         sourceImports <- FS.sourceFile filePath <#> (map _.contents.imports) # liftEffect
         shouldSatisfy sourceImports $ either (const false) (eqElems imports)
+
     itCanFindImports filePath includes =
       it "Has imports that exist" do
-        imports <- liftEffect $ runExceptT do
-          source <- ExceptT $ FS.sourceFile filePath
-          withPrintErrors $ ExceptT $ importsInScope includes source
+        imports <-
+          liftEffect
+            $ runExceptT do
+                source <- ExceptT $ FS.sourceFile filePath
+                withPrintErrors $ ExceptT $ importsInScope includes source
         shouldBeRight imports
+
     itCanValidateImports filePath includes =
       it "Can validate it's imports" do
-        imports <- liftEffect $ runExceptT do
-          source <- ExceptT $ FS.sourceFile filePath
-          withPrintErrors $ ExceptT $ validateImports includes [ source ]
+        imports <-
+          liftEffect
+            $ runExceptT do
+                source <- ExceptT $ FS.sourceFile filePath
+                withPrintErrors $ ExceptT $ validateImports includes [ source ]
         shouldBeRight imports
+
     itFailsWithoutIncludes filePath =
       it "Fails validation without including the external folder" do
-        let includes = []
-        imports <- liftEffect $ runExceptT do
-          source <- ExceptT $ FS.sourceFile filePath
-          withPrintErrors $ ExceptT $ validateImports includes [ source ]
+        let
+          includes = []
+        imports <-
+          liftEffect
+            $ runExceptT do
+                source <- ExceptT $ FS.sourceFile filePath
+                withPrintErrors $ ExceptT $ validateImports includes [ source ]
         shouldBeLeft imports
+
     itHasValidTypeReferences filePath includes =
       it "Has valid type references to imported types" do
-        typeDecls <- liftEffect $ runExceptT do
-          source <- ExceptT $ FS.sourceFile filePath
-          imports <- withPrintErrors $ ExceptT $ validateImports includes [ source ]
-          withPrintErrors $ except $ validateAllTypeRefs source.contents (imports <#> _.mod)
+        typeDecls <-
+          liftEffect
+            $ runExceptT do
+                source <- ExceptT $ FS.sourceFile filePath
+                imports <- withPrintErrors $ ExceptT $ validateImports includes [ source ]
+                withPrintErrors $ except $ validateAllTypeRefs source.contents (imports <#> _.mod)
         shouldBeRight typeDecls
   in
     describe "template include syntax" do

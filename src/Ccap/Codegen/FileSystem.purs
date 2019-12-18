@@ -7,7 +7,6 @@ module Ccap.Codegen.FileSystem
   ) where
 
 import Prelude
-
 import Ccap.Codegen.Parser (errorMessage, parseSource)
 import Ccap.Codegen.Types (Source, Module)
 import Ccap.Codegen.Util (liftEffectSafely)
@@ -55,6 +54,7 @@ readTextFile = map (lmap Error.message) <<< try <<< Sync.readTextFile UTF8
 
 -- | Read and parse a tmpl file
 sourceFile :: FilePath -> Effect (Either String (Source Module))
-sourceFile filePath = runExceptT do
-  contents <- ExceptT $ readTextFile filePath
-  except $ lmap (errorMessage filePath) $ parseSource filePath contents
+sourceFile filePath =
+  runExceptT do
+    contents <- ExceptT $ readTextFile filePath
+    except $ lmap (errorMessage filePath) $ parseSource filePath contents

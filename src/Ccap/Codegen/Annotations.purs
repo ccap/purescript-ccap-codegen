@@ -18,12 +18,14 @@ field annotKey paramKey annots = do
 
 getWrapOpts :: String -> Annotations -> Maybe { typ :: String, decode :: String, encode :: String }
 getWrapOpts lang an =
-  let f n = field lang n an
-  in do
-    typ <- f "t"
-    decode <- f "decode" <|> pure ""
-    encode <- f "encode" <|> pure ""
-    pure { typ, decode, encode }
+  let
+    f n = field lang n an
+  in
+    do
+      typ <- f "t"
+      decode <- f "decode" <|> pure ""
+      encode <- f "encode" <|> pure ""
+      pure { typ, decode, encode }
 
 getMaxLength :: Annotations -> Maybe String
 getMaxLength = field "validations" "maxLength"
