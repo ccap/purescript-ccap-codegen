@@ -9,7 +9,8 @@ import Ccap.Codegen.TypeRef (topTypeReferences)
 import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import, Module, Primitive(..), RecordProp, TopType(..), Type(..), TypeDecl(..), typeDeclName, typeDeclTopType)
 import Control.Monad.Except (ExceptT, withExceptT)
 import Data.Array as Array
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe(..), isNothing, maybe)
+import Data.Monoid (guard)
 import Database.PostgreSQL (Connection, PGError)
 import Database.PostgreSQL.PG (Pool, Query(..), query, withConnection)
 import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row5(..))
@@ -131,7 +132,7 @@ dbRecordProp col@{ columnName, domainName, dataType, isNullable } =
   let
     baseType = maybe (dbType dataType) domainRef domainName
     optioned = if isNullable == "YES" then Option baseType else baseType
-    annots = annotations col
+    annots = guard (isNothing domainName) annotations col
   in
     { name: columnName, typ: optioned, annots }
 
