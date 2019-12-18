@@ -85,4 +85,25 @@ object Printed {
   def jsonDecoderExternalRef[M[_]: Monad]: Decoder.Field[M, ExternalRef] =
     Imported.jsonDecoderImportedType
 
+  type Validated = String
+  lazy val jsonEncoderValidated: Encoder[Validated, argonaut.Json] =
+    Encoder.string
+  def jsonDecoderValidated[M[_]: Monad]: Decoder.Field[M, Validated] =
+    Decoder.string.maxLength(5)
+
+  final case class ValidatedRec(
+    name: String,
+  )
+  lazy val jsonEncoderValidatedRec: Encoder[ValidatedRec, argonaut.Json] =
+    x => argonaut.Json.obj(
+      "name" -> Encoder.string.encode(x.name),
+    )
+  def jsonDecoderValidatedRec[M[_]: Monad]: Decoder.Form[M, ValidatedRec] =
+    Decoder.string.property("name").maxLength(5).map(ValidatedRec.apply)
+  object ValidatedRec {
+    object FieldNames {
+      val Name: String = "name"
+    }
+  }
+
 }

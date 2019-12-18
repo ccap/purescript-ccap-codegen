@@ -88,3 +88,23 @@ type ExternalRef = Imported.ImportedType
 jsonCodec_ExternalRef :: R.JsonCodec ExternalRef
 jsonCodec_ExternalRef =
   Imported.jsonCodec_ImportedType
+
+type Validated = String
+jsonCodec_Validated :: R.JsonCodec Validated
+jsonCodec_Validated =
+  R.jsonCodec_string
+
+type ValidatedRec =
+  { name :: String
+  }
+jsonCodec_ValidatedRec :: R.JsonCodec ValidatedRec
+jsonCodec_ValidatedRec =
+  { decode: \j -> do
+      o <- R.obj j
+      name <- R.decodeProperty "name" R.jsonCodec_string o
+      pure { name }
+  , encode: \p -> A.fromObject $
+      FO.fromFoldable
+        [ Tuple "name" (R.jsonCodec_string.encode p.name)
+        ]
+  }

@@ -14,3 +14,9 @@ type Point: {
 }
 type InternalRef: Integer
 type ExternalRef: Imported.ImportedType
+type Validated: String
+  <validations maxLength="5">
+type ValidatedRec: {
+  name: String
+    <validations maxLength="5">
+}

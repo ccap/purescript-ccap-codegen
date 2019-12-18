@@ -16,7 +16,6 @@ module Ccap.Codegen.Types
   , ValidatedModule
   , Variant
   , isRecord
-  , recordPropType
   , typeDeclName
   , typeDeclTopType
   ) where
@@ -88,7 +87,11 @@ data Type
 
 type TRef = { mod :: Maybe ModuleName, typ :: String }
 
-data RecordProp = RecordProp String Type
+type RecordProp =
+  { name :: String
+  , typ :: Type
+  , annots :: Annotations
+  }
 
 type Variant = String
 
@@ -125,11 +128,6 @@ derive instance genericAnnotationParam :: Generic AnnotationParam _
 instance showAnnotationParam :: Show AnnotationParam where
   show = genericShow
 
-derive instance eqRecordProp :: Eq RecordProp
-derive instance genericRecordProp :: Generic RecordProp _
-instance showRecordProp :: Show RecordProp where
-  show = genericShow
-
 derive instance eqPrimitive :: Eq Primitive
 derive instance genericPrimitive :: Generic Primitive _
 instance showPrimitive :: Show Primitive where
@@ -142,7 +140,3 @@ typeDeclName (TypeDecl typeName _ _) = typeName
 -- | Get the top most type of a type declaration.
 typeDeclTopType :: TypeDecl -> TopType
 typeDeclTopType (TypeDecl _ topType _) = topType
-
--- | Get the type of a record's property.
-recordPropType :: RecordProp -> Type
-recordPropType (RecordProp _ typ) = typ

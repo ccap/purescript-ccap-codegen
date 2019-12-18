@@ -9,7 +9,7 @@ import Prelude
 
 import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
 import Ccap.Codegen.Shared (invalidate)
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Exports, Import, Module, Primitive(..), RecordProp(..), TRef, TopType(..), Type(..), TypeDecl(..), ValidatedModule, Source)
+import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Exports, Import, Module, Primitive(..), RecordProp, TRef, TopType(..), Type(..), TypeDecl(..), ValidatedModule, Source)
 import Control.Alt ((<|>))
 import Data.Array (fromFoldable, many) as Array
 import Data.Char.Unicode (isLower)
@@ -116,8 +116,9 @@ recordProp :: ParserT String Identity RecordProp
 recordProp = ado
   name <- identifier
   lexeme $ char ':'
-  ty <- tyType unit
-  in RecordProp name ty
+  typ <- tyType unit
+  annots <- Array.many annotation
+  in { name, typ, annots }
 
 exports :: ParserT String Identity Exports
 exports = ado
