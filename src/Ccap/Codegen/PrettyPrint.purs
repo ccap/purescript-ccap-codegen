@@ -4,7 +4,6 @@ module Ccap.Codegen.PrettyPrint
   ) where
 
 import Prelude
-
 import Ccap.Codegen.Shared (OutputSpec, invalidate)
 import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Primitive(..), RecordProp, TopType(..), Type(..), TypeDecl(..), Module)
 import Data.Array as Array
@@ -30,12 +29,12 @@ oneModule mod =
 
 trailingSpace :: Array Box -> Box
 trailingSpace boxes =
-  hsep 1 Boxes.top boxes <<>>
-    if Array.length boxes > 0 then char ' ' else emptyBox 0 0
+  hsep 1 Boxes.top boxes
+    <<>> if Array.length boxes > 0 then char ' ' else emptyBox 0 0
 
 primitive :: Primitive -> Box
-primitive p = text
-  case p of
+primitive p =
+  text case p of
     PBoolean -> "Boolean"
     PInt -> "Int"
     PDecimal -> "Decimal"
@@ -51,11 +50,10 @@ typeDecl :: TypeDecl -> Box
 typeDecl (TypeDecl name tt annots) =
   let
     dec = text "type" <<+>> text name <<>> char ':'
+
     ty = case tt of
-      Type t ->
-        dec <<+>> tyType t
-      Wrap t ->
-        dec <<+>> text "wrap" <<+>> tyType t
+      Type t -> dec <<+>> tyType t
+      Wrap t -> dec <<+>> text "wrap" <<+>> tyType t
       Record props ->
         dec <<+>> char '{'
           // indentedList (props <#> recordProp)
@@ -64,16 +62,18 @@ typeDecl (TypeDecl name tt annots) =
         dec <<+>> char '['
           // indented (vcat Boxes.left (vs <#> (\x -> char '|' <<+>> text x)))
           // char ']'
-  in ty // indentedList (annots <#> annotation)
+  in
+    ty // indentedList (annots <#> annotation)
 
 annotation :: Annotation -> Box
 annotation (Annotation name _ params) =
-  let op = if Array.length params == 0 then (<<>>) else (<<+>>)
-  in char '<' <<>> text name `op` (hsep 1 Boxes.top (params <#> annotationParam)) <<>> char '>'
+  let
+    op = if Array.length params == 0 then (<<>>) else (<<+>>)
+  in
+    char '<' <<>> text name `op` (hsep 1 Boxes.top (params <#> annotationParam)) <<>> char '>'
 
 annotationParam :: AnnotationParam -> Box
-annotationParam (AnnotationParam name _ value) =
- text name <<>> maybe (emptyBox 0 0) ((char '=' <<>> _) <<< text <<< show) value
+annotationParam (AnnotationParam name _ value) = text name <<>> maybe (emptyBox 0 0) ((char '=' <<>> _) <<< text <<< show) value
 
 recordProp :: RecordProp -> Box
 recordProp { name, typ, annots } =
@@ -86,4 +86,4 @@ tyType = case _ of
   Ref _ { mod: Nothing, typ } -> text typ
   Ref _ { mod: Just m, typ } -> text (m <> "." <> typ)
   Array t -> text "Array" <<+>> tyType t
-  Option t ->  text "Maybe" <<+>> tyType t
+  Option t -> text "Maybe" <<+>> tyType t

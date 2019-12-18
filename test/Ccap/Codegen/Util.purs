@@ -11,12 +11,11 @@ module Test.Ccap.Codegen.Util
   , shouldBeRight
   , sourceTmpl
   , splitLines
---  , traceFile
+  --  , traceFile
   , validateModule
   ) where
 
 import Prelude
-
 import Ccap.Codegen.FileSystem (readTextFile)
 import Ccap.Codegen.Module as Module
 import Ccap.Codegen.Parser (errorMessage, parseSource)
@@ -55,10 +54,12 @@ validateModule :: Source Module -> Effect (Either String (Source ValidatedModule
 validateModule = Array.singleton >>> Module.validateModules [] >>> map (joinErrors >=> onlyOne)
 
 onlyOne :: forall a. Array a -> Either String a
-onlyOne = List.fromFoldable >>> case _ of
-  Cons x Nil -> Right x
-  Nil -> Left "Array is empty"
-  Cons x xs -> Left "Array has multiple elements"
+onlyOne =
+  List.fromFoldable
+    >>> case _ of
+        Cons x Nil -> Right x
+        Nil -> Left "Array is empty"
+        Cons x xs -> Left "Array has multiple elements"
 
 shouldBeRight :: forall m a b. MonadThrow Error m => Show a => Show b => Either a b -> m Unit
 shouldBeRight = flip shouldSatisfy isRight
@@ -82,7 +83,9 @@ diffByLine :: String -> String -> Aff Unit
 diffByLine x y = do
   let
     xs = splitLines x
+
     ys = splitLines y
+
     xys = Array.zip xs ys
   traverse_ (uncurry shouldEqual) xys
   (Array.length xs) `shouldEqual` (Array.length ys)
@@ -92,9 +95,9 @@ findLine pred = find pred <<< splitLines
 
 --traceFile :: forall m. Monad m => String -> m Unit
 --traceFile = traverse_ traceM <<< splitLines
-
 sourceTmpl :: FilePath -> Effect (Either String (Source ValidatedModule))
-sourceTmpl filePath = runExceptT do
-  text <- ExceptT $ readTextFile filePath
-  sourced <- except $ parse filePath text
-  ExceptT $ validateModule sourced
+sourceTmpl filePath =
+  runExceptT do
+    text <- ExceptT $ readTextFile filePath
+    sourced <- except $ parse filePath text
+    ExceptT $ validateModule sourced

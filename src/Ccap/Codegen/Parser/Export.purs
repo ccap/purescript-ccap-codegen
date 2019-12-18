@@ -1,5 +1,4 @@
-module Ccap.Codegen.Parser.Export
-  where
+module Ccap.Codegen.Parser.Export where
 
 import Data.Foldable (class Foldable, intercalate)
 import Data.String (Replacement(..))

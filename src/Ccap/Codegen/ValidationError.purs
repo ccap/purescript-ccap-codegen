@@ -6,7 +6,6 @@ module Ccap.Codegen.ValidationError
   ) where
 
 import Prelude
-
 import Data.Array as Array
 import Data.Bifunctor (lmap)
 import Data.Either (Either)

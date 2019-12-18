@@ -5,7 +5,6 @@ module Ccap.Codegen.Config
   ) where
 
 import Prelude
-
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..), maybe)
 import Data.String (Pattern(..))
@@ -19,49 +18,58 @@ data Mode
   | Show
   | Test
 
-type Config =
-  { mode :: Mode
-  , includes :: Array String
-  , outputDirectory :: Maybe String
-  }
+type Config
+  = { mode :: Mode
+    , includes :: Array String
+    , outputDirectory :: Maybe String
+    }
 
 config :: Y (Either String Config)
 config = mkConfig <$> yMode <*> yOutput <*> yIncludes
   where
-    mkConfig mode outputDirectory includes =
-      mode <#> { mode: _, outputDirectory, includes }
+  mkConfig mode outputDirectory includes = mode <#> { mode: _, outputDirectory, includes }
 
 yMode :: Y (Either String Mode)
 yMode = yarg "m" alts desc def true <#> readMode
   where
-    alts = [ "mode" ]
-    desc = Just "The output mode (must be one of pretty, purs, scala, show, or test)"
-    def = Right "Mode is required"
-    readMode = case _ of
-      "pretty" -> Right Pretty
-      "purs" -> Right Purs
-      "scala" -> Right Scala
-      "show" -> Right Show
-      "test" -> Right Test
-      m -> Left $ "Unknown mode " <> show m
+  alts = [ "mode" ]
+
+  desc = Just "The output mode (must be one of pretty, purs, scala, show, or test)"
+
+  def = Right "Mode is required"
+
+  readMode = case _ of
+    "pretty" -> Right Pretty
+    "purs" -> Right Purs
+    "scala" -> Right Scala
+    "show" -> Right Show
+    "test" -> Right Test
+    m -> Left $ "Unknown mode " <> show m
 
 yOutput :: Y (Maybe String)
 yOutput = yarg "o" alts desc def true <#> nonEmpty
   where
-    alts = [ "output-directory" ]
-    desc = Just "Files will be written to this directory"
-    def = Left ""
+  alts = [ "output-directory" ]
+
+  desc = Just "Files will be written to this directory"
+
+  def = Left ""
 
 yIncludes :: Y (Array String)
 yIncludes = yarg "I" alts desc def false <#> parse
   where
-    alts = [ "include" ]
-    desc = Just "Template definitions to include in scope"
-    def = Left ""
-    parse = maybe [] split <<< nonEmpty
-    split = String.split (Pattern ",")
+  alts = [ "include" ]
+
+  desc = Just "Template definitions to include in scope"
+
+  def = Left ""
+
+  parse = maybe [] split <<< nonEmpty
+
+  split = String.split (Pattern ",")
 
 -- Data.String.NonEmpty exist if more is needed
 nonEmpty :: String -> Maybe String
 nonEmpty "" = Nothing
+
 nonEmpty str = Just str

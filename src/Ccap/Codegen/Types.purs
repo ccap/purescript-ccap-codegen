@@ -27,47 +27,52 @@ import Node.Path (FilePath)
 import Prelude (class Eq, class Show)
 import Text.Parsing.Parser.Pos (Position)
 
-type Source a =
-  { source :: FilePath
-  , contents :: a
-  }
+type Source a
+  = { source :: FilePath
+    , contents :: a
+    }
 
-type Module =
-  { name :: ModuleName
-  , types :: Array TypeDecl
-  , annots :: Annotations
-  , imports :: Array Import
-  , exports :: Exports
-  }
+type Module
+  = { name :: ModuleName
+    , types :: Array TypeDecl
+    , annots :: Annotations
+    , imports :: Array Import
+    , exports :: Exports
+    }
 
-type ValidatedModule =
-  { name :: ModuleName
-  , types :: Array TypeDecl
-  , annots :: Annotations
-  , imports :: Array Module
-  , exports :: Exports
-  }
+type ValidatedModule
+  = { name :: ModuleName
+    , types :: Array TypeDecl
+    , annots :: Annotations
+    , imports :: Array Module
+    , exports :: Exports
+    }
 
-type ModuleName = String
+type ModuleName
+  = String
 
 -- TODO: newtype Import (to distinguish between the import statement and the actual file)
-type Import = String
-
+type Import
+  = String
 
 --| package names for generating imports from a tmpl file
-type Exports =
-  { scalaPkg :: String
-  , pursPkg :: String
-  , tmplPath :: String -- What is the purpose of this?
-  }
+type Exports
+  = { scalaPkg :: String
+    , pursPkg :: String
+    , tmplPath :: String -- What is the purpose of this?
+    }
 
-data TypeDecl = TypeDecl String TopType Annotations
+data TypeDecl
+  = TypeDecl String TopType Annotations
 
-type Annotations = Array Annotation -- TODO: Consider using a Map?
+type Annotations
+  = Array Annotation -- TODO: Consider using a Map?
 
-data Annotation = Annotation String Position (Array AnnotationParam)
+data Annotation
+  = Annotation String Position (Array AnnotationParam)
 
-data AnnotationParam = AnnotationParam String Position (Maybe String)
+data AnnotationParam
+  = AnnotationParam String Position (Maybe String)
 
 data TopType
   = Type Type
@@ -77,6 +82,7 @@ data TopType
 
 isRecord :: TopType -> Boolean
 isRecord (Record _) = true
+
 isRecord _ = false
 
 data Type
@@ -85,15 +91,17 @@ data Type
   | Array Type
   | Option Type
 
-type TRef = { mod :: Maybe ModuleName, typ :: String }
+type TRef
+  = { mod :: Maybe ModuleName, typ :: String }
 
-type RecordProp =
-  { name :: String
-  , typ :: Type
-  , annots :: Annotations
-  }
+type RecordProp
+  = { name :: String
+    , typ :: Type
+    , annots :: Annotations
+    }
 
-type Variant = String
+type Variant
+  = String
 
 data Primitive
   = PBoolean
@@ -102,34 +110,45 @@ data Primitive
   | PString
 
 -- Instances here to avoid cluttering the above
-
 derive instance eqType :: Eq Type
+
 derive instance genericType :: Generic Type _
+
 instance showType :: Show Type where
   show t = genericShow t
 
 derive instance eqTopType :: Eq TopType
+
 derive instance genericTopType :: Generic TopType _
+
 instance showTopType :: Show TopType where
   show = genericShow
 
 derive instance eqTypeDecl :: Eq TypeDecl
+
 derive instance genericTypeDecl :: Generic TypeDecl _
+
 instance showTypeDecl :: Show TypeDecl where
   show = genericShow
 
 derive instance eqAnnotation :: Eq Annotation
+
 derive instance genericAnnotation :: Generic Annotation _
+
 instance showAnnotation :: Show Annotation where
   show = genericShow
 
 derive instance eqAnnotationParam :: Eq AnnotationParam
+
 derive instance genericAnnotationParam :: Generic AnnotationParam _
+
 instance showAnnotationParam :: Show AnnotationParam where
   show = genericShow
 
 derive instance eqPrimitive :: Eq Primitive
+
 derive instance genericPrimitive :: Generic Primitive _
+
 instance showPrimitive :: Show Primitive where
   show = genericShow
 
