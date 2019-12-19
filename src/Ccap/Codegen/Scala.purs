@@ -4,11 +4,12 @@ module Ccap.Codegen.Scala
 
 import Prelude
 import Ccap.Codegen.Annotations (getMaxLength, getWrapOpts, field) as Annotations
-import Ccap.Codegen.Env (Env, askModule, askTypeDecl, lookupTypeDecl)
+import Ccap.Codegen.Env (Env, askModule, lookupTypeDecl)
 import Ccap.Codegen.Parser.Export as Export
 import Ccap.Codegen.Shared (DelimitedLiteralDir(..), OutputSpec, delimitedLiteral, indented, modulesInScope)
 import Ccap.Codegen.Types (Annotations, Exports, Module, ModuleName, Primitive(..), RecordProp, TRef, TopType(..), Type(..), TypeDecl(..), ValidatedModule, isRecord, typeDeclName, typeDeclTopType)
-import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
+import Ccap.Codegen.Util (fromMaybeT, maybeT)
+import Control.Monad.Maybe.Trans (MaybeT(..))
 import Control.Monad.Reader (Reader, ask, asks, runReader)
 import Data.Array ((:))
 import Data.Array as Array
@@ -145,7 +146,7 @@ typeDecl :: TypeDeclOutputMode -> TypeDecl -> Codegen Box
 typeDecl outputMode (TypeDecl name tt an) = case tt of
   Type t -> do
     dTy <- decoderType t
-    ty <- typeDef t
+    ty <- typeDef outputMode t
     e <- encoder t
     d <- decoder an t
     pure
@@ -159,7 +160,7 @@ typeDecl outputMode (TypeDecl name tt an) = case tt of
     case Annotations.getWrapOpts "scala" an of
       Nothing -> do
         dTy <- decoderType t
-        ty <- typeDef t
+        ty <- typeDef outputMode t
         e <- encoder t
         d <- decoder an t
         let
@@ -190,7 +191,7 @@ typeDecl outputMode (TypeDecl name tt an) = case tt of
           // wrappedDecoder
   Record props -> do
     mod <- asks _.currentModule
-    recordFieldTypes <- traverse recordFieldType props
+    recordFieldTypes <- traverse (recordFieldType outputMode) props
     recordFieldEncoders <- traverse recordFieldEncoder props
     let
       cls = (text "final case class" <<+>> text name) `paren` recordFieldTypes
@@ -278,27 +279,29 @@ list = generic "List"
 option :: Box -> Box
 option = generic "Option"
 
-typeDef :: Type -> Codegen Box
-typeDef = case _ of
-  Ref _ tRef -> typeRef tRef
-  Array t -> list <$> typeDef t
-  Option t -> option <$> typeDef t
+typeDef :: TypeDeclOutputMode -> Type -> Codegen Box
+typeDef mode = case _ of
+  Ref _ tRef -> typeRef mode tRef
+  Array t -> list <$> typeDef mode t
+  Option t -> option <$> typeDef mode t
   Primitive p -> pure $ primitive p
 
-typeRef :: TRef -> Codegen Box
-typeRef { mod: Nothing, typ: typeName } = pure $ text typeName
+typeRef :: TypeDeclOutputMode -> TRef -> Codegen Box
+typeRef mode { mod, typ: typeName } = do
+  currentModule <- asks _.currentModule
+  fromMaybeT (internalTypeRef mode currentModule typeName) do
+    importedModuleName <- maybeT mod
+    importedModule <- MaybeT $ askModule importedModuleName
+    importedType <- maybeT $ lookupTypeDecl typeName importedModule
+    pure $ externalTypeRef importedModule importedType
 
-typeRef { mod: (Just moduleName), typ: typeName } = do
-  importedModule <- askModule moduleName
-  importedType <- askTypeDecl moduleName typeName
-  pure
-    $ fromMaybe (text typeName) do
-        mod <- importedModule
-        typ <- importedType
-        pure (importedTypeRef mod typ)
+internalTypeRef :: TypeDeclOutputMode -> Module -> String -> Box
+internalTypeRef mode currentModule = case mode of
+  TopLevelCaseClass -> text <<< prefix [ objectName currentModule ]
+  CompanionObject -> text
 
-importedTypeRef :: Module -> TypeDecl -> Box
-importedTypeRef importedModule importedType =
+externalTypeRef :: Module -> TypeDecl -> Box
+externalTypeRef importedModule importedType =
   let
     scalaName = objectName importedModule
 
@@ -310,7 +313,7 @@ importedTypeRef importedModule importedType =
   in
     text
       if needsQualifier scalaName importedType then
-        qualify path $ typeName
+        prefix path $ typeName
       else
         typeName
 
@@ -326,8 +329,8 @@ needsQualifier modName = not <<< isClassFile modName
 packageAnnotation :: Module -> Maybe String
 packageAnnotation = Annotations.field "scala" "package" <<< _.annots
 
-qualify :: Array String -> String -> String
-qualify names = intercalate "." <<< Array.snoc names
+prefix :: Array String -> String -> String
+prefix names = intercalate "." <<< Array.snoc names
 
 encoder :: Type -> Codegen Box
 encoder = case _ of
@@ -346,12 +349,6 @@ decoder annots = case _ of
 jsonRef :: String -> String -> String
 jsonRef which typ = "json" <> which <> typ
 
-maybeT :: forall f a. Applicative f => Maybe a -> MaybeT f a
-maybeT = MaybeT <<< pure
-
-fromMaybeT :: forall f a. Functor f => a -> MaybeT f a -> f a
-fromMaybeT a = map (fromMaybe a) <<< runMaybeT
-
 jsonTypeRef :: String -> TRef -> Codegen String
 jsonTypeRef which { mod, typ } =
   fromMaybeT (jsonRef which typ) do
@@ -360,7 +357,7 @@ jsonTypeRef which { mod, typ } =
     extTypeDecl <- maybeT $ lookupTypeDecl typ extMod
     let
       path = Array.snoc (Array.fromFoldable $ packageAnnotation extMod) modName
-    pure $ qualify path $ jsonRef which $ guard (needsQualifier modName extTypeDecl) typ
+    pure $ prefix path $ jsonRef which $ guard (needsQualifier modName extTypeDecl) typ
 
 jsonList :: Box -> Box
 jsonList json = json <<>> text ".list"
@@ -408,9 +405,9 @@ decoderTopType = case _ of
 encodeType :: Type -> Box -> Codegen Box
 encodeType t e = encoder t <#> (_ <<>> text ".encode" `paren1` [ e ])
 
-recordFieldType :: RecordProp -> Codegen Box
-recordFieldType { name, typ } = do
-  ty <- typeDef typ
+recordFieldType :: TypeDeclOutputMode -> RecordProp -> Codegen Box
+recordFieldType mode { name, typ } = do
+  ty <- typeDef mode typ
   pure $ text name <<>> char ':' <<+>> ty <<>> char ','
 
 recordFieldEncoder :: RecordProp -> Codegen Box

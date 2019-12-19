@@ -3,6 +3,7 @@ module Test.Ccap.Codegen.Util
   , eqElems
   , exceptAffT
   , findLine
+  , matchKeyLine
   , onlyOne
   , parse
   , print
@@ -33,9 +34,10 @@ import Data.Foldable (traverse_)
 import Data.List (List(..))
 import Data.List as List
 import Data.List.Lazy (find)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe, fromMaybe)
 import Data.String (Pattern(..))
-import Data.String as String
+import Data.String (split) as String
+import Data.String.Utils (includes) as String
 import Data.Tuple (uncurry)
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -101,3 +103,15 @@ sourceTmpl filePath =
     text <- ExceptT $ readTextFile filePath
     sourced <- except $ parse filePath text
     ExceptT $ validateModule sourced
+
+matchKeyLine :: FilePath -> String -> OutputSpec -> String -> Aff Unit
+matchKeyLine file keyWord outSpec line =
+  runOrFail do
+    source <- exceptAffT $ sourceTmpl file
+    let
+      printed = print outSpec source
+
+      keyLine =
+        findLine (String.includes keyWord) printed
+          # fromMaybe ("Keyword, " <> keyWord <> ", not found")
+    pure $ keyLine `shouldEqual` line
