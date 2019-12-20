@@ -1,0 +1,22 @@
+scala: test.Prefix
+purs: Test.Prefix
+
+import Imported
+
+type CustomType: String
+
+type InternalRef: CustomType
+
+type ExternalTypeRef: Imported.ImportedType
+
+type ExternalRecRef: Imported.ImportedRec
+
+type ExternalClassRef: Imported.Imported
+
+type CustomRec: {
+  customInternalRef: CustomType
+}
+
+type Prefix: {
+  prefixInternalRef: CustomType
+}

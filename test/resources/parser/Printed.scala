@@ -91,6 +91,12 @@ object Printed {
   def jsonDecoderValidated[M[_]: Monad]: Decoder.Field[M, Validated] =
     Decoder.string.maxLength(5)
 
+  type ValidatedMaybe = Option[String]
+  lazy val jsonEncoderValidatedMaybe: Encoder[ValidatedMaybe, argonaut.Json] =
+    Encoder.string.option
+  def jsonDecoderValidatedMaybe[M[_]: Monad]: Decoder.Field[M, ValidatedMaybe] =
+    Decoder.string.maxLength(5).option
+
   final case class ValidatedRec(
     name: String,
   )
@@ -99,7 +105,7 @@ object Printed {
       "name" -> Encoder.string.encode(x.name),
     )
   def jsonDecoderValidatedRec[M[_]: Monad]: Decoder.Form[M, ValidatedRec] =
-    Decoder.string.property("name").maxLength(5).map(ValidatedRec.apply)
+    Decoder.string.maxLength(5).property("name").map(ValidatedRec.apply)
   object ValidatedRec {
     object FieldNames {
       val Name: String = "name"

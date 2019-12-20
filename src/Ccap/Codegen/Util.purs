@@ -3,8 +3,10 @@ module Ccap.Codegen.Util where
 import Prelude
 import Control.Monad.Error.Class (try)
 import Control.Monad.Except (ExceptT(..), runExceptT)
+import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import Data.Bifunctor (lmap)
 import Data.Either (either)
+import Data.Maybe (Maybe, fromMaybe)
 import Data.String.Regex (regex)
 import Data.String.Regex (replace) as Regex
 import Data.String.Regex.Flags (global, multiline) as Regex.Flags
@@ -43,3 +45,9 @@ scrubEolSpaces i =
 --| Ensure newline
 ensureNewline :: String -> String
 ensureNewline s = if String.endsWith "\n" s then s else s <> "\n"
+
+maybeT :: forall f a. Applicative f => Maybe a -> MaybeT f a
+maybeT = MaybeT <<< pure
+
+fromMaybeT :: forall f a. Functor f => a -> MaybeT f a -> f a
+fromMaybeT a = map (fromMaybe a) <<< runMaybeT

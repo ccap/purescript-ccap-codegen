@@ -94,6 +94,11 @@ jsonCodec_Validated :: R.JsonCodec Validated
 jsonCodec_Validated =
   R.jsonCodec_string
 
+type ValidatedMaybe = Maybe (String)
+jsonCodec_ValidatedMaybe :: R.JsonCodec ValidatedMaybe
+jsonCodec_ValidatedMaybe =
+  (R.jsonCodec_maybe R.jsonCodec_string)
+
 type ValidatedRec =
   { name :: String
   }
