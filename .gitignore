@@ -2,10 +2,10 @@
 .psc-ide-port
 .vscode/settings.json
 /.idea
+/.spago/
 /.psc-ide-port
 /.psci*
 /.pulp-cache/
-/bower_components/
 /node_modules/
 /output/
 /pursuit.json
