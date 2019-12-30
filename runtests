@@ -2,7 +2,7 @@
 
 set -e -x
 
-pulp build
+spago build
 
 case $1 in
     ccap)
@@ -17,23 +17,23 @@ for i in samples/*.tmpl; do
     # not parsed correctly. NOTE: this passing does NOT guarantee a
     # working purescript or scala file on generation; for example, if
     # a type is undefined, no error checking catches this.
-    ./compile -m test -p unused $i
+    ./compile.js -m test -p unused $i
 
     # Pretty-print county.tmpl to the console. Removes comments and
     # puts the template in a readable format.
-    ./compile -m pretty -p unused $i
+    ./compile.js -m pretty -p unused $i
 
     # Generate the purescript file from the given template
-    ./compile -p Ccap.Cc.Test -m purs $i
+    ./compile.js -p Ccap.Cc.Test -m purs $i
 
     # Generate the scala file from the given template
-    ./compile -p gov.wicourts.cc -m scala $i
+    ./compile.js -p gov.wicourts.cc -m scala $i
 
     # TODO: Test compilation of generated output.
 done
 
 # We can at least test compile this one for now
 
-./compile -p Test.Generated -m purs  -o test/generated samples/SelfContained.tmpl
+./compile.js -p Test.Generated -m purs  -o test/generated samples/SelfContained.tmpl
 
-pulp test
+spago test
