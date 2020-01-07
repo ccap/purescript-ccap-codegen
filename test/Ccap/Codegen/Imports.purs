@@ -91,6 +91,15 @@ specs =
                 withPrintErrors $ ExceptT $ validateImports includes [ source ]
         shouldBeRight imports
 
+    itCanValidateAllImports filePaths includes =
+      it "Can validate imports for multiple modules" do
+        modules <-
+          liftEffect
+            $ runExceptT do
+                sources <- ExceptT $ map sequence $ traverse FS.sourceFile filePaths
+                withExceptT (intercalate "|") $ ExceptT $ validateModules includes sources
+        shouldBeRight modules
+
     itFailsWithoutIncludes filePath =
       it "Fails validation without including the external folder" do
         let
@@ -109,17 +118,8 @@ specs =
             $ runExceptT do
                 source <- ExceptT $ FS.sourceFile filePath
                 imports <- withPrintErrors $ ExceptT $ validateImports includes [ source ]
-                withPrintErrors $ except $ validateAllTypeRefs source.contents (imports <#> _.mod)
+                withPrintErrors $ except $ validateAllTypeRefs source.contents (imports <#> _.contents.mod)
         shouldBeRight typeDecls
-
-    itCanValidateAllModules filePaths =
-      it "Can validate imports for multiple modules" do
-        modules <-
-          liftEffect
-            $ runExceptT do
-                sources <- ExceptT $ map sequence $ traverse FS.sourceFile filePaths
-                withExceptT (intercalate "|") $ ExceptT $ validateModules [] sources
-        shouldBeRight modules
   in
     describe "template include syntax" do
       describe "a plain file with no references" do
@@ -153,4 +153,4 @@ specs =
         itFailsWithoutIncludes externalSubmoduleSource
         itHasValidTypeReferences externalSubmoduleSource [ external_ ]
       describe "two files with identical relative imports" do
-        itCanValidateAllModules [ app1, app2 ]
+        itCanValidateAllImports [ app1, app2 ] []

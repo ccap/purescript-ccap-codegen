@@ -4,15 +4,18 @@ module Ccap.Codegen.Module
   ) where
 
 import Prelude
-import Ccap.Codegen.Imports (Imported, Includes, validateImports)
+import Ccap.Codegen.Imports (Imported, Includes, resolveImport, validateImports)
 import Ccap.Codegen.TypeRef (validateAllTypeRefs)
 import Ccap.Codegen.Types (Module, Source, ValidatedModule)
-import Ccap.Codegen.ValidationError (class ValidationError, printError)
+import Ccap.Codegen.ValidationError (printError)
 import Control.Monad.Except (ExceptT(..), except, runExceptT, withExceptT)
-import Control.MonadPlus (guard)
+import Data.Array as Array
+import Data.Bifunctor (lmap)
 import Data.Either (Either)
+import Data.Foldable (any)
 import Data.Traversable (for)
 import Effect (Effect)
+import Node.Path as Path
 
 -- | Validate imports and type references against the compile scope.
 validateModules ::
@@ -21,27 +24,30 @@ validateModules ::
   Effect (Either (Array String) (Array (Source ValidatedModule)))
 validateModules includes sources =
   runExceptT do
-    allImports <- withErrors $ ExceptT $ validateImports includes sources
-    withErrors $ except
-      $ for sources \source -> do
-          let
-            mod = source.contents
+    allImports <- withExceptT (map printError) $ ExceptT $ validateImports includes sources
+    except $ for sources $ validateModule allImports
 
-            imports = importsForModule mod allImports
-          _ <- validateAllTypeRefs mod imports
-          pure $ source { contents = mod { imports = imports } }
+validateModule :: Array Imported -> Source Module -> Either (Array String) (Source ValidatedModule)
+validateModule allImports source =
+  let
+    imports = importsForModule source allImports
 
-withErrors ::
-  forall f e a.
-  Functor f =>
-  ValidationError e =>
-  ExceptT (Array e) f a ->
-  ExceptT (Array String) f a
-withErrors = withExceptT $ map printError
+    validatedSource = source { contents = source.contents { imports = imports } }
 
-importsForModule :: Module -> Array Imported -> Array Module
-importsForModule mod imports = do
-  imported <- imports
-  imprt <- mod.imports
-  guard $ imprt == imported.imprt
-  pure $ imported.mod
+    validations = lmap (map printError) $ validateAllTypeRefs source.contents imports
+  in
+    validations *> pure validatedSource
+
+importsForModule :: Source Module -> Array Imported -> Array Module
+importsForModule source = map _.contents.mod <<< Array.filter (isImportedBy source)
+
+-- This was already done by validateImports, we should adjust the return type of that so we don't
+-- have to do this again.
+isImportedBy :: Source Module -> Imported -> Boolean
+isImportedBy source imported =
+  let
+    { source: modulePath, contents: { imports } } = source
+
+    { source: importPath, contents: { imprt, mod: { name } } } = imported
+  in
+    any (eq importPath) $ resolveImport (Path.dirname modulePath) <$> imports
