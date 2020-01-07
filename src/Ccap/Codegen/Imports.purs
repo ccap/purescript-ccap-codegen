@@ -45,9 +45,15 @@ data ImportError
 instance importValidationError :: ValidationError ImportError where
   printError = case _ of
     NotFound mod imprt ->
-      mod.name <> " tried to import module: " <> imprt
+      mod.name
+        <> " tried to import module: "
+        <> imprt
         <> " but it does not exist, or was not included."
-    ParseError imprt message -> "Parsing imported module, " <> imprt <> ", failed with error: " <> message
+    ParseError imprt message ->
+      "Parsing imported module, "
+        <> imprt
+        <> ", failed with error: "
+        <> message
 
 importPath :: Import -> FilePath
 importPath = String.replaceAll (Pattern ".") (Replacement Path.sep)
