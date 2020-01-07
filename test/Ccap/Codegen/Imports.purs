@@ -5,11 +5,13 @@ module Test.Ccap.Codegen.Imports
 import Prelude
 import Ccap.Codegen.FileSystem as FS
 import Ccap.Codegen.Imports (importsInScope, validateImports)
+import Ccap.Codegen.Module (validateModules)
 import Ccap.Codegen.TypeRef (validateAllTypeRefs)
 import Ccap.Codegen.ValidationError (class ValidationError, printError)
 import Control.Monad.Except (ExceptT(..), except, runExceptT, withExceptT)
 import Data.Either (either)
 import Data.Foldable (fold)
+import Data.Traversable (intercalate, sequence, traverse)
 import Effect.Class (liftEffect)
 import Node.Path (FilePath)
 import Node.Path as Path
@@ -17,14 +19,20 @@ import Test.Ccap.Codegen.Util (eqElems, shouldBeLeft, shouldBeRight)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldSatisfy)
 
-root :: FilePath
-root = "./test/resources/includes/"
+resources :: FilePath
+resources = "./test/resources/"
+
+imports_ :: FilePath
+imports_ = Path.concat [ resources, "imports" ]
+
+includes_ :: FilePath
+includes_ = Path.concat [ resources, "includes" ]
 
 internal_ :: FilePath
-internal_ = Path.concat [ root, "internal" ]
+internal_ = Path.concat [ includes_, "internal" ]
 
 external_ :: FilePath
-external_ = Path.concat [ root, "external" ]
+external_ = Path.concat [ includes_, "external" ]
 
 internal :: FilePath -> FilePath
 internal fileName = Path.concat [ internal_, fileName ]
@@ -43,6 +51,12 @@ externalSource = internal "SourceExternal.tmpl"
 
 externalSubmoduleSource :: FilePath
 externalSubmoduleSource = internal "SourceExternalSubmodule.tmpl"
+
+app1 :: FilePath
+app1 = Path.concat [ imports_, "app1", "Main.tmpl" ]
+
+app2 :: FilePath
+app2 = Path.concat [ imports_, "app2", "Main.tmpl" ]
 
 withPrintErrors ∷ ∀ e m a. ValidationError e ⇒ Monad m ⇒ ExceptT (Array e) m a → ExceptT String m a
 withPrintErrors = withExceptT $ fold <<< map printError
@@ -97,6 +111,15 @@ specs =
                 imports <- withPrintErrors $ ExceptT $ validateImports includes [ source ]
                 withPrintErrors $ except $ validateAllTypeRefs source.contents (imports <#> _.mod)
         shouldBeRight typeDecls
+
+    itCanValidateAllModules filePaths =
+      it "Can validate imports for multiple modules" do
+        modules <-
+          liftEffect
+            $ runExceptT do
+                sources <- ExceptT $ map sequence $ traverse FS.sourceFile filePaths
+                withExceptT (intercalate "|") $ ExceptT $ validateModules [] sources
+        shouldBeRight modules
   in
     describe "template include syntax" do
       describe "a plain file with no references" do
@@ -129,3 +152,5 @@ specs =
         itCanValidateImports externalSubmoduleSource [ external_ ]
         itFailsWithoutIncludes externalSubmoduleSource
         itHasValidTypeReferences externalSubmoduleSource [ external_ ]
+      describe "two files with identical relative imports" do
+        itCanValidateAllModules [ app1, app2 ]
