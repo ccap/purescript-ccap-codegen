@@ -7,6 +7,7 @@ module Ccap.Codegen.Imports
   , importsInScope
   , importsInScopes
   , parseImports
+  , possibleImportPaths
   , resolveImport
   , validateImports
   ) where

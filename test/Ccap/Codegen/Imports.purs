@@ -91,8 +91,8 @@ specs =
                 withPrintErrors $ ExceptT $ validateImports includes [ source ]
         shouldBeRight imports
 
-    itCanValidateAllImports filePaths includes =
-      it "Can validate imports for multiple modules" do
+    itCanValidateAllModules filePaths includes =
+      it "Can validate all modules" do
         modules <-
           liftEffect
             $ runExceptT do
@@ -138,6 +138,7 @@ specs =
         itCanFindImports submoduleSource []
         itCanValidateImports submoduleSource []
         itHasValidTypeReferences submoduleSource []
+        itCanValidateAllModules [ submoduleSource ] []
       describe "a file with an external reference" do
         itCanBeParsed externalSource
         itHasImports externalSource [ "External" ]
@@ -145,6 +146,7 @@ specs =
         itCanValidateImports externalSource [ external_ ]
         itFailsWithoutIncludes externalSource
         itHasValidTypeReferences externalSource [ external_ ]
+        itCanValidateAllModules [ externalSource ] [ external_ ]
       describe "a file with an external reference to a submodule" do
         itCanBeParsed externalSubmoduleSource
         itHasImports externalSubmoduleSource [ "submodule.ExternalSubmodule" ]
@@ -152,5 +154,6 @@ specs =
         itCanValidateImports externalSubmoduleSource [ external_ ]
         itFailsWithoutIncludes externalSubmoduleSource
         itHasValidTypeReferences externalSubmoduleSource [ external_ ]
-      describe "two files with identical relative imports" do
-        itCanValidateAllImports [ app1, app2 ] []
+        itCanValidateAllModules [ externalSubmoduleSource ] [ external_ ]
+      describe "two files with identical relative imports"
+        $ itCanValidateAllModules [ app1, app2 ] []

@@ -4,7 +4,7 @@ module Ccap.Codegen.Module
   ) where
 
 import Prelude
-import Ccap.Codegen.Imports (Imported, Includes, resolveImport, validateImports)
+import Ccap.Codegen.Imports (Imported, Includes, possibleImportPaths, validateImports)
 import Ccap.Codegen.TypeRef (validateAllTypeRefs)
 import Ccap.Codegen.Types (Module, Source, ValidatedModule)
 import Ccap.Codegen.ValidationError (printError)
@@ -15,7 +15,6 @@ import Data.Either (Either)
 import Data.Foldable (any)
 import Data.Traversable (for)
 import Effect (Effect)
-import Node.Path as Path
 
 -- | Validate imports and type references against the compile scope.
 validateModules ::
@@ -25,12 +24,16 @@ validateModules ::
 validateModules includes sources =
   runExceptT do
     allImports <- withExceptT (map printError) $ ExceptT $ validateImports includes sources
-    except $ for sources $ validateModule allImports
+    except $ for sources $ validateModule includes allImports
 
-validateModule :: Array Imported -> Source Module -> Either (Array String) (Source ValidatedModule)
-validateModule allImports source =
+validateModule ::
+  Includes ->
+  Array Imported ->
+  Source Module ->
+  Either (Array String) (Source ValidatedModule)
+validateModule includes allImports source =
   let
-    imports = importsForModule source allImports
+    imports = importsForModule includes source allImports
 
     validatedSource = source { contents = source.contents { imports = imports } }
 
@@ -38,16 +41,18 @@ validateModule allImports source =
   in
     validations *> pure validatedSource
 
-importsForModule :: Source Module -> Array Imported -> Array Module
-importsForModule source = map _.contents.mod <<< Array.filter (isImportedBy source)
+importsForModule :: Includes -> Source Module -> Array Imported -> Array Module
+importsForModule includes source =
+  map _.contents.mod
+    <<< Array.filter (isImportedBy includes source)
 
 -- This was already done by validateImports, we should adjust the return type of that so we don't
 -- have to do this again.
-isImportedBy :: Source Module -> Imported -> Boolean
-isImportedBy source imported =
+isImportedBy :: Includes -> Source Module -> Imported -> Boolean
+isImportedBy includes source imported =
   let
     { source: modulePath, contents: { imports } } = source
 
     { source: importPath, contents: { imprt, mod: { name } } } = imported
-  in
-    any (eq importPath) $ resolveImport (Path.dirname modulePath) <$> imports
+  in -- TODO: this is almost identical to importInScope
+    any (eq importPath) $ possibleImportPaths includes modulePath =<< imports
