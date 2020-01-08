@@ -3,9 +3,12 @@ module Ccap.Codegen.Imports
   , Imported
   , Includes
   , importInScope
+  , importPath
   , importsInScope
   , importsInScopes
   , parseImports
+  , possibleImportPaths
+  , resolveImport
   , validateImports
   ) where
 
@@ -32,7 +35,7 @@ type FoundImport
   = { imprt :: Import, filePath :: FilePath }
 
 type Imported
-  = { imprt :: Import, mod :: Module }
+  = Source { imprt :: Import, mod :: Module }
 
 data ImportError
   = NotFound Module Import
@@ -42,18 +45,26 @@ data ImportError
 instance importValidationError :: ValidationError ImportError where
   printError = case _ of
     NotFound mod imprt ->
-      mod.name <> " tried to import module: " <> imprt
+      mod.name
+        <> " tried to import module: "
+        <> imprt
         <> " but it does not exist, or was not included."
-    ParseError imprt message -> "Parsing imported module, " <> imprt <> ", failed with error: " <> message
+    ParseError imprt message ->
+      "Parsing imported module, "
+        <> imprt
+        <> ", failed with error: "
+        <> message
+
+importPath :: Import -> FilePath
+importPath = String.replaceAll (Pattern ".") (Replacement Path.sep)
+
+resolveImport :: FilePath -> Import -> FilePath
+resolveImport filePath = FS.joinPaths filePath <<< flip append ".tmpl" <<< importPath
 
 possibleImportPaths :: Includes -> FilePath -> Import -> Array FilePath
 possibleImportPaths includes source imprt =
-  let
-    sourceDirs = Path.dirname source : includes
-
-    importPath = String.replaceAll (Pattern ".") (Replacement Path.sep) imprt
-  in
-    sourceDirs <#> flip FS.joinPaths importPath <#> flip append ".tmpl"
+  (Path.dirname source : includes)
+    <#> (flip resolveImport $ importPath imprt)
 
 importInScope :: Includes -> Source Module -> Import -> Effect (Either ImportError FoundImport)
 importInScope included { source, contents } imprt =
@@ -90,7 +101,10 @@ importsInScopes includes sources =
 parseImports :: Array FoundImport -> Effect (Either (Array ImportError) (Array Imported))
 parseImports imports = traverse parse imports <#> toValidation
   where
-  parse { imprt, filePath } = bimap (ParseError imprt) (\source -> { imprt, mod: source.contents }) <$> FS.sourceFile filePath
+  parse { imprt, filePath } =
+    bimap (ParseError imprt)
+      (\source -> { source: filePath, contents: { imprt, mod: source.contents } })
+      <$> FS.sourceFile filePath
 
 -- | Validate that the imports of the given modules exist and parse the imported modules
 -- | Note: Does not validate the contents of the imported files.
