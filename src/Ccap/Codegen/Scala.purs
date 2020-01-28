@@ -9,7 +9,8 @@ import Ccap.Codegen.Parser.Export as Export
 import Ccap.Codegen.Shared (DelimitedLiteralDir(..), OutputSpec, delimitedLiteral, indented, modulesInScope)
 import Ccap.Codegen.Types (Annotations, Exports, Module, ModuleName, Primitive(..), RecordProp, TRef, TopType(..), Type(..), TypeDecl(..), ValidatedModule, isRecord, typeDeclName, typeDeclTopType)
 import Ccap.Codegen.Util (fromMaybeT, maybeT)
-import Control.Monad.Maybe.Trans (MaybeT(..))
+import Control.Alt (alt)
+import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import Control.Monad.Reader (Reader, ask, asks, runReader)
 import Data.Array ((:))
 import Data.Array as Array
@@ -40,7 +41,7 @@ modulePath mod = (Export.toPath mod.exports.scalaPkg) <> ".scala"
 oneModule :: ValidatedModule -> Box
 oneModule mod = do
   let
-    modDecl = classFileType mod
+    modDecl = primaryClass mod
 
     env =
       { defaultPrefix: Nothing
@@ -317,14 +318,14 @@ externalTypeRef importedModule importedType =
       else
         typeName
 
-classFileType :: forall r. { name :: ModuleName, types :: Array TypeDecl | r } -> Maybe TypeDecl
-classFileType { name, types } = Array.find (isClassFile name) types
+primaryClass :: forall r. { name :: ModuleName, types :: Array TypeDecl | r } -> Maybe TypeDecl
+primaryClass { name, types } = Array.find (isPrimaryClass name) types
 
-isClassFile :: ModuleName -> TypeDecl -> Boolean
-isClassFile modName typeD = modName == typeDeclName typeD && (isRecord $ typeDeclTopType typeD)
+isPrimaryClass :: ModuleName -> TypeDecl -> Boolean
+isPrimaryClass modName typeD = modName == typeDeclName typeD && (isRecord $ typeDeclTopType typeD)
 
 needsQualifier :: ModuleName -> TypeDecl -> Boolean
-needsQualifier modName = not <<< isClassFile modName
+needsQualifier modName = not <<< isPrimaryClass modName
 
 packageAnnotation :: Module -> Maybe String
 packageAnnotation = Annotations.field "scala" "package" <<< _.annots
@@ -347,17 +348,29 @@ decoder annots = case _ of
   Primitive p -> pure $ (text $ "Decoder" <> jsonPrimitive p) <<>> decoderValidations annots
 
 jsonRef :: String -> String -> String
-jsonRef which typ = "json" <> which <> typ
+jsonRef which typ = "json" <> which <> typ -- should be blank if it is the primary class
 
 jsonTypeRef :: String -> TRef -> Codegen String
 jsonTypeRef which { mod, typ } =
-  fromMaybeT (jsonRef which typ) do
-    modName <- maybeT mod
-    extMod <- MaybeT $ askModule modName
-    extTypeDecl <- maybeT $ lookupTypeDecl typ extMod
-    let
-      path = Array.snoc (Array.fromFoldable $ packageAnnotation extMod) modName
-    pure $ prefix path $ jsonRef which $ guard (needsQualifier modName extTypeDecl) typ
+  let
+    externalJson =
+      runMaybeT do
+        modName <- maybeT mod
+        extMod <- MaybeT $ askModule modName
+        extTypeDecl <- maybeT $ lookupTypeDecl typ extMod
+        let
+          path = Array.snoc (Array.fromFoldable $ packageAnnotation extMod) modName
+        pure $ prefix path $ jsonRef which $ guard (needsQualifier modName extTypeDecl) typ
+
+    internalJson =
+      runMaybeT do
+        thisMod <- MaybeT $ Just <$> asks _.currentModule
+        decl <- maybeT $ lookupTypeDecl typ thisMod
+        pure $ jsonRef which $ guard (needsQualifier thisMod.name decl) typ
+
+    default = jsonRef which typ
+  in
+    alt <$> internalJson <*> externalJson <#> fromMaybe default
 
 jsonList :: Box -> Box
 jsonList json = json <<>> text ".list"

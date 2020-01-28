@@ -33,6 +33,8 @@ specs =
           $ check "prefixInternalRef:" "  prefixInternalRef: Prefix.CustomType,"
         it "Don't need prefixes if defined in the companion object"
           $ check "customInternalRef:" "    customInternalRef: CustomType,"
+        it "Don't use the type suffix for encoders if they are the file's class"
+          $ check "\"prefix\" ->" "      \"prefix\" -> jsonEncoder.encode(x.prefix),"
       describe "type references" do
         it "Are defined in the companion object and don't need prefixes"
           $ check "type InternalRef" "  type InternalRef = CustomType"
