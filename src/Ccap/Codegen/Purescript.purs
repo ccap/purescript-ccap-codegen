@@ -189,7 +189,7 @@ sumJsonCodec name vs = do
     decode =
       text "decode: case _ of"
         // indented (branches decodeBranch // fallthrough)
-  pure $ text "R.composeCodec"
+  emitRuntime $ text "R.composeCodec"
     // indented (delimitedLiteral Vert '{' '}' [ decode, encode ] // text "R.jsonCodec_string")
   where
   branches branch = vcat Boxes.left (vs <#> branch)
