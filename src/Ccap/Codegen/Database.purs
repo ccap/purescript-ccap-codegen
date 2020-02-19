@@ -67,7 +67,7 @@ domainModule pool scalaPkg pursPkg =
           select domain_name, data_type, character_maximum_length
           from information_schema.domains
           where domain_schema = 'public' and
-                  data_type in ('numeric', 'character varying',
+                  data_type in ('numeric', 'character varying', 'character', 
                                 'integer', 'smallint', 'text', 'uuid',
                                 'boolean', 'date', 'time without time zone',
                                 'timestamp with time zone') and
@@ -123,7 +123,7 @@ queryColumns tableName conn = do
           select column_name, data_type, domain_name, character_maximum_length, is_nullable
           from information_schema.columns
           where table_name = $1 and
-                  data_type in ('numeric', 'character varying',
+                  data_type in ('numeric', 'character varying', 'character',
                                 'integer', 'smallint', 'text', 'uuid',
                                 'boolean', 'date', 'time without time zone',
                                 'timestamp with time zone')
@@ -151,6 +151,7 @@ dbType :: String -> Type
 dbType dataType = case dataType of
   "numeric" -> Primitive PDecimal
   "character varying" -> Primitive PString
+  "character" -> Primitive PString
   "integer" -> Primitive PInt
   "smallint" -> Primitive PInt
   "text" -> Primitive PString
