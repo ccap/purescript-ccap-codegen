@@ -151,6 +151,7 @@ dbType :: String -> Type
 dbType dataType = case dataType of
   "numeric" -> Primitive PDecimal
   "character varying" -> Primitive PString
+  "character" -> Primitive PString
   "integer" -> Primitive PInt
   "smallint" -> Primitive PInt
   "text" -> Primitive PString
