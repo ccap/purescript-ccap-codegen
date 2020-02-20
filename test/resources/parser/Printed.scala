@@ -62,7 +62,7 @@ object Printed {
       "y" -> Encoder.int.encode(x.y),
     )
   def jsonDecoderPoint[M[_]: Monad]: Decoder.Form[M, Point] =
-    scalaz.Apply[Decoder.Form[M, ?]].apply2(
+    scalaz.Apply[Decoder.Form[M, *]].apply2(
       Decoder.int.property("x"),
       Decoder.int.property("y"),
     )(Point.apply)

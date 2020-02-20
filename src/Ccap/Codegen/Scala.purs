@@ -442,7 +442,7 @@ smallRecordDecoder name props = do
   ps <- traverse (\r -> recordFieldDecoder r <#> (_ <<>> char ',')) props
   pure
     $ paren_
-        (text ("scalaz.Apply[Decoder.Form[M, ?]].apply" <> show (Array.length props)))
+        (text ("scalaz.Apply[Decoder.Form[M, *]].apply" <> show (Array.length props)))
         ps
         (text ("(" <> name <> ".apply)"))
 
@@ -459,12 +459,12 @@ bigRecordDecoder name props = do
         decs <- traverse (\r -> recordFieldDecoder r <#> (_ <<>> char ',')) part
         pure
           $ paren_
-              (text ("scalaz.Apply[Decoder.Form[M, ?]].tuple" <> show (Array.length part)))
+              (text ("scalaz.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length part)))
               decs
               (char ',')
   pure
     $ paren_
-        (text ("scalaz.Apply[Decoder.Form[M, ?]].apply" <> show (Array.length parts)))
+        (text ("scalaz.Apply[Decoder.Form[M, *]].apply" <> show (Array.length parts)))
         body
         (curly (emptyBox 0 0) [ applyAllParams ])
   where
