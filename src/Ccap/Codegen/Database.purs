@@ -67,7 +67,7 @@ domainModule pool scalaPkg pursPkg =
           select domain_name, data_type, character_maximum_length
           from information_schema.domains
           where domain_schema = 'public' and
-                  data_type in ('numeric', 'character varying', 'character', 
+                  data_type in ('numeric', 'character varying', 'character',
                                 'integer', 'smallint', 'text', 'uuid',
                                 'boolean', 'date', 'time without time zone',
                                 'timestamp with time zone') and
@@ -91,13 +91,22 @@ dbRowToColumn (Row5 columnName dataType domainName charMaxLen isNullable) =
   , isNullable
   }
 
+occIdColumn :: DbColumn
+occIdColumn =
+  { columnName: "occId"
+  , dataType: "occid"
+  , domainName: Nothing
+  , charMaxLen: Nothing
+  , isNullable: "NO"
+  }
+
 tableModule :: Pool -> String -> String -> String -> ExceptT String Aff Module
 tableModule pool scalaPkg pursPkg tableName =
   withExceptT show
     $ withConnection pool \conn -> do
         columns <- queryColumns tableName conn
         let
-          decl = tableType tableName columns
+          decl = tableType tableName (columns <> [ occIdColumn ])
         pure
           { name: tableName
           , types: [ decl ]
@@ -160,4 +169,5 @@ dbType dataType = case dataType of
   "time without time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Time" }
   "timestamp with time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Timestamp" }
   "uuid" -> Ref emptyPos { mod: Just "UUIDSupport", typ: "UUID" }
+  "occid" -> Ref emptyPos { mod: Just "OccSupport", typ: "OccId" }
   _ -> Primitive PString -- XXX
