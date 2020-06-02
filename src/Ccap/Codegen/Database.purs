@@ -70,7 +70,7 @@ domainModule pool scalaPkg pursPkg =
                   data_type in ('numeric', 'character varying', 'character',
                                 'integer', 'smallint', 'text', 'uuid',
                                 'boolean', 'date', 'time without time zone',
-                                'timestamp with time zone') and
+                                'timestamp with time zone', 'interval') and
                   domain_name not in ('BatchIDT', 'XMLT')
           """
 
@@ -135,7 +135,7 @@ queryColumns tableName conn = do
                   data_type in ('numeric', 'character varying', 'character',
                                 'integer', 'smallint', 'text', 'uuid',
                                 'boolean', 'date', 'time without time zone',
-                                'timestamp with time zone')
+                                'timestamp with time zone', 'interval')
           order by ordinal_position ;
           """
 
@@ -169,5 +169,6 @@ dbType dataType = case dataType of
   "time without time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Time" }
   "timestamp with time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Timestamp" }
   "uuid" -> Ref emptyPos { mod: Just "UUIDSupport", typ: "UUID" }
+  "interval" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Duration" }
   "occid" -> Ref emptyPos { mod: Just "OccSupport", typ: "OccId" }
   _ -> Primitive PString -- XXX
