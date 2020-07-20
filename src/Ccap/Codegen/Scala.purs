@@ -18,7 +18,7 @@ import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Monoid (guard)
 import Data.String as String
-import Data.Traversable (for, traverse)
+import Data.Traversable (traverse)
 import Node.Path (FilePath)
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hcat, nullBox, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
@@ -202,7 +202,7 @@ typeDecl outputMode (TypeDecl name tt an) = case tt of
       1 -> maybe (pure (emptyBox 0 0)) (singletonRecordDecoder name) (Array.head props)
       x
         | x <= 12 -> smallRecordDecoder name props
-      x -> bigRecordDecoder name props
+      x -> largeRecordDecoder name props
     let
       dec = defDecoder (mod.name /= name) name "Form" decBody
 
@@ -446,41 +446,95 @@ smallRecordDecoder name props = do
         ps
         (text ("(" <> name <> ".apply)"))
 
-bigRecordDecoder :: String -> Array RecordProp -> Codegen Box
-bigRecordDecoder name props = do
-  body <-
-    for parts \part ->
-      if Array.length part == 1 then
-        maybe
-          (pure (emptyBox 0 0))
-          (\r -> recordFieldDecoder r <#> (_ <<>> char ','))
-          (Array.head part)
-      else do
-        decs <- traverse (\r -> recordFieldDecoder r <#> (_ <<>> char ',')) part
+-- | tree type for bulding scalaz Apply statements
+data TupleApplyStatement
+  = Final (Array RecordProp)
+  | Intermediate (Array TupleApplyStatement)
+
+largeRecordDecoder :: String -> Array RecordProp -> Codegen Box
+largeRecordDecoder name props = buildApplyStatement tupleStatements
+  where
+  -- | collects all the props into a tree that can be parsed into scalaz.Apply statements
+  tupleStatements :: Array TupleApplyStatement
+  tupleStatements = go (Final <$> chunksOf 5 props)
+    where
+    go statements
+      | Array.length statements > 12 = go (Intermediate <$> chunksOf 5 statements)
+
+    go statements = statements
+
+  -- | builds the Apply statements. The recursive funcion `go` returns a record with the two parts of
+  -- | the syntax that need to be nested:
+  -- | 1. the arguments to scalaz.Apply.tupleN (decoderDefinitionSyntax)
+  -- | 2. the syntax to extract the values from the tuples (extractionSyntax)
+  buildApplyStatement :: Array TupleApplyStatement -> Codegen Box
+  buildApplyStatement statements =
+    let
+      recursionResults = go <$> statements
+    in
+      do
+        decs <- traverse _.decoderDefinitionSyntax recursionResults
         pure
           $ paren_
-              (text ("scalaz.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length part)))
+              (text ("scalaz.Apply[Decoder.Form[M, *]].apply" <> show (Array.length statements)))
               decs
-              (char ',')
-  pure
-    $ paren_
-        (text ("scalaz.Apply[Decoder.Form[M, *]].apply" <> show (Array.length parts)))
-        body
-        (curly (emptyBox 0 0) [ applyAllParams ])
-  where
-  parts = chunksOf 5 props
+              (curly (emptyBox 0 0) [ applyAllParams (recursionResults <#> _.extractionSyntax) ])
+    where
+    go (Final part) =
+      if Array.length part == 1 then
+        maybe
+          ( { decoderDefinitionSyntax: pure (emptyBox 0 0)
+            , extractionSyntax: emptyBox 0 0
+            }
+          )
+          ( \r ->
+              { decoderDefinitionSyntax:
+                (recordFieldDecoder r <#> (_ <<>> char ','))
+              , extractionSyntax:
+                (text r.name) <<>> char ','
+              }
+          )
+          (Array.head part)
+      else
+        { decoderDefinitionSyntax:
+          do
+            decs <- traverse (\r -> recordFieldDecoder r <#> (_ <<>> char ',')) part
+            pure
+              $ paren_
+                  (text ("scalaz.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length part)))
+                  decs
+                  (char ',')
+        , extractionSyntax:
+          (delimitedLiteral Horiz '(' ')' (part <#> _.name >>> text)) <<>> char ','
+        }
 
-  applyAllParams =
+    go (Intermediate parts) =
+      let
+        recursionResults = parts <#> go
+      in
+        { decoderDefinitionSyntax:
+          do
+            decs <- traverse (_.decoderDefinitionSyntax) recursionResults
+            pure
+              $ paren_
+                  (text ("scalaz.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length parts)))
+                  decs
+                  (char ',')
+        , extractionSyntax:
+          paren_
+            (emptyBox 0 0)
+            (recursionResults <#> _.extractionSyntax)
+            (char ',')
+        }
+
+  applyAllParams :: Array Box -> Box
+  applyAllParams statements =
     paren_
       (text "case ")
-      ( parts
-          <#> \part ->
-              -- No trailing commas allowed when matching a tuple pattern
-              (delimitedLiteral Horiz '(' ')' (part <#> _.name >>> text)) <<>> char ','
-      )
+      statements
       (text " =>" // indented applyAllConstructor)
-
-  applyAllConstructor = paren (text name) (props <#> \{ name: n } -> text (n <> " = " <> n <> ","))
+    where
+    applyAllConstructor = paren (text name) (props <#> \{ name: n } -> text (n <> " = " <> n <> ","))
 
 chunksOf :: forall a. Int -> Array a -> Array (Array a)
 chunksOf n as =
