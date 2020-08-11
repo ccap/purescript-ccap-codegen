@@ -3,7 +3,6 @@ module Main
   ) where
 
 import Prelude
-
 import Ccap.Codegen.Config (Config, Mode(..), config)
 import Ccap.Codegen.FileSystem (mkDirP, sourceFile)
 import Ccap.Codegen.Module (validateModules)
@@ -34,47 +33,53 @@ import Node.Yargs.Applicative (rest, runY)
 import Node.Yargs.Setup (usage)
 
 app :: Either String Config -> Array Foreign -> Effect Unit
-app eConfig fs = launchAff_ $ processResult do
-  config <- except eConfig
-  files <- except $ readFiles fs
-  sources <- ExceptT $ liftEffect $ traverse sourceFile files <#> toValidation >>> joinErrors
-  validated <- ExceptT $ liftEffect $ validateModules config.includes sources <#> joinErrors
-  traverse_ (writeModule config) validated
+app eConfig fs =
+  launchAff_
+    $ processResult do
+        config <- except eConfig
+        files <- except $ readFiles fs
+        sources <- ExceptT $ liftEffect $ traverse sourceFile files <#> toValidation >>> joinErrors
+        validated <- ExceptT $ liftEffect $ validateModules config.includes sources <#> joinErrors
+        traverse_ (writeModule config) validated
 
 readFiles :: Array Foreign -> Either String (Array FilePath)
 readFiles = lmap show <<< runExcept <<< traverse readString
 
 writeModule :: Config -> Source ValidatedModule -> ExceptT String Aff Unit
-writeModule config { source: fileName, contents: mod } =
-  case config.mode of
-    Pretty -> writeOutput config mod PrettyPrint.outputSpec
-    Purs -> writeOutput config mod Purescript.outputSpec
-    Scala -> writeOutput config mod Scala.outputSpec
-    Show -> Console.info $ show mod
-    Test ->
-      ifM (except $ lmap (errorMessage fileName) (roundTrip mod))
-        (Console.info "Round-trip passed")
-        (except $ Left "Round-trip failed")
+writeModule config { source: fileName, contents: mod } = case config.mode of
+  Pretty -> writeOutput config mod PrettyPrint.outputSpec
+  Purs -> writeOutput config mod Purescript.outputSpec
+  Scala -> writeOutput config mod Scala.outputSpec
+  Show -> Console.info $ show mod
+  Test ->
+    ifM (except $ lmap (errorMessage fileName) (roundTrip mod))
+      (Console.info "Round-trip passed")
+      (except $ Left "Round-trip failed")
 
 writeOutput :: Config -> ValidatedModule -> OutputSpec -> ExceptT String Aff Unit
 writeOutput config mod outputSpec = do
-  config.outputDirectory # maybe
-    (Console.info <<< scrubEolSpaces <<< outputSpec.render $ mod)
-    writeOutput_
+  config.outputDirectory
+    # maybe
+        (Console.info <<< scrubEolSpaces <<< outputSpec.render $ mod)
+        writeOutput_
   where
-    writeOutput_ :: String -> ExceptT String Aff Unit
-    writeOutput_ dir = do
-      let
-        filePath = [ dir, (outputSpec.filePath mod) ]
-        outputFile = Path.concat filePath
-      Console.info $ "Writing " <> outputFile
-      mkDirP (Path.dirname outputFile)
-      liftEffectSafely $ Sync.writeTextFile
-        UTF8
-        outputFile
-        (ensureNewline <<< scrubEolSpaces <<< outputSpec.render $ mod)
+  writeOutput_ :: String -> ExceptT String Aff Unit
+  writeOutput_ dir = do
+    let
+      filePath = [ dir, (outputSpec.filePath mod) ]
+
+      outputFile = Path.concat filePath
+    Console.info $ "Writing " <> outputFile
+    mkDirP (Path.dirname outputFile)
+    liftEffectSafely
+      $ Sync.writeTextFile
+          UTF8
+          outputFile
+          (ensureNewline <<< scrubEolSpaces <<< outputSpec.render $ mod)
 
 main :: Effect Unit
 main =
-  let setup = usage "$0 --mode <mode> a.tmpl"
-  in runY setup $ app <$> config <*> rest
+  let
+    setup = usage "$0 --mode <mode> a.tmpl"
+  in
+    runY setup $ app <$> config <*> rest

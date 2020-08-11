@@ -46,9 +46,9 @@ oneModule mod = do
     env =
       { defaultPrefix: Nothing
       , currentModule:
-        mod
-          { imports = mod.imports <#> _.exports.scalaPkg
-          }
+          mod
+            { imports = mod.imports <#> _.exports.scalaPkg
+            }
       , allModules: modulesInScope mod
       }
 
@@ -489,23 +489,23 @@ largeRecordDecoder name props = buildApplyStatement tupleStatements
           )
           ( \r ->
               { decoderDefinitionSyntax:
-                (recordFieldDecoder r <#> (_ <<>> char ','))
+                  (recordFieldDecoder r <#> (_ <<>> char ','))
               , extractionSyntax:
-                (text r.name) <<>> char ','
+                  (text r.name) <<>> char ','
               }
           )
           (Array.head part)
       else
         { decoderDefinitionSyntax:
-          do
-            decs <- traverse (\r -> recordFieldDecoder r <#> (_ <<>> char ',')) part
-            pure
-              $ paren_
-                  (text ("scalaz.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length part)))
-                  decs
-                  (char ',')
+            do
+              decs <- traverse (\r -> recordFieldDecoder r <#> (_ <<>> char ',')) part
+              pure
+                $ paren_
+                    (text ("scalaz.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length part)))
+                    decs
+                    (char ',')
         , extractionSyntax:
-          (delimitedLiteral Horiz '(' ')' (part <#> _.name >>> text)) <<>> char ','
+            (delimitedLiteral Horiz '(' ')' (part <#> _.name >>> text)) <<>> char ','
         }
 
     go (Intermediate parts) =
@@ -513,18 +513,18 @@ largeRecordDecoder name props = buildApplyStatement tupleStatements
         recursionResults = parts <#> go
       in
         { decoderDefinitionSyntax:
-          do
-            decs <- traverse (_.decoderDefinitionSyntax) recursionResults
-            pure
-              $ paren_
-                  (text ("scalaz.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length parts)))
-                  decs
-                  (char ',')
+            do
+              decs <- traverse (_.decoderDefinitionSyntax) recursionResults
+              pure
+                $ paren_
+                    (text ("scalaz.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length parts)))
+                    decs
+                    (char ',')
         , extractionSyntax:
-          paren_
-            (emptyBox 0 0)
-            (recursionResults <#> _.extractionSyntax)
-            (char ',')
+            paren_
+              (emptyBox 0 0)
+              (recursionResults <#> _.extractionSyntax)
+              (char ',')
         }
 
   applyAllParams :: Array Box -> Box

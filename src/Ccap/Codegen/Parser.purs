@@ -185,13 +185,13 @@ parseSource filePath contents =
       <#> \mod ->
           { source: filePath
           , contents:
-            mod
-              { name = moduleName
-              , exports =
-                mod.exports
-                  { tmplPath = moduleName
-                  }
-              }
+              mod
+                { name = moduleName
+                , exports =
+                  mod.exports
+                    { tmplPath = moduleName
+                    }
+                }
           }
 
 errorMessage :: String -> ParseError -> String

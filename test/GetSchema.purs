@@ -1,7 +1,6 @@
 module Test.GetSchema where
 
 import Prelude
-
 import Ccap.Codegen.Database (tableModule)
 import Ccap.Codegen.PrettyPrint (prettyPrint)
 import Ccap.Codegen.Shared (invalidate)
@@ -49,17 +48,20 @@ stripImports :: Source ValidatedModule -> Source ValidatedModule
 stripImports source = source { contents = source.contents { imports = [] } }
 
 specs :: Spec Unit
-specs = describe "Case" do
-  it "fetches the case data correctly" do
-    results <-
-      runExceptT do
-        fileSource <- ExceptT <<< liftEffect $ sourceTmpl caseTmplFile
-        let { scalaPkg, pursPkg } = fileSource.contents.exports
-        pool <- ExceptT <<< liftEffect <<< map pure $ poolConfig >>= newPool
-        dbModule <- tableModule pool scalaPkg pursPkg fileSource.contents.name
-        pure $ Tuple (invalidate fileSource.contents) dbModule
-    either fail (uncurry printAndDiff) results
+specs =
+  describe "Case" do
+    it "fetches the case data correctly" do
+      results <-
+        runExceptT do
+          fileSource <- ExceptT <<< liftEffect $ sourceTmpl caseTmplFile
+          let
+            { scalaPkg, pursPkg } = fileSource.contents.exports
+          pool <- ExceptT <<< liftEffect <<< map pure $ poolConfig >>= newPool
+          dbModule <- tableModule pool scalaPkg pursPkg fileSource.contents.name
+          pure $ Tuple (invalidate fileSource.contents) dbModule
+      either fail (uncurry printAndDiff) results
 
 printAndDiff :: Module -> Module -> Aff Unit
 printAndDiff x y = (print x) `diffByLine` (print y)
-  where print = scrubEolSpaces <<< prettyPrint
+  where
+  print = scrubEolSpaces <<< prettyPrint

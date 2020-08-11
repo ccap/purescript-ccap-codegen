@@ -49,9 +49,9 @@ oneModule mod =
       env =
         { defaultPrefix: Nothing
         , currentModule:
-          mod
-            { imports = mod.imports <#> _.exports.pursPkg
-            }
+            mod
+              { imports = mod.imports <#> _.exports.pursPkg
+              }
         , allModules: modulesInScope mod
         }
 
