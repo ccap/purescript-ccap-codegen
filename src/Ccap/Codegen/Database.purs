@@ -56,10 +56,10 @@ domainModule pool scalaPkg pursPkg =
             , annots: []
             , imports: types >>= tableImports # Array.nub # Array.sort
             , exports:
-              { scalaPkg
-              , pursPkg
-              , tmplPath: "Domains.tmpl"
-              }
+                { scalaPkg
+                , pursPkg
+                , tmplPath: "Domains.tmpl"
+                }
             }
   where
   sql =
@@ -113,10 +113,10 @@ tableModule pool scalaPkg pursPkg tableName =
           , annots: []
           , imports: tableImports decl # Array.sort
           , exports:
-            { scalaPkg
-            , pursPkg
-            , tmplPath: tableName
-            }
+              { scalaPkg
+              , pursPkg
+              , tmplPath: tableName
+              }
           }
 
 tableImports :: TypeDecl -> Array Import
@@ -154,6 +154,8 @@ dbRecordProp col@{ columnName, domainName, dataType, isNullable } =
     { name: columnName, typ: optioned, annots }
 
 domainRef :: String -> Type
+domainRef "CaseNoT" = Ref emptyPos { mod: Just "CaseNoSupport", typ: "CaseNo" }
+
 domainRef name = Ref emptyPos { mod: Just "Domains", typ: name }
 
 dbType :: String -> Type
