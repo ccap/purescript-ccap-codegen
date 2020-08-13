@@ -3,7 +3,7 @@ module Ccap.Codegen.Scala
   ) where
 
 import Prelude
-import Ccap.Codegen.Annotations (getMaxLength, getWrapOpts, field) as Annotations
+import Ccap.Codegen.Annotations as Annotations
 import Ccap.Codegen.Env (Env, askModule, lookupTypeDecl)
 import Ccap.Codegen.Parser.Export as Export
 import Ccap.Codegen.Shared (DelimitedLiteralDir(..), OutputSpec, delimitedLiteral, indented, modulesInScope)
@@ -12,8 +12,9 @@ import Ccap.Codegen.Util (fromMaybeT, maybeT)
 import Control.Alt (alt)
 import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import Control.Monad.Reader (Reader, ask, asks, runReader)
-import Data.Array ((:))
+import Data.Array (foldl, (:))
 import Data.Array as Array
+import Data.Compactable (compact)
 import Data.Foldable (intercalate)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Monoid (guard)
@@ -386,10 +387,27 @@ jsonPrimitive = case _ of
   PString -> ".string"
 
 decoderValidations :: Annotations -> Box
-decoderValidations = maybe nullBox maxLengthValidation <<< Annotations.getMaxLength
+decoderValidations annots = foldl (<<>>) nullBox validations
+  where
+  validations =
+    compact
+      [ maxLengthValidation <$> Annotations.getMaxLength annots
+      , minLengthValidation <$> Annotations.getMinLength annots
+      , maxSizeValidation <$> Annotations.getMaxSize annots
+      , positiveValidation <$> Annotations.getIsPositive annots
+      ]
 
 maxLengthValidation :: String -> Box
 maxLengthValidation max = text $ ".maxLength(" <> max <> ")"
+
+minLengthValidation :: String -> Box
+minLengthValidation min = text $ ".minLength(" <> min <> ")"
+
+maxSizeValidation :: String -> Box
+maxSizeValidation max = text $ ".maxSize(" <> max <> ")"
+
+positiveValidation :: Unit -> Box
+positiveValidation _ = text $ ".positive"
 
 decoderType :: Type -> Codegen String
 decoderType ty = case ty of
