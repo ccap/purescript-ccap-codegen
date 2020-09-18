@@ -64,9 +64,9 @@ domainModule pool scalaPkg pursPkg =
   where
   sql =
     """
-          select domain_name, data_type, character_maximum_length
+          select distinct domain_name, data_type, character_maximum_length
           from information_schema.domains
-          where domain_schema = 'public' and
+          where domain_schema in ('public', 'dbtran') and
                   data_type in ('numeric', 'character varying', 'character',
                                 'integer', 'smallint', 'text', 'uuid',
                                 'boolean', 'date', 'time without time zone',
