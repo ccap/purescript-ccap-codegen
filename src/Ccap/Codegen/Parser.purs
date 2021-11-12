@@ -101,6 +101,7 @@ anyPrimitive =
     <|> primitive "Int" PInt
     <|> primitive "Decimal" PDecimal
     <|> primitive "String" PString
+    <|> primitive "StringValidationHack" PStringValidationHack
 
 tyType :: Unit -> ParserT String Identity Type
 tyType _ =

@@ -104,6 +104,7 @@ primitive = case _ of
   PInt -> pure (text "Int")
   PDecimal -> emit { mod: "Data.Decimal", typ: Just "Decimal", alias: Nothing } (text "Decimal")
   PString -> pure (text "String")
+  PStringValidationHack -> pure (text "String")
 
 type Extern
   = { prefix :: String, t :: String }
@@ -292,6 +293,7 @@ jsonCodec ty = case ty of
                   PInt -> "int"
                   PDecimal -> "decimal"
                   PString -> "string"
+                  PStringValidationHack -> "string"
               )
       )
   Array t -> tycon "array" t

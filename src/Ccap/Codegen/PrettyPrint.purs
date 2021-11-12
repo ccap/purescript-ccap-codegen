@@ -39,6 +39,7 @@ primitive p =
     PInt -> "Int"
     PDecimal -> "Decimal"
     PString -> "String"
+    PStringValidationHack -> "StringValidationHack"
 
 indented :: Box -> Box
 indented b = emptyBox 0 2 <<>> b
