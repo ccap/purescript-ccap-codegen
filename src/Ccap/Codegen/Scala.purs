@@ -271,6 +271,7 @@ primitive =
         PInt -> "Int"
         PDecimal -> "BigDecimal"
         PString -> "String"
+        PStringValidationHack -> "StringValidationHack"
 
 generic :: String -> Box -> Box
 generic typeName param = text typeName <<>> char '[' <<>> param <<>> char ']'
@@ -385,6 +386,7 @@ jsonPrimitive = case _ of
   PInt -> ".int"
   PDecimal -> ".decimal"
   PString -> ".string"
+  PStringValidationHack -> ".stringValidationHack"
 
 decoderValidations :: Annotations -> Box
 decoderValidations annots = foldl (<<>>) nullBox validations

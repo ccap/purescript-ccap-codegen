@@ -108,6 +108,7 @@ data Primitive
   | PInt
   | PDecimal
   | PString
+  | PStringValidationHack
 
 -- Instances here to avoid cluttering the above
 derive instance eqType :: Eq Type
