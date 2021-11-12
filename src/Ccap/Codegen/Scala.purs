@@ -271,7 +271,7 @@ primitive =
         PInt -> "Int"
         PDecimal -> "BigDecimal"
         PString -> "String"
-        PStringValidationHack -> "StringValidationHack"
+        PStringValidationHack -> "String"
 
 generic :: String -> Box -> Box
 generic typeName param = text typeName <<>> char '[' <<>> param <<>> char ']'
