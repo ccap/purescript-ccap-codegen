@@ -272,6 +272,7 @@ primitive =
         PDecimal -> "BigDecimal"
         PString -> "String"
         PStringValidationHack -> "String"
+        PJson -> "argonaut.Json"
 
 generic :: String -> Box -> Box
 generic typeName param = text typeName <<>> char '[' <<>> param <<>> char ']'
@@ -387,6 +388,7 @@ jsonPrimitive = case _ of
   PDecimal -> ".decimal"
   PString -> ".string"
   PStringValidationHack -> ".stringValidationHack"
+  PJson -> ".json"
 
 decoderValidations :: Annotations -> Box
 decoderValidations annots = foldl (<<>>) nullBox validations

@@ -40,6 +40,7 @@ primitive p =
     PDecimal -> "Decimal"
     PString -> "String"
     PStringValidationHack -> "StringValidationHack"
+    PJson -> "Json"
 
 indented :: Box -> Box
 indented b = emptyBox 0 2 <<>> b

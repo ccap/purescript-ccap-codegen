@@ -95,8 +95,8 @@ tRef = ado
 primitive :: String -> Primitive -> ParserT String Identity Type
 primitive s decl = reserved s <#> const (Primitive decl)
 
-anyPrimitive :: ParserT String Identity Type
-anyPrimitive =
+anyPrimitiveExceptJson :: ParserT String Identity Type
+anyPrimitiveExceptJson =
   primitive "Boolean" PBoolean
     <|> primitive "Int" PInt
     <|> primitive "Decimal" PDecimal
@@ -105,7 +105,7 @@ anyPrimitive =
 
 tyType :: Unit -> ParserT String Identity Type
 tyType _ =
-  anyPrimitive
+  anyPrimitiveExceptJson
     <|> (reserved "Array" >>= tyType <#> Array)
     <|> (reserved "Maybe" >>= tyType <#> Option)
     <|> (Ref <$> position <*> tRef)
@@ -115,7 +115,7 @@ topType =
   (tyType unit <#> Type)
     <|> (braces $ Array.many recordProp <#> Record)
     <|> (brackets $ pipeSep1 importOrTypeName <#> Sum)
-    <|> (reserved "wrap" >>= tyType <#> Wrap)
+    <|> (reserved "wrap" >>= (\_ -> primitive "Json" PJson <|> tyType unit) <#> Wrap)
 
 recordProp :: ParserT String Identity RecordProp
 recordProp = ado

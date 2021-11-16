@@ -105,6 +105,7 @@ primitive = case _ of
   PDecimal -> emit { mod: "Data.Decimal", typ: Just "Decimal", alias: Nothing } (text "Decimal")
   PString -> pure (text "String")
   PStringValidationHack -> pure (text "String")
+  PJson -> emit { mod: "Data.Argonaut.Core", typ: Nothing, alias: Just "A" } (text "A.Json")
 
 type Extern
   = { prefix :: String, t :: String }
@@ -294,6 +295,7 @@ jsonCodec ty = case ty of
                   PDecimal -> "decimal"
                   PString -> "string"
                   PStringValidationHack -> "string"
+                  PJson -> "json"
               )
       )
   Array t -> tycon "array" t
