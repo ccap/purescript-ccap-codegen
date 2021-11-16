@@ -23,6 +23,12 @@ type Codec a b
 type JsonCodec a
   = Codec Json a
 
+jsonCodec_json :: JsonCodec Json
+jsonCodec_json =
+  { decode: Right
+  , encode: identity
+  }
+
 jsonCodec_string :: JsonCodec String
 jsonCodec_string =
   { decode: maybe (Left "This value must be a string") Right <<< Argonaut.toString
