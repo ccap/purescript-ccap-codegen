@@ -3,21 +3,27 @@ module Main
   ) where
 
 import Prelude
+import Ccap.Codegen.Ast as Ast
+import Ccap.Codegen.AstBuilder as AstBuilder
 import Ccap.Codegen.Config (Config, Mode(..), config)
-import Ccap.Codegen.FileSystem (mkDirP, sourceFile)
-import Ccap.Codegen.Module (validateModules)
-import Ccap.Codegen.Parser (errorMessage, roundTrip)
+import Ccap.Codegen.Cst as Cst
+import Ccap.Codegen.Error as Error
+import Ccap.Codegen.FileSystem (mkDirP)
+import Ccap.Codegen.Parser as Parser
 import Ccap.Codegen.PrettyPrint as PrettyPrint
-import Ccap.Codegen.Purescript as Purescript
+import Ccap.Codegen.PureScript as PureScript
+import Ccap.Codegen.PureScriptJs as PureScriptJs
 import Ccap.Codegen.Scala as Scala
 import Ccap.Codegen.Shared (OutputSpec)
-import Ccap.Codegen.Types (ValidatedModule, Source)
 import Ccap.Codegen.Util (ensureNewline, liftEffectSafely, processResult, scrubEolSpaces)
-import Ccap.Codegen.ValidationError (joinErrors, toValidation)
-import Control.Monad.Except (ExceptT(..), except, runExcept)
+import Control.Monad.Except (ExceptT(..), except, runExcept, runExceptT)
+import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty as NonEmptyArray
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Maybe (maybe)
+import Data.Foldable (for_)
+import Data.Maybe (fromMaybe, maybe)
+import Data.String as String
 import Data.Traversable (traverse, traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
@@ -38,44 +44,70 @@ app eConfig fs =
     $ processResult do
         config <- except eConfig
         files <- except $ readFiles fs
-        sources <- ExceptT $ liftEffect $ traverse sourceFile files <#> toValidation >>> joinErrors
-        validated <- ExceptT $ liftEffect $ validateModules config.includes sources <#> joinErrors
-        traverse_ (writeModule config) validated
+        writeModules config files
 
 readFiles :: Array Foreign -> Either String (Array FilePath)
 readFiles = lmap show <<< runExcept <<< traverse readString
 
-writeModule :: Config -> Source ValidatedModule -> ExceptT String Aff Unit
-writeModule config { source: fileName, contents: mod } = case config.mode of
-  Pretty -> writeOutput config mod PrettyPrint.outputSpec
-  Purs -> writeOutput config mod Purescript.outputSpec
-  Scala -> writeOutput config mod Scala.outputSpec
-  Show -> Console.info $ show mod
-  Test ->
-    ifM (except $ lmap (errorMessage fileName) (roundTrip mod))
-      (Console.info "Round-trip passed")
-      (except $ Left "Round-trip failed")
+writeModules :: Config -> Array FilePath -> ExceptT String Aff Unit
+writeModules config files = case config.mode of
+  Pretty -> do
+    modules <- convertBuilderResult (AstBuilder.parseAll files)
+    traverse_ (Console.info <<< scrubEolSpaces <<< PrettyPrint.prettyPrint <<< _.contents) modules
+  Purs -> do
+    modules <- convertBuilderResult (AstBuilder.build { files, importPaths: config.includes })
+    traverse_ (writeOutput config PureScript.outputSpec) modules
+  PursJs -> do
+    modules <- convertBuilderResult (AstBuilder.build { files, importPaths: config.includes })
+    traverse_ (writeOutput config PureScriptJs.outputSpec) modules
+  Scala -> do
+    modules <- convertBuilderResult (AstBuilder.build { files, importPaths: config.includes })
+    traverse_ (writeOutput config Scala.outputSpec) modules
+  Show -> do
+    modules <- convertBuilderResult (AstBuilder.build { files, importPaths: config.includes })
+    traverse_ (Console.info <<< show) modules
+  Test -> do
+    modules <- convertBuilderResult (AstBuilder.parseAll files)
+    for_ modules \mod ->
+      ifM (except (lmap Parser.errorMessage (Parser.roundTrip mod)))
+        (Console.info "Round-trip passed")
+        (except $ Left "Round-trip failed")
 
-writeOutput :: Config -> ValidatedModule -> OutputSpec -> ExceptT String Aff Unit
-writeOutput config mod outputSpec = do
+convertBuilderResult :: ExceptT (NonEmptyArray Error.Error) Effect ~> ExceptT String Aff
+convertBuilderResult e = ExceptT (liftEffect (map (lmap errorToOutputString) (runExceptT e)))
+  where
+  errorToOutputString :: NonEmptyArray Error.Error -> String
+  errorToOutputString es =
+    Error.toString (NonEmptyArray.head es) <> "\n"
+      <> String.joinWith "\n" (map (\ee -> "ERROR: " <> (Error.toString ee)) (NonEmptyArray.tail es))
+
+writeOutput :: Config -> OutputSpec -> Cst.Source Ast.Module -> ExceptT String Aff Unit
+writeOutput config outputSpec mod = do
   config.outputDirectory
     # maybe
-        (Console.info <<< scrubEolSpaces <<< outputSpec.render $ mod)
+        (Console.info <<< scrubEolSpaces <<< fromMaybe "" <<< outputSpec.render $ mod.contents)
         writeOutput_
   where
   writeOutput_ :: String -> ExceptT String Aff Unit
   writeOutput_ dir = do
     let
-      filePath = [ dir, (outputSpec.filePath mod) ]
+      filePath = [ dir, (outputSpec.filePath mod.contents) ]
 
       outputFile = Path.concat filePath
-    Console.info $ "Writing " <> outputFile
-    mkDirP (Path.dirname outputFile)
-    liftEffectSafely
-      $ Sync.writeTextFile
-          UTF8
-          outputFile
-          (ensureNewline <<< scrubEolSpaces <<< outputSpec.render $ mod)
+
+      contents = outputSpec.render mod.contents
+    maybe
+      (Console.info ("Skipping " <> outputFile))
+      ( \c -> do
+          Console.info $ "Writing " <> outputFile
+          mkDirP (Path.dirname outputFile)
+          liftEffectSafely
+            $ Sync.writeTextFile
+                UTF8
+                outputFile
+                (ensureNewline <<< scrubEolSpaces $ c)
+      )
+      contents
 
 main :: Effect Unit
 main =

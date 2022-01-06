@@ -4,13 +4,15 @@ module Ccap.Codegen.Database
   ) where
 
 import Prelude
-import Ccap.Codegen.TypeRef (topTypeReferences)
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Import, Module, Primitive(..), RecordProp, TopType(..), Type(..), TypeDecl(..), typeDeclName, typeDeclTopType)
-import Control.Monad.Except (ExceptT, withExceptT)
+import Ccap.Codegen.Cst as Cst
+import Control.Monad.Except (ExceptT, except, withExceptT)
 import Data.Array as Array
+import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty as NonEmptyArray
+import Data.Either (note)
 import Data.Maybe (Maybe(..), isNothing, maybe)
 import Data.Monoid (guard)
-import Database.PostgreSQL (Connection, PGError)
+import Database.PostgreSQL (Connection, PGError(..))
 import Database.PostgreSQL.PG (Pool, Query(..), query, withConnection)
 import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row5(..))
 import Effect.Aff (Aff)
@@ -32,35 +34,34 @@ rowToDomain (Row3 domainName dataType charMaxLen) =
   , charMaxLen
   }
 
-domainTypeDecl :: Domain -> TypeDecl
-domainTypeDecl domain = TypeDecl domain.domainName (Wrap (dbType domain.dataType)) (annotations domain)
+domainTypeDecl :: Domain -> Cst.TypeDecl
+domainTypeDecl domain = Cst.TypeDecl { position: emptyPos, name: domain.domainName, topType: Cst.Wrap (dbType domain.dataType), annots: annotations domain, params: [] }
 
-annotations :: forall r. { charMaxLen :: Maybe Int | r } -> Array Annotation
+annotations :: forall r. { charMaxLen :: Maybe Int | r } -> Array Cst.Annotation
 annotations = Array.fromFoldable <<< map maxLengthAnnotation <<< _.charMaxLen
 
-maxLengthAnnotation :: Int -> Annotation
-maxLengthAnnotation = Annotation "validations" emptyPos <<< Array.singleton <<< param
+maxLengthAnnotation :: Int -> Cst.Annotation
+maxLengthAnnotation = Cst.Annotation "validations" emptyPos <<< Array.singleton <<< param
   where
-  param = AnnotationParam "maxLength" emptyPos <<< Just <<< show
+  param = Cst.AnnotationParam "maxLength" emptyPos <<< Just <<< show
 
-domainModule :: Pool -> String -> String -> ExceptT String Aff Module
+domainModule :: Pool -> String -> String -> ExceptT String Aff Cst.Module
 domainModule pool scalaPkg pursPkg =
   withExceptT show
     $ withConnection pool \conn -> do
         results <- query conn (Query sql) Row0
         let
-          types = Array.sortWith typeDeclName $ domainTypeDecl <<< rowToDomain <$> results
+          types = Array.sortWith Cst.typeDeclName $ domainTypeDecl <<< rowToDomain <$> results
+        nelTypes <- except ((note (ConversionError "Expected at least one type")) (NonEmptyArray.fromArray types))
         pure
-          $ { name: "Domains"
-            , types
-            , annots: []
-            , imports: types >>= tableImports # Array.nub # Array.sort
-            , exports:
-                { scalaPkg
-                , pursPkg
-                , tmplPath: "Domains.tmpl"
-                }
-            }
+          { types: nelTypes
+          , imports: types >>= tableImports # Array.nub # Array.sort
+          , exports:
+              { scalaPkg
+              , pursPkg
+              }
+          , name: Cst.ModuleName "Domains"
+          }
   where
   sql =
     """
@@ -100,27 +101,32 @@ occIdColumn =
   , isNullable: "NO"
   }
 
-tableModule :: Pool -> String -> String -> String -> ExceptT String Aff Module
+tableModule :: Pool -> String -> String -> String -> ExceptT String Aff Cst.Module
 tableModule pool scalaPkg pursPkg tableName =
   withExceptT show
     $ withConnection pool \conn -> do
         columns <- queryColumns tableName conn
+        nelColumns <- except (note (ConversionError ("Expected at least one column. Does the \"" <> tableName <> "\" table exist?")) (NonEmptyArray.fromArray columns))
         let
-          decl = tableType tableName (columns <> [ occIdColumn ])
+          decl = tableType tableName (nelColumns `NonEmptyArray.snoc` occIdColumn)
         pure
-          { name: tableName
-          , types: [ decl ]
-          , annots: []
+          { types: NonEmptyArray.singleton decl
           , imports: tableImports decl # Array.sort
           , exports:
               { scalaPkg
               , pursPkg
-              , tmplPath: tableName
               }
+          , name: Cst.ModuleName tableName
           }
 
-tableImports :: TypeDecl -> Array Import
-tableImports = typeDeclTopType >>> topTypeReferences >>> map _.mod >>> Array.catMaybes >>> Array.nub
+tableImports :: Cst.TypeDecl -> Array Cst.Import
+tableImports =
+  Cst.typeDeclTopType
+    >>> Cst.topTypeReferences
+    >>> map _.mod
+    >>> Array.catMaybes
+    >>> Array.nub
+    >>> map (\(Cst.ModuleRef name) -> Cst.Import emptyPos name)
 
 queryColumns :: String -> Connection -> ExceptT PGError Aff (Array DbColumn)
 queryColumns tableName conn = do
@@ -139,38 +145,38 @@ queryColumns tableName conn = do
           order by ordinal_position ;
           """
 
-tableType :: String -> Array DbColumn -> TypeDecl
-tableType tableName columns = TypeDecl tableName (Record $ dbRecordProp <$> columns) []
+tableType :: String -> NonEmptyArray DbColumn -> Cst.TypeDecl
+tableType tableName columns = Cst.TypeDecl { position: emptyPos, name: tableName, topType: Cst.Record (dbRecordProp <$> columns), annots: [], params: [] }
 
-dbRecordProp :: DbColumn -> RecordProp
+dbRecordProp :: DbColumn -> Cst.RecordProp
 dbRecordProp col@{ columnName, domainName, dataType, isNullable } =
   let
     baseType = maybe (dbType dataType) domainRef domainName
 
-    optioned = if isNullable == "YES" then Option baseType else baseType
+    optioned = if isNullable == "YES" then Cst.Option (Cst.TType baseType) else baseType
 
     annots = guard (isNothing domainName) annotations col
   in
-    { name: columnName, typ: optioned, annots }
+    { name: columnName, typ: Cst.TType optioned, annots, position: emptyPos }
 
-domainRef :: String -> Type
-domainRef "CaseNoT" = Ref emptyPos { mod: Just "CaseNoSupport", typ: "CaseNo" }
+domainRef :: String -> Cst.Type
+domainRef = case _ of
+  "CaseNoT" -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "CaseNoSupport"), typ: "CaseNo", params: [] }
+  name -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "Domains"), typ: name, params: [] }
 
-domainRef name = Ref emptyPos { mod: Just "Domains", typ: name }
-
-dbType :: String -> Type
+dbType :: String -> Cst.Type
 dbType dataType = case dataType of
-  "numeric" -> Primitive PDecimal
-  "character varying" -> Primitive PString
-  "character" -> Primitive PString
-  "integer" -> Primitive PInt
-  "smallint" -> Primitive PInt
-  "text" -> Primitive PString
-  "boolean" -> Primitive PBoolean
-  "date" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Date" }
-  "time without time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Time" }
-  "timestamp with time zone" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Timestamp" }
-  "uuid" -> Ref emptyPos { mod: Just "UUIDSupport", typ: "UUID" }
-  "interval" -> Ref emptyPos { mod: Just "DateTimeSupport", typ: "Duration" }
-  "occid" -> Ref emptyPos { mod: Just "OccSupport", typ: "OccId" }
-  _ -> Primitive PString -- XXX
+  "numeric" -> Cst.Primitive Cst.PDecimal
+  "character varying" -> Cst.Primitive Cst.PString
+  "character" -> Cst.Primitive Cst.PString
+  "integer" -> Cst.Primitive Cst.PInt
+  "smallint" -> Cst.Primitive Cst.PInt
+  "text" -> Cst.Primitive Cst.PString
+  "boolean" -> Cst.Primitive Cst.PBoolean
+  "date" -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "DateTimeSupport"), typ: "Date", params: [] }
+  "time without time zone" -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "DateTimeSupport"), typ: "Time", params: [] }
+  "timestamp with time zone" -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "DateTimeSupport"), typ: "Timestamp", params: [] }
+  "uuid" -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "UUIDSupport"), typ: "UUID", params: [] }
+  "interval" -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "DateTimeSupport"), typ: "Duration", params: [] }
+  "occid" -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "OccSupport"), typ: "OccId", params: [] }
+  _ -> Cst.Primitive Cst.PString -- XXX

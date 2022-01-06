@@ -13,3 +13,4 @@
 /test/generated/*
 package-lock.json
 yarn.lock
+.metals

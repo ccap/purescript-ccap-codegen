@@ -3,15 +3,22 @@
 module Test.Printed where
 
 import Ccap.Codegen.Runtime as R
+import Ccap.Common.Either (fromCodegenEither, toCodegenEither) as Ccap.Common.Either
+import Data (Either) as Data
 import Data.Argonaut.Core as A
 import Data.Argonaut.Decode (class DecodeJson)
 import Data.Argonaut.Encode (class EncodeJson)
+import Data.Array as Array
+import Data.Bifunctor as B
 import Data.Decimal (Decimal)
+import Data.Either (Either(..))
+import Data.Either as E
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe)
+import Data.Maybe as M
 import Data.Newtype (class Newtype)
-import Data.Tuple (Tuple(..))
+import Data.Tuple as T
 import Foreign.Object as FO
 import Prelude
 import Test.Imported as Imported
@@ -49,33 +56,35 @@ instance showTagType :: Show TagType where
   show a = genericShow a
 jsonCodec_TagType :: R.JsonCodec TagType
 jsonCodec_TagType =
-  R.codec_newtype (R.jsonCodec_int)
+  R.codec_newtype R.jsonCodec_int
 
-type Optional = Maybe (Int)
+type Optional = Maybe Int
 jsonCodec_Optional :: R.JsonCodec Optional
 jsonCodec_Optional =
-  (R.jsonCodec_maybe R.jsonCodec_int)
+  R.jsonCodec_maybe R.jsonCodec_int
 
-type Collection = Array (Int)
+type Collection = Array Int
 jsonCodec_Collection :: R.JsonCodec Collection
 jsonCodec_Collection =
-  (R.jsonCodec_array R.jsonCodec_int)
+  R.jsonCodec_array R.jsonCodec_int
 
 type Point =
   { x :: Int
   , y :: Int
   }
+type DecoderApi_Point =
+  R.StandardDecoderApi
+decoderApi_Point :: DecoderApi_Point
+decoderApi_Point =
+  R.standardDecoderApi
+foreign import decode_Point :: DecoderApi_Point -> A.Json -> E.Either String Point
 jsonCodec_Point :: R.JsonCodec Point
 jsonCodec_Point =
-  { decode: \j -> do
-      o <- R.obj j
-      x <- R.decodeProperty "x" R.jsonCodec_int o
-      y <- R.decodeProperty "y" R.jsonCodec_int o
-      pure { x, y }
+  { decode: decode_Point (decoderApi_Point)
   , encode: \p -> A.fromObject $
       FO.fromFoldable
-        [ Tuple "x" (R.jsonCodec_int.encode p.x)
-        , Tuple "y" (R.jsonCodec_int.encode p.y)
+        [ T.Tuple "x" (R.jsonCodec_int.encode p.x)
+        , T.Tuple "y" (R.jsonCodec_int.encode p.y)
         ]
   }
 
@@ -94,22 +103,233 @@ jsonCodec_Validated :: R.JsonCodec Validated
 jsonCodec_Validated =
   R.jsonCodec_string
 
-type ValidatedMaybe = Maybe (String)
+type ValidatedMaybe = Maybe String
 jsonCodec_ValidatedMaybe :: R.JsonCodec ValidatedMaybe
 jsonCodec_ValidatedMaybe =
-  (R.jsonCodec_maybe R.jsonCodec_string)
+  R.jsonCodec_maybe R.jsonCodec_string
 
 type ValidatedRec =
   { name :: String
   }
+type DecoderApi_ValidatedRec =
+  R.StandardDecoderApi
+decoderApi_ValidatedRec :: DecoderApi_ValidatedRec
+decoderApi_ValidatedRec =
+  R.standardDecoderApi
+foreign import decode_ValidatedRec :: DecoderApi_ValidatedRec -> A.Json -> E.Either String ValidatedRec
 jsonCodec_ValidatedRec :: R.JsonCodec ValidatedRec
 jsonCodec_ValidatedRec =
-  { decode: \j -> do
-      o <- R.obj j
-      name <- R.decodeProperty "name" R.jsonCodec_string o
-      pure { name }
+  { decode: decode_ValidatedRec (decoderApi_ValidatedRec)
   , encode: \p -> A.fromObject $
       FO.fromFoldable
-        [ Tuple "name" (R.jsonCodec_string.encode p.name)
+        [ T.Tuple "name" (R.jsonCodec_string.encode p.name)
         ]
   }
+
+type ArrayOfArrayOfArrayString = Array (Array (Array String))
+jsonCodec_ArrayOfArrayOfArrayString :: R.JsonCodec ArrayOfArrayOfArrayString
+jsonCodec_ArrayOfArrayOfArrayString =
+  R.jsonCodec_array (R.jsonCodec_array (R.jsonCodec_array R.jsonCodec_string))
+
+type ArrayOfSomething a = Array a
+jsonCodec_ArrayOfSomething :: forall a. R.JsonCodec a -> R.JsonCodec (ArrayOfSomething a)
+jsonCodec_ArrayOfSomething jsonCodec_param_a =
+  R.jsonCodec_array jsonCodec_param_a
+
+data Either a b =
+    Left a
+  | Right b
+derive instance eqEither :: (Eq a, Eq b) => Eq (Either a b)
+derive instance ordEither :: (Ord a, Ord b) => Ord (Either a b)
+derive instance genericEither :: Generic (Either a b) _
+instance showEither :: (Show a, Show b) => Show (Either a b) where
+  show a = genericShow a
+jsonCodec_Either :: forall a b. R.JsonCodec a -> R.JsonCodec b -> R.JsonCodec (Either a b)
+jsonCodec_Either jsonCodec_param_a jsonCodec_param_b =
+  R.composeCodec
+    { decode: case _ of
+        T.Tuple "Left" [jsonParam_0] -> do
+          param_0 <- jsonCodec_param_a.decode jsonParam_0
+          E.Right (Left param_0)
+        T.Tuple "Right" [jsonParam_0] -> do
+          param_0 <- jsonCodec_param_b.decode jsonParam_0
+          E.Right (Right param_0)
+        T.Tuple cn params -> E.Left $ "Pattern match failed for " <> show cn <> " with " <> show (Array.length params) <> " parameters"
+    , encode: case _ of
+        Left param_0 -> T.Tuple "Left" [jsonCodec_param_a.encode param_0]
+        Right param_0 -> T.Tuple "Right" [jsonCodec_param_b.encode param_0]
+    }
+    R.jsonCodec_constructor
+
+type EitherWithStringError a = Either String a
+jsonCodec_EitherWithStringError :: forall a. R.JsonCodec a -> R.JsonCodec (EitherWithStringError a)
+jsonCodec_EitherWithStringError jsonCodec_param_a =
+  jsonCodec_Either R.jsonCodec_string jsonCodec_param_a
+
+data List a =
+    Nil
+  | Cons a (List a)
+derive instance eqList :: Eq a => Eq (List a)
+derive instance ordList :: Ord a => Ord (List a)
+derive instance genericList :: Generic (List a) _
+instance showList :: Show a => Show (List a) where
+  show a = genericShow a
+jsonCodec_List :: forall a. R.JsonCodec a -> R.JsonCodec (List a)
+jsonCodec_List jsonCodec_param_a =
+  R.composeCodec
+    { decode: case _ of
+        T.Tuple "Nil" [] -> E.Right Nil
+        T.Tuple "Cons" [jsonParam_0, jsonParam_1] -> do
+          param_0 <- jsonCodec_param_a.decode jsonParam_0
+          param_1 <- (jsonCodec_List jsonCodec_param_a).decode jsonParam_1
+          E.Right (Cons param_0 param_1)
+        T.Tuple cn params -> E.Left $ "Pattern match failed for " <> show cn <> " with " <> show (Array.length params) <> " parameters"
+    , encode: case _ of
+        Nil -> T.Tuple "Nil" []
+        Cons param_0 param_1 -> T.Tuple "Cons" [jsonCodec_param_a.encode param_0, (jsonCodec_List jsonCodec_param_a).encode param_1]
+    }
+    R.jsonCodec_constructor
+
+data Tuple a b =
+   Tuple a b
+derive instance eqTuple :: (Eq a, Eq b) => Eq (Tuple a b)
+derive instance ordTuple :: (Ord a, Ord b) => Ord (Tuple a b)
+derive instance genericTuple :: Generic (Tuple a b) _
+instance showTuple :: (Show a, Show b) => Show (Tuple a b) where
+  show a = genericShow a
+jsonCodec_Tuple :: forall a b. R.JsonCodec a -> R.JsonCodec b -> R.JsonCodec (Tuple a b)
+jsonCodec_Tuple jsonCodec_param_a jsonCodec_param_b =
+  R.composeCodec
+    { decode: case _ of
+        T.Tuple "Tuple" [jsonParam_0, jsonParam_1] -> do
+          param_0 <- jsonCodec_param_a.decode jsonParam_0
+          param_1 <- jsonCodec_param_b.decode jsonParam_1
+          E.Right (Tuple param_0 param_1)
+        T.Tuple cn params -> E.Left $ "Pattern match failed for " <> show cn <> " with " <> show (Array.length params) <> " parameters"
+    , encode: case _ of
+        Tuple param_0 param_1 -> T.Tuple "Tuple" [jsonCodec_param_a.encode param_0, jsonCodec_param_b.encode param_1]
+    }
+    R.jsonCodec_constructor
+
+type NonEmptyList a = Tuple a (List a)
+jsonCodec_NonEmptyList :: forall a. R.JsonCodec a -> R.JsonCodec (NonEmptyList a)
+jsonCodec_NonEmptyList jsonCodec_param_a =
+  jsonCodec_Tuple jsonCodec_param_a (jsonCodec_List jsonCodec_param_a)
+
+type AnotherNonEmptyList a =
+  { head :: a
+  , tail :: List a
+  }
+type DecoderApi_AnotherNonEmptyList a =
+  { nothing :: forall a. M.Maybe a
+  , just :: forall a. a -> M.Maybe a
+  , isLeft :: forall a b. E.Either a b -> Boolean
+  , fromRight :: forall a b. Partial => E.Either a b -> b
+  , right :: forall a b. b -> E.Either a b
+  , left :: forall a b. a -> E.Either a b
+  , addErrorPrefix :: forall a. String -> E.Either String a -> E.Either String a
+  , jsonCodec_primitive_decimal :: R.JsonCodec Decimal
+  , jsonCodec_head :: R.JsonCodec a
+  , jsonCodec_tail :: R.JsonCodec (List a)
+  }
+decoderApi_AnotherNonEmptyList :: forall a. R.JsonCodec a -> DecoderApi_AnotherNonEmptyList a
+decoderApi_AnotherNonEmptyList jsonCodec_param_a =
+  { nothing: M.Nothing
+  , just: M.Just
+  , isLeft: E.isLeft
+  , fromRight: E.fromRight
+  , right: E.Right
+  , left: E.Left
+  , addErrorPrefix: \s -> B.lmap (s <> _)
+  , jsonCodec_primitive_decimal: R.jsonCodec_decimal
+  , jsonCodec_head: jsonCodec_param_a
+  , jsonCodec_tail: jsonCodec_List jsonCodec_param_a
+  }
+foreign import decode_AnotherNonEmptyList :: forall a. DecoderApi_AnotherNonEmptyList a -> A.Json -> E.Either String (AnotherNonEmptyList a)
+jsonCodec_AnotherNonEmptyList :: forall a. R.JsonCodec a -> R.JsonCodec (AnotherNonEmptyList a)
+jsonCodec_AnotherNonEmptyList jsonCodec_param_a =
+  { decode: decode_AnotherNonEmptyList (decoderApi_AnotherNonEmptyList jsonCodec_param_a)
+  , encode: \p -> A.fromObject $
+      FO.fromFoldable
+        [ T.Tuple "head" (jsonCodec_param_a.encode p.head)
+        , T.Tuple "tail" ((jsonCodec_List jsonCodec_param_a).encode p.tail)
+        ]
+  }
+
+type NonEmptyArray a = Tuple a (Array a)
+jsonCodec_NonEmptyArray :: forall a. R.JsonCodec a -> R.JsonCodec (NonEmptyArray a)
+jsonCodec_NonEmptyArray jsonCodec_param_a =
+  jsonCodec_Tuple jsonCodec_param_a (R.jsonCodec_array jsonCodec_param_a)
+
+data Enum =
+    Red
+  | Green
+  | Blue
+derive instance eqEnum :: Eq Enum
+derive instance ordEnum :: Ord Enum
+derive instance genericEnum :: Generic Enum _
+instance showEnum :: Show Enum where
+  show a = genericShow a
+jsonCodec_Enum :: R.JsonCodec Enum
+jsonCodec_Enum =
+  R.composeCodec
+    { decode: case _ of
+        "Red" -> Right Red
+        "Green" -> Right Green
+        "Blue" -> Right Blue
+        s -> Left $ "Invalid value " <> show s <> " for Enum"
+    , encode: case _ of
+        Red -> "Red"
+        Green -> "Green"
+        Blue -> "Blue"
+    }
+    R.jsonCodec_string
+
+type RecordOfStrings =
+  { a :: List String
+  , b :: List String
+  , c :: List String
+  }
+type DecoderApi_RecordOfStrings =
+  { nothing :: forall a. M.Maybe a
+  , just :: forall a. a -> M.Maybe a
+  , isLeft :: forall a b. E.Either a b -> Boolean
+  , fromRight :: forall a b. Partial => E.Either a b -> b
+  , right :: forall a b. b -> E.Either a b
+  , left :: forall a b. a -> E.Either a b
+  , addErrorPrefix :: forall a. String -> E.Either String a -> E.Either String a
+  , jsonCodec_primitive_decimal :: R.JsonCodec Decimal
+  , jsonCodec_a :: R.JsonCodec (List String)
+  , jsonCodec_b :: R.JsonCodec (List String)
+  , jsonCodec_c :: R.JsonCodec (List String)
+  }
+decoderApi_RecordOfStrings :: DecoderApi_RecordOfStrings
+decoderApi_RecordOfStrings =
+  { nothing: M.Nothing
+  , just: M.Just
+  , isLeft: E.isLeft
+  , fromRight: E.fromRight
+  , right: E.Right
+  , left: E.Left
+  , addErrorPrefix: \s -> B.lmap (s <> _)
+  , jsonCodec_primitive_decimal: R.jsonCodec_decimal
+  , jsonCodec_a: jsonCodec_List R.jsonCodec_string
+  , jsonCodec_b: jsonCodec_List R.jsonCodec_string
+  , jsonCodec_c: jsonCodec_List R.jsonCodec_string
+  }
+foreign import decode_RecordOfStrings :: DecoderApi_RecordOfStrings -> A.Json -> E.Either String RecordOfStrings
+jsonCodec_RecordOfStrings :: R.JsonCodec RecordOfStrings
+jsonCodec_RecordOfStrings =
+  { decode: decode_RecordOfStrings (decoderApi_RecordOfStrings)
+  , encode: \p -> A.fromObject $
+      FO.fromFoldable
+        [ T.Tuple "a" ((jsonCodec_List R.jsonCodec_string).encode p.a)
+        , T.Tuple "b" ((jsonCodec_List R.jsonCodec_string).encode p.b)
+        , T.Tuple "c" ((jsonCodec_List R.jsonCodec_string).encode p.c)
+        ]
+  }
+
+type NativeEither a b = Data.Either
+jsonCodec_NativeEither :: forall a b. R.JsonCodec a -> R.JsonCodec b -> R.JsonCodec (NativeEither a b)
+jsonCodec_NativeEither jsonCodec_param_a jsonCodec_param_b =
+  R.codec_custom Ccap.Common.Either.fromCodegenEither Ccap.Common.Either.toCodegenEither (jsonCodec_Either jsonCodec_param_a jsonCodec_param_b)

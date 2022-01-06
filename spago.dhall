@@ -5,8 +5,8 @@ You can edit this file as you like.
 { name = "ccap-codegen"
 , dependencies =
     [ "argonaut-codecs"
-    , "console"
     , "boxes"
+    , "console"
     , "debug"
     , "effect"
     , "filterable"
@@ -22,6 +22,7 @@ You can edit this file as you like.
     , "strings"
     , "transformers"
     , "typelevel-prelude"
+    , "validation"
     , "yargs"
     ]
 , packages = ./packages.dhall

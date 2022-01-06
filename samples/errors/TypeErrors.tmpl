@@ -1,0 +1,21 @@
+scala: test.TypeErrors
+purs: Test.TypeErrors
+
+import Imported
+
+type Dup1: Int
+type Dup1: String
+
+type Rec: {
+  dup1: Int
+  dup1: String
+}
+
+type Sum: [
+  | Dup1
+  | Dup1
+]
+
+type X: Y
+type Z: Imported.Q
+type Q: Bar.M

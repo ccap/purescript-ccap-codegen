@@ -1,16 +1,19 @@
 module Ccap.Codegen.Parser
-  ( errorMessage
+  ( Error(..)
+  , errorMessage
+  , parseSource
   , roundTrip
   , wholeFile
-  , parseSource
   ) where
 
 import Prelude
-import Ccap.Codegen.PrettyPrint (prettyPrint) as PrettyPrinter
-import Ccap.Codegen.Shared (invalidate)
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), Exports, Import, Module, Primitive(..), RecordProp, TRef, TopType(..), Type(..), TypeDecl(..), ValidatedModule, Source)
+import Ccap.Codegen.Cst as Cst
+import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Control.Alt ((<|>))
-import Data.Array (fromFoldable, many) as Array
+import Data.Array as Array
+import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty as NonEmptyArray
+import Data.Bifunctor (lmap)
 import Data.Char.Unicode (isLower)
 import Data.Either (Either)
 import Data.Foldable (intercalate)
@@ -19,13 +22,14 @@ import Data.List (List(..))
 import Data.List as List
 import Data.List.NonEmpty (NonEmptyList(..))
 import Data.List.NonEmpty as NonEmpty
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.NonEmpty ((:|))
 import Data.String.CodeUnits (fromCharArray, singleton) as SCU
 import Node.Path (FilePath)
 import Node.Path as Path
-import Text.Parsing.Parser (ParseError, ParserT, parseErrorMessage, parseErrorPosition, position, runParser)
-import Text.Parsing.Parser.Combinators (option, sepBy1, (<?>))
+import Text.Parsing.Parser (Parser, ParserT, position, runParser)
+import Text.Parsing.Parser as Parser
+import Text.Parsing.Parser.Combinators (option, optional, try, (<?>))
 import Text.Parsing.Parser.Language (javaStyle)
 import Text.Parsing.Parser.Pos (Position(..))
 import Text.Parsing.Parser.String (char, satisfy)
@@ -38,94 +42,123 @@ tokenParser =
         (unGenLanguageDef javaStyle)
           { identStart = lower
           , identLetter = alphaNum
+          , reservedNames =
+            [ "scala"
+            , "purs"
+            , "Boolean"
+            , "Int"
+            , "Decimal"
+            , "String"
+            , "StringValidationHack"
+            , "Array"
+            , "Maybe"
+            , "wrap"
+            , "import"
+            , "type"
+            ]
           }
 
-stringLiteral :: ParserT String Identity String
+stringLiteral :: Parser String String
 stringLiteral = tokenParser.stringLiteral
 
-reserved :: String -> ParserT String Identity Unit
+reserved :: String -> Parser String Unit
 reserved = tokenParser.reserved
 
-commaSep1 :: forall a. ParserT String Identity a -> ParserT String Identity (Array a)
+commaSep1 :: forall a. Parser String a -> Parser String (Array a)
 commaSep1 inner = tokenParser.commaSep1 inner <#> Array.fromFoldable
 
-braces :: forall a. ParserT String Identity a -> ParserT String Identity a
+braces :: forall a. Parser String a -> Parser String a
 braces = tokenParser.braces
 
-brackets :: forall a. ParserT String Identity a -> ParserT String Identity a
+brackets :: forall a. Parser String a -> Parser String a
 brackets = tokenParser.brackets
 
 -- | Parse phrases prefixed by a separator, requiring at least one match.
-startBy1 :: forall m s a sep. Monad m => ParserT s m a -> ParserT s m sep -> ParserT s m (List a)
-startBy1 p sep = sep *> sepBy1 p sep
+startBy1 :: forall m s a sep. Monad m => ParserT s m a -> ParserT s m sep -> ParserT s m (NonEmptyList a)
+startBy1 p sep = sep *> sepBy1Nel p sep
 
-pipeSep1 :: forall a. ParserT String Identity a -> ParserT String Identity (Array a)
-pipeSep1 a = (a `startBy1` (lexeme $ char '|')) <#> Array.fromFoldable
+pipeSep1 :: forall a. Parser String a -> Parser String (NonEmptyArray a)
+pipeSep1 a = (a `startBy1` (lexeme $ char '|')) <#> NonEmptyArray.fromFoldable1
 
-whiteSpace :: ParserT String Identity Unit
+whiteSpace :: Parser String Unit
 whiteSpace = tokenParser.whiteSpace
 
-lower :: ParserT String Identity Char
+lower :: Parser String Char
 lower = satisfy isLower <?> "lowercase letter"
 
-identifier :: ParserT String Identity String
+identifier :: Parser String String
 identifier = tokenParser.identifier
 
-lexeme :: forall a. ParserT String Identity a -> ParserT String Identity a
+lexeme :: forall a. Parser String a -> Parser String a
 lexeme = tokenParser.lexeme
 
-importOrTypeName :: ParserT String Identity String
+importOrTypeName :: Parser String String
 importOrTypeName = lexeme $ mkImportOrTypeName <$> upper <*> Array.many alphaNum
   where
   mkImportOrTypeName :: Char -> Array Char -> String
   mkImportOrTypeName c s = SCU.singleton c <> SCU.fromCharArray s
 
-packageName :: ParserT String Identity String
+packageName :: Parser String String
 packageName = lexeme $ Array.many (alphaNum <|> char '.') <#> SCU.fromCharArray
 
-tRef :: ParserT String Identity TRef
-tRef = ado
+typeOrParam :: Unit -> Parser String Cst.TypeOrParam
+typeOrParam _ = map Cst.TType (tyTypeWithParens unit) <|> map (Cst.TParam <<< Cst.TypeParam) identifier
+
+tRef :: Unit -> Parser String Cst.TRef
+tRef _ = do
   parts <- importOrTypeName `sepBy1Nel` char '.'
+  params <- Array.many (typeOrParam unit)
   let
     { init, last: typ } = NonEmpty.unsnoc parts
-  let
+
     mod = if init == Nil then Nothing else Just $ intercalate "." init
-  in { mod, typ }
+  pure { mod: map Cst.ModuleRef mod, typ, params }
 
-primitive :: String -> Primitive -> ParserT String Identity Type
-primitive s decl = reserved s <#> const (Primitive decl)
+primitive :: String -> Cst.Primitive -> Parser String Cst.Type
+primitive s decl = reserved s <#> const (Cst.Primitive decl)
 
-anyPrimitiveExceptJson :: ParserT String Identity Type
+anyPrimitiveExceptJson :: Parser String Cst.Type
 anyPrimitiveExceptJson =
-  primitive "Boolean" PBoolean
-    <|> primitive "Int" PInt
-    <|> primitive "Decimal" PDecimal
-    <|> primitive "String" PString
-    <|> primitive "StringValidationHack" PStringValidationHack
+  primitive "Boolean" Cst.PBoolean
+    <|> primitive "Int" Cst.PInt
+    <|> primitive "Decimal" Cst.PDecimal
+    <|> primitive "String" Cst.PString
+    <|> primitive "StringValidationHack" Cst.PStringValidationHack
 
-tyType :: Unit -> ParserT String Identity Type
+tyTypeWithParens :: Unit -> Parser String Cst.Type
+tyTypeWithParens _ = lexeme (char '(') *> map Cst.TypeWithParens (tyType unit) <* lexeme (char ')') <|> tyType unit
+
+tyType :: Unit -> Parser String Cst.Type
 tyType _ =
   anyPrimitiveExceptJson
-    <|> (reserved "Array" >>= tyType <#> Array)
-    <|> (reserved "Maybe" >>= tyType <#> Option)
-    <|> (Ref <$> position <*> tRef)
+    <|> (reserved "Array" >>= typeOrParam <#> Cst.Array)
+    <|> (reserved "Maybe" >>= typeOrParam <#> Cst.Option)
+    <|> (Cst.Ref <$> position <*> tRef unit)
 
-topType :: ParserT String Identity TopType
-topType =
-  (tyType unit <#> Type)
-    <|> (braces $ Array.many recordProp <#> Record)
-    <|> (brackets $ pipeSep1 importOrTypeName <#> Sum)
-    <|> (reserved "wrap" >>= (\_ -> primitive "Json" PJson <|> tyType unit) <#> Wrap)
+topType :: Unit -> Parser String Cst.TopType
+topType _ =
+  (tyTypeWithParens unit <#> Cst.Type)
+    <|> (braces $ many1 recordProp <#> Cst.Record)
+    <|> (brackets $ pipeSep1 (constructor unit) <#> Cst.Sum)
+    <|> (reserved "wrap" >>= (\_ -> primitive "Json" Cst.PJson <|> tyTypeWithParens unit) <#> Cst.Wrap)
 
-recordProp :: ParserT String Identity RecordProp
+constructor :: Unit -> Parser String Cst.Constructor
+constructor _ = ado
+  name <- map Cst.ConstructorName importOrTypeName
+  params <- Array.many (typeOrParam unit)
+  in maybe (Cst.NoArg name) (Cst.WithArgs name) (NonEmptyArray.fromArray params)
+
+recordProp :: Parser String Cst.RecordProp
 recordProp = ado
+  p <- position
   name <- identifier
   lexeme $ char ':'
-  typ <- tyType unit
+  typ <- typeOrParam unit
   annots <- Array.many annotation
-  in { name, typ, annots }
+  try (optional (lexeme (char ',')))
+  in { name, typ, annots, position: p }
 
-exports :: ParserT String Identity Exports
+exports :: Parser String Cst.Exports
 exports = ado
   reserved "scala"
   lexeme $ char ':'
@@ -133,95 +166,90 @@ exports = ado
   reserved "purs"
   lexeme $ char ':'
   pursPkg <- lexeme $ packageName
-  in { scalaPkg, pursPkg, tmplPath: "" }
+  in { scalaPkg, pursPkg }
 
-imports :: ParserT String Identity (Array Import) --not yet battle-tested
+imports :: Parser String (Array Cst.Import)
 imports =
   Array.many do
+    p <- position
     reserved "import"
-    packageName
+    n <- packageName
+    pure (Cst.Import p n)
 
-oneModule :: ParserT String Identity Module
-oneModule = ado
+oneModule :: Cst.ModuleName -> Parser String Cst.Module
+oneModule name = ado
   expts <- exports
   imprts <- imports
-  annots <- Array.many annotation --we can probably remove this
-  types <- Array.many typeDecl
-  in { name: "", types, annots, imports: imprts, exports: expts }
+  types <- many1 typeDecl
+  in { types, imports: imprts, exports: expts, name }
 
-typeDecl :: ParserT String Identity TypeDecl
-typeDecl = ado
+typeDecl :: Parser String Cst.TypeDecl
+typeDecl = do
   reserved "type"
+  p <- position
   name <- importOrTypeName
-  lexeme $ char ':'
-  ty <- topType
+  params <- map (map Cst.TypeParam) (Array.many identifier)
+  _ <- lexeme $ char ':'
+  ty <- topType unit
   annots <- Array.many annotation
-  in TypeDecl name ty annots
+  pure (Cst.TypeDecl { position: p, name, topType: ty, annots, params })
 
-annotation :: ParserT String Identity Annotation
+annotation :: Parser String Cst.Annotation
 annotation = ado
   pos <- position
   lexeme $ char '<'
-  name <- identifier
+  name <- (reserved "scala" *> pure "scala") <|> (reserved "purs" *> pure "purs") <|> identifier
   params <- Array.many annotationParam
   lexeme $ char '>'
-  in Annotation name pos params
+  in Cst.Annotation name pos params
 
-annotationParam :: ParserT String Identity AnnotationParam
+annotationParam :: Parser String Cst.AnnotationParam
 annotationParam = ado
   pos <- position
   name <- identifier
   value <- option Nothing (lexeme (char '=') *> stringLiteral <#> Just)
-  in AnnotationParam name pos value
+  in Cst.AnnotationParam name pos value
 
-wholeFile :: ParserT String Identity Module
-wholeFile = whiteSpace *> oneModule
+wholeFile :: Cst.ModuleName -> Parser String Cst.Module
+wholeFile name = whiteSpace *> oneModule name
 
-parseSource :: FilePath -> String -> Either ParseError (Source Module)
-parseSource filePath contents =
-  let
-    moduleName = Path.basenameWithoutExt filePath ".tmpl"
-  in
-    runParser contents wholeFile
-      <#> \mod ->
-          { source: filePath
-          , contents:
-              mod
-                { name = moduleName
-                , exports =
-                  mod.exports
-                    { tmplPath = moduleName
-                    }
-                }
-          }
+data Error
+  = Error FilePath Position String
 
-errorMessage :: String -> ParseError -> String
-errorMessage fileName err =
+parseSource :: FilePath -> String -> Either Error (Cst.Source Cst.Module)
+parseSource filePath contents = do
   let
-    Position pos = parseErrorPosition err
-  in
-    "Could not parse "
-      <> fileName
-      <> ": line "
-      <> show pos.line
-      <> ", column "
-      <> show pos.column
-      <> ": "
-      <> parseErrorMessage err
+    name = Path.basenameWithoutExt filePath ".tmpl"
+  lmap
+    (parseErrorToError filePath)
+    ( runParser contents (wholeFile (Cst.ModuleName name))
+        <#> \mod ->
+            { source: filePath
+            , contents: mod
+            }
+    )
 
-roundTrip :: ValidatedModule -> Either ParseError Boolean
-roundTrip module1 = do
+parseErrorToError :: FilePath -> Parser.ParseError -> Error
+parseErrorToError filePath e = Error filePath (Parser.parseErrorPosition e) (Parser.parseErrorMessage e)
+
+errorMessage :: Error -> String
+errorMessage (Error filePath (Position pos) message) = filePath <> ":" <> show pos.line <> ":" <> show pos.column <> " " <> message
+
+roundTrip :: Cst.Source Cst.Module -> Either Error Boolean
+roundTrip { source: filePath, contents: module1 } = do
   let
-    prettyPrinted1 = PrettyPrinter.prettyPrint $ invalidate module1
-  module2 <- runParser prettyPrinted1 wholeFile
+    prettyPrinted1 = PrettyPrint.prettyPrint module1
+  module2 <- lmap (parseErrorToError filePath) (runParser prettyPrinted1 (wholeFile module1.name))
   let
-    prettyPrinted2 = PrettyPrinter.prettyPrint $ invalidate $ module2 { imports = module1.imports }
+    prettyPrinted2 = PrettyPrint.prettyPrint module2 { imports = module1.imports }
   pure $ prettyPrinted1 == prettyPrinted2
 
--- TODO: Push this upstream to purescript-parsing?
 -- | Parse phrases delimited by a separator, requiring at least one match.
 sepBy1Nel :: forall m s a sep. Monad m => ParserT s m a -> ParserT s m sep -> ParserT s m (NonEmptyList a)
 sepBy1Nel p sep = do
   a <- p
   as <- List.many $ sep *> p
   pure $ NonEmptyList (a :| as)
+
+many1 :: forall m s a. Monad m => ParserT s m a -> ParserT s m (NonEmptyArray a)
+many1 p = NonEmptyArray.cons' <$> p <*> Array.many p

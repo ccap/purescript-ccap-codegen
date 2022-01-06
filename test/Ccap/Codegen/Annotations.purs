@@ -3,18 +3,19 @@ module Test.Ccap.Codegen.Annotations
   ) where
 
 import Prelude
+import Ccap.Codegen.Cst as Cst
 import Ccap.Codegen.PrettyPrint (prettyPrint)
-import Ccap.Codegen.Shared (invalidate)
-import Ccap.Codegen.Types (Annotation(..), AnnotationParam(..), RecordProp, TopType(..), TypeDecl(..), typeDeclName)
 import Ccap.Codegen.Util (scrubEolSpaces)
 import Control.Monad.Except (except)
+import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (Either)
 import Data.Foldable (find)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Node.Path (FilePath)
-import Test.Ccap.Codegen.Util (exceptAffT, parse, runOrFail, sourceTmpl, validateModule)
+import Test.Ccap.Codegen.Util (exceptAffT, parse, runOrFail, sourceCstTmpl)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 
@@ -30,27 +31,27 @@ type Annot
 maxLen5 :: Annot
 maxLen5 = { name: "validations", params: [ { name: "maxLength", value: Just "5" } ] }
 
-deposAnnot :: Annotation -> Annot
-deposAnnot (Annotation name _ params) = { name, params: deposeAnnotParam <$> params }
+deposAnnot :: Cst.Annotation -> Annot
+deposAnnot (Cst.Annotation name _ params) = { name, params: deposeAnnotParam <$> params }
 
-deposeAnnotParam :: AnnotationParam -> AnnotParam
-deposeAnnotParam (AnnotationParam name _ value) = { name, value }
+deposeAnnotParam :: Cst.AnnotationParam -> AnnotParam
+deposeAnnotParam (Cst.AnnotationParam name _ value) = { name, value }
 
-findTypeDecl :: String -> Array TypeDecl -> Maybe TypeDecl
-findTypeDecl typeName = find $ eq typeName <<< typeDeclName
+findTypeDecl :: String -> NonEmptyArray Cst.TypeDecl -> Maybe Cst.TypeDecl
+findTypeDecl typeName = find $ eq typeName <<< Cst.typeDeclName
 
-typeDeclAnnots :: TypeDecl -> Array Annot
-typeDeclAnnots (TypeDecl _ _ annots) = annots <#> deposAnnot
+typeDeclAnnots :: Cst.TypeDecl -> Array Annot
+typeDeclAnnots (Cst.TypeDecl { annots }) = annots <#> deposAnnot
 
-typeDeclRecordProps :: TypeDecl -> Array RecordProp
-typeDeclRecordProps (TypeDecl _ (Record props) _) = props
+typeDeclRecordProps :: Cst.TypeDecl -> Array Cst.RecordProp
+typeDeclRecordProps = case _ of
+  Cst.TypeDecl { topType: Cst.Record props } -> NonEmptyArray.toArray props
+  _ -> []
 
-typeDeclRecordProps _ = []
-
-findRecordProp :: String -> TypeDecl -> Maybe RecordProp
+findRecordProp :: String -> Cst.TypeDecl -> Maybe Cst.RecordProp
 findRecordProp propName = find (eq propName <<< _.name) <<< typeDeclRecordProps
 
-recordPropAnnots :: RecordProp -> Array Annot
+recordPropAnnots :: Cst.RecordProp -> Array Annot
 recordPropAnnots { annots } = deposAnnot <$> annots
 
 specs :: Spec Unit
@@ -81,17 +82,17 @@ specs =
           $ checkPrint tmplFile
           $ fieldShouldHaveAnnotation "Record" "nextLine" maxLen5
 
-readTypes :: FilePath -> Effect (Either String (Array TypeDecl))
-readTypes = map (map _.contents.types) <<< sourceTmpl
+readTypes :: FilePath -> Effect (Either String (NonEmptyArray Cst.TypeDecl))
+readTypes = map (map _.contents.types) <<< sourceCstTmpl
 
-typeShouldHaveAnnotation :: String -> Annot -> Array TypeDecl -> Aff Unit
+typeShouldHaveAnnotation :: String -> Annot -> NonEmptyArray Cst.TypeDecl -> Aff Unit
 typeShouldHaveAnnotation typeName annot types =
   let
     annots = maybe [] typeDeclAnnots $ findTypeDecl typeName types
   in
     annots `shouldEqual` [ annot ]
 
-fieldShouldHaveAnnotation :: String -> String -> Annot -> Array TypeDecl -> Aff Unit
+fieldShouldHaveAnnotation :: String -> String -> Annot -> NonEmptyArray Cst.TypeDecl -> Aff Unit
 fieldShouldHaveAnnotation typeName propName annot types =
   let
     annots =
@@ -102,7 +103,7 @@ fieldShouldHaveAnnotation typeName propName annot types =
   in
     annots `shouldEqual` [ annot ]
 
-checkTypes :: (Array TypeDecl -> Aff Unit) -> Aff Unit
+checkTypes :: (NonEmptyArray Cst.TypeDecl -> Aff Unit) -> Aff Unit
 checkTypes check = runOrFail $ check <$> (exceptAffT $ readTypes tmplFile)
 
 typeShouldHaveAnnotation_ :: String -> Annot -> Aff Unit
@@ -111,12 +112,11 @@ typeShouldHaveAnnotation_ typeName annot = checkTypes $ typeShouldHaveAnnotation
 fieldShouldHaveAnnotation_ :: String -> String -> Annot -> Aff Unit
 fieldShouldHaveAnnotation_ typeName propName annot = checkTypes $ fieldShouldHaveAnnotation typeName propName annot
 
-checkPrint :: FilePath -> (Array TypeDecl -> Aff Unit) -> Aff Unit
+checkPrint :: FilePath -> (NonEmptyArray Cst.TypeDecl -> Aff Unit) -> Aff Unit
 checkPrint filePath check =
   runOrFail do
-    source <- exceptAffT $ sourceTmpl filePath
+    source <- exceptAffT $ sourceCstTmpl filePath
     let
-      printed = scrubEolSpaces $ prettyPrint (invalidate source.contents)
+      printed = scrubEolSpaces $ prettyPrint source.contents
     resourced <- except $ parse filePath printed
-    revalidated <- exceptAffT $ validateModule resourced
-    pure $ check revalidated.contents.types
+    pure $ check resourced.contents.types
