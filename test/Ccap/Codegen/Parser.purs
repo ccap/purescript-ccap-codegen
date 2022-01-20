@@ -3,23 +3,21 @@ module Test.Ccap.Codegen.Parser
   ) where
 
 import Prelude
+import Ccap.Codegen.Cst as Cst
 import Ccap.Codegen.FileSystem (joinPaths, readTextFile)
-import Ccap.Codegen.PrettyPrint (prettyPrint)
-import Ccap.Codegen.Purescript as Purescript
+import Ccap.Codegen.PrettyPrint as PrettyPrint
+import Ccap.Codegen.PureScript as PureScript
 import Ccap.Codegen.Scala as Scala
-import Ccap.Codegen.Shared (invalidate)
-import Ccap.Codegen.Types (Source, ValidatedModule)
 import Ccap.Codegen.Util (scrubEolSpaces)
-import Control.Monad.Except (ExceptT(..), runExceptT)
-import Control.Monad.Except.Trans (except)
-import Data.Array as Array
+import Control.Monad.Except (ExceptT(..), except, runExceptT)
+import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (either)
 import Data.Foldable (traverse_)
 import Data.Tuple (Tuple(..), uncurry)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Node.Path (FilePath)
-import Test.Ccap.Codegen.Util (diffByLine, parse, print, sourceTmpl, validateModule)
+import Test.Ccap.Codegen.Util (diffByLine, parse, print, sourceAstTmpl, sourceCstTmpl)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (fail, shouldEqual)
 
@@ -48,18 +46,17 @@ specs =
       results <-
         liftEffect
           $ runExceptT do
-              validated <- ExceptT $ sourceTmpl tmplFile
+              input <- ExceptT $ sourceCstTmpl tmplFile
               let
-                printed = scrubEolSpaces $ prettyPrint (invalidate validated.contents)
+                printed = scrubEolSpaces (PrettyPrint.prettyPrint input.contents)
               resourced <- except $ parse tmplFile printed
-              revalidated <- ExceptT $ validateModule resourced
-              pure $ Tuple validated revalidated
+              pure $ Tuple input resourced
       either fail (uncurry compareModules) results
     it "Prints a scala a file as expected" do
       results <-
         liftEffect
           $ runExceptT do
-              validated <- ExceptT $ sourceTmpl tmplFile
+              validated <- ExceptT $ sourceAstTmpl tmplFile
               let
                 printed = print Scala.outputSpec validated
               scala <- ExceptT $ readTextFile scalaFile
@@ -69,21 +66,19 @@ specs =
       results <-
         liftEffect
           $ runExceptT do
-              validated <- ExceptT $ sourceTmpl tmplFile
+              validated <- ExceptT $ sourceAstTmpl tmplFile
               let
-                printed = print Purescript.outputSpec validated
+                printed = print PureScript.outputSpec validated
               purs <- ExceptT $ readTextFile pursFile
               pure $ Tuple printed purs
       either fail (uncurry diffByLine) results
 
-compareModules :: Source ValidatedModule -> Source ValidatedModule -> Aff Unit
+compareModules :: Cst.Source Cst.Module -> Cst.Source Cst.Module -> Aff Unit
 compareModules x y = do
   x.source `shouldEqual` y.source
-  x.contents.name `shouldEqual` y.contents.name
-  x.contents.annots `shouldEqual` y.contents.annots
   x.contents.imports `shouldEqual` y.contents.imports
   x.contents.exports `shouldEqual` y.contents.exports
-  (Array.length x.contents.types) `shouldEqual` (Array.length y.contents.types)
+  (NonEmptyArray.length x.contents.types) `shouldEqual` (NonEmptyArray.length y.contents.types)
   let
-    types = Array.zip x.contents.types y.contents.types
+    types = NonEmptyArray.zip x.contents.types y.contents.types
   traverse_ (uncurry shouldEqual) types

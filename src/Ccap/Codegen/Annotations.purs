@@ -8,21 +8,21 @@ module Ccap.Codegen.Annotations
   ) where
 
 import Prelude
-import Ccap.Codegen.Types (Annotation(..), Annotations, AnnotationParam(..))
+import Ccap.Codegen.Cst as Cst
 import Control.Alt ((<|>))
 import Data.Array as Array
 import Data.Maybe (Maybe)
 
-fieldWithOptParamValue :: String -> String -> Annotations -> Maybe (Maybe String)
+fieldWithOptParamValue :: String -> String -> Array Cst.Annotation -> Maybe (Maybe String)
 fieldWithOptParamValue annotKey paramKey annots = do
-  Annotation _ _ params <- Array.find (\(Annotation n _ _) -> n == annotKey) annots
-  AnnotationParam _ _ v <- Array.find (\(AnnotationParam n _ _) -> n == paramKey) params
+  Cst.Annotation _ _ params <- Array.find (\(Cst.Annotation n _ _) -> n == annotKey) annots
+  Cst.AnnotationParam _ _ v <- Array.find (\(Cst.AnnotationParam n _ _) -> n == paramKey) params
   pure v
 
-field :: String -> String -> Annotations -> Maybe String
+field :: String -> String -> Array Cst.Annotation -> Maybe String
 field annotKey paramKey = join <<< fieldWithOptParamValue annotKey paramKey
 
-getWrapOpts :: String -> Annotations -> Maybe { typ :: String, decode :: String, encode :: String }
+getWrapOpts :: String -> Array Cst.Annotation -> Maybe { typ :: String, decode :: String, encode :: String }
 getWrapOpts lang an =
   let
     f n = field lang n an
@@ -33,14 +33,14 @@ getWrapOpts lang an =
       encode <- f "encode" <|> pure ""
       pure { typ, decode, encode }
 
-getMaxLength :: Annotations -> Maybe String
+getMaxLength :: Array Cst.Annotation -> Maybe String
 getMaxLength = field "validations" "maxLength"
 
-getMinLength :: Annotations -> Maybe String
+getMinLength :: Array Cst.Annotation -> Maybe String
 getMinLength = field "validations" "minLength"
 
-getMaxSize :: Annotations -> Maybe String
+getMaxSize :: Array Cst.Annotation -> Maybe String
 getMaxSize = field "validations" "maxSize"
 
-getIsPositive :: Annotations -> Maybe Unit
+getIsPositive :: Array Cst.Annotation -> Maybe Unit
 getIsPositive annots = fieldWithOptParamValue "validations" "positive" annots $> unit

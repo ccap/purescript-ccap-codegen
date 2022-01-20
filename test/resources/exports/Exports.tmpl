@@ -1,8 +1,12 @@
-scala: test.ScalaExport
-purs: Test.PurescriptExport
+scala: test.Exports
+purs: Test.Exports
 
 type ExportedType: Int
 
 type ScalaExport: {
+  field: String
+}
+
+type Exports: {
   field: String
 }

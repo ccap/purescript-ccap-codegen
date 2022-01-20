@@ -14,6 +14,7 @@ import Node.Yargs.Applicative (Y, yarg)
 data Mode
   = Pretty
   | Purs
+  | PursJs
   | Scala
   | Show
   | Test
@@ -34,13 +35,14 @@ yMode = yarg "m" alts desc def true <#> readMode
   where
   alts = [ "mode" ]
 
-  desc = Just "The output mode (must be one of pretty, purs, scala, show, or test)"
+  desc = Just "The output mode (must be one of pretty, purs, pursjs, scala, show, or test)"
 
   def = Right "Mode is required"
 
   readMode = case _ of
     "pretty" -> Right Pretty
     "purs" -> Right Purs
+    "pursjs" -> Right PursJs
     "scala" -> Right Scala
     "show" -> Right Show
     "test" -> Right Test

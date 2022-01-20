@@ -10,33 +10,34 @@ module Test.Ccap.Codegen.Util
   , runOrFail
   , shouldBeLeft
   , shouldBeRight
-  , sourceTmpl
+  , sourceAstTmpl
+  , sourceCstTmpl
   , splitLines
-  --  , traceFile
-  , validateModule
   ) where
 
 import Prelude
+import Ccap.Codegen.Ast as Ast
+import Ccap.Codegen.AstBuilder as AstBuilder
+import Ccap.Codegen.Cst as Cst
+import Ccap.Codegen.Error as Error
 import Ccap.Codegen.FileSystem (readTextFile)
-import Ccap.Codegen.Module as Module
-import Ccap.Codegen.Parser (errorMessage, parseSource)
+import Ccap.Codegen.Parser as Parser2
 import Ccap.Codegen.Shared (OutputSpec)
-import Ccap.Codegen.Types (Module, Source, ValidatedModule)
 import Ccap.Codegen.Util (ensureNewline, scrubEolSpaces)
-import Ccap.Codegen.ValidationError (joinErrors)
 import Control.Monad.Error.Class (class MonadThrow)
 import Control.Monad.Except (ExceptT(..), except, runExceptT)
 import Data.Array (sort)
 import Data.Array as Array
+import Data.Array.NonEmpty as NonEmptyArray
 import Data.Bifunctor (lmap)
-import Data.Either (Either(..), either, isLeft, isRight)
+import Data.Either (Either(..), either, isLeft, isRight, note)
 import Data.Foldable (traverse_)
 import Data.List (List(..))
 import Data.List as List
 import Data.List.Lazy (find)
 import Data.Maybe (Maybe, fromMaybe)
 import Data.String (Pattern(..))
-import Data.String (split) as String
+import Data.String (joinWith, split) as String
 import Data.String.Utils (includes) as String
 import Data.Tuple (uncurry)
 import Effect (Effect)
@@ -51,9 +52,6 @@ exceptAffT = ExceptT <<< liftEffect
 
 runOrFail :: ExceptT String Aff (Aff Unit) -> Aff Unit
 runOrFail = either fail identity <=< runExceptT
-
-validateModule :: Source Module -> Effect (Either String (Source ValidatedModule))
-validateModule = Array.singleton >>> Module.validateModules [] >>> map (joinErrors >=> onlyOne)
 
 onlyOne :: forall a. Array a -> Either String a
 onlyOne =
@@ -72,11 +70,11 @@ shouldBeLeft = flip shouldSatisfy isLeft
 eqElems :: forall a. Ord a => Eq a => Array a -> Array a -> Boolean
 eqElems xs ys = sort xs == sort ys
 
-parse :: FilePath -> String -> Either String (Source Module)
-parse filePath = lmap (errorMessage filePath) <<< parseSource filePath
+parse :: FilePath -> String -> Either String (Cst.Source Cst.Module)
+parse filePath = lmap Parser2.errorMessage <<< Parser2.parseSource filePath
 
-print :: OutputSpec -> Source ValidatedModule -> String
-print { render } { contents } = ensureNewline $ scrubEolSpaces $ render contents
+print :: OutputSpec -> Cst.Source Ast.Module -> String
+print { render } { contents } = ensureNewline $ scrubEolSpaces $ fromMaybe "" $ render contents
 
 splitLines :: String -> Array String
 splitLines = String.split (Pattern "\n")
@@ -95,19 +93,27 @@ diffByLine x y = do
 findLine :: (String -> Boolean) -> String -> Maybe String
 findLine pred = find pred <<< splitLines
 
---traceFile :: forall m. Monad m => String -> m Unit
---traceFile = traverse_ traceM <<< splitLines
-sourceTmpl :: FilePath -> Effect (Either String (Source ValidatedModule))
-sourceTmpl filePath =
+sourceCstTmpl :: FilePath -> Effect (Either String (Cst.Source Cst.Module))
+sourceCstTmpl filePath =
   runExceptT do
     text <- ExceptT $ readTextFile filePath
-    sourced <- except $ parse filePath text
-    ExceptT $ validateModule sourced
+    except $ parse filePath text
+
+sourceAstTmpl :: FilePath -> Effect (Either String (Cst.Source Ast.Module))
+sourceAstTmpl filePath =
+  runExceptT do
+    result <-
+      ExceptT
+        ( map
+            (lmap (String.joinWith "\n" <<< NonEmptyArray.toArray <<< map (\e -> "ERROR: " <> Error.toString e)))
+            (runExceptT (AstBuilder.build { files: [ filePath ], importPaths: [] }))
+        )
+    except (note "Expected result" (Array.head result))
 
 matchKeyLine :: FilePath -> String -> OutputSpec -> String -> Aff Unit
 matchKeyLine file keyWord outSpec line =
   runOrFail do
-    source <- exceptAffT $ sourceTmpl file
+    source <- exceptAffT $ sourceAstTmpl file
     let
       printed = print outSpec source
 

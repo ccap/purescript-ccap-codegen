@@ -22,3 +22,37 @@ type ValidatedRec: {
   name: String
     <validations maxLength="5">
 }
+type ArrayOfArrayOfArrayString: Array (Array (Array String))
+type ArrayOfSomething a: Array a
+type Either a b: [
+  | Left a
+  | Right b
+  ]
+type EitherWithStringError a: Either String a
+type List a: [
+  | Nil
+  | Cons a (List a)
+  ]
+type Tuple a b: [
+  | Tuple a b
+  ]
+type NonEmptyList a: Tuple a (List a)
+type AnotherNonEmptyList a: {
+  head: a
+  tail: List a
+}
+type NonEmptyArray a: Tuple a (Array a)
+type Enum: [
+  | Red
+  | Green
+  | Blue
+]
+type RecordOfStrings: {
+  a: List String,
+  b: List String
+    <foo x="y">
+  c: List String
+}
+type NativeEither a b: wrap (Either a b)
+  <scala t="scala.Either" decode="Decoder.either" encode="Encoder.either">
+  <purs t="Data.Either" decode="Ccap.Common.Either.fromCodegenEither" encode="Ccap.Common.Either.toCodegenEither">
