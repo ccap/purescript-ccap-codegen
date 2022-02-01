@@ -32,8 +32,4 @@ for i in samples/*.tmpl; do
     # TODO: Test compilation of generated output.
 done
 
-# We can at least test compile this one for now
-
-./codegen.js -p Test.Generated -m purs  -o test/generated samples/SelfContained.tmpl
-
 spago test
