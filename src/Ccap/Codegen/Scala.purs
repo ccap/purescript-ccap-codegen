@@ -405,7 +405,7 @@ sumTypeDecoder name constructors = do
     failureBranch = text ("case (n, l) => sys.error(s\"Match error on type " <> name <> " for constructor $n with ${l.length} parameters\")")
 
     func =
-      text "val d: Decoder.Form[M, Blarg] ="
+      text ("val d: Decoder.Form[M, " <> name <> "] =")
         // indented (text "p match" `curly` (branches `NonEmptyArray.snoc` failureBranch))
         // text "d.disjunction"
   pure

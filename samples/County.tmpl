@@ -33,34 +33,34 @@ type AssessFacilityId: wrap Int
 type SomethingMoney: wrap Decimal
 
 type County: {
-  countyNo: Domains.CountyNoT
-  countyNoX: CountyNo
-  countyName: CountyName
-  assessFacilityId: Maybe AssessFacilityId
-  soapPort: Int
+  countyNo: Domains.CountyNoT,
+  countyNoX: CountyNo,
+  countyName: CountyName,
+  assessFacilityId: Maybe AssessFacilityId,
+  soapPort: Int,
 }
 
 type Big: {
   a1: Int
-  b1: String
-  c1: Decimal
-  d1: Boolean
-  a2: Int
-  b2: String
-  c2: Decimal
-  d2: Boolean
-  a3: Int
-  b3: String
-  c3: Decimal
-  d3: Boolean
-  a4: Int
-  b4: String
-  c4: Decimal
-  d4: Boolean
+  b1: String,
+  c1: Decimal,
+  d1: Boolean,
+  a2: Int,
+  b2: String,
+  c2: Decimal,
+  d2: Boolean,
+  a3: Int,
+  b3: String,
+  c3: Decimal,
+  d3: Boolean,
+  a4: Int,
+  b4: String,
+  c4: Decimal,
+  d4: Boolean,
 }
 
 type Response: {
-  counties: Array County
+  counties: Array County,
 }
 
 type CountyEnum: [
