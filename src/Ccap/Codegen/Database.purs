@@ -10,6 +10,7 @@ import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (note)
+import Data.Foldable (any)
 import Data.Maybe (Maybe(..), isNothing, maybe)
 import Data.Monoid (guard)
 import Database.PostgreSQL (Connection, PGError(..))
@@ -26,6 +27,14 @@ type Domain
     , dataType :: String
     , charMaxLen :: Maybe Int
     }
+
+type AliasedType
+  = { name :: String
+    , type :: Cst.Type
+    }
+
+aliasedTypes :: Array AliasedType
+aliasedTypes = [ { name: "CaseNoT", type: Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "CaseNoSupport"), typ: "CaseNo", params: [] } } ]
 
 rowToDomain :: Row3 String String (Maybe Int) -> Domain
 rowToDomain (Row3 domainName dataType charMaxLen) =
@@ -52,7 +61,14 @@ domainModule pool scalaPkg pursPkg =
         results <- query conn (Query sql) Row0
         let
           types = Array.sortWith Cst.typeDeclName $ domainTypeDecl <<< rowToDomain <$> results
-        nelTypes <- except ((note (ConversionError "Expected at least one type")) (NonEmptyArray.fromArray types))
+
+          typesWithoutAlias =
+            Array.filter
+              ( \(Cst.TypeDecl typeDecl) ->
+                  not (any (\aliasedType -> typeDecl.name == aliasedType.name) aliasedTypes)
+              )
+              types
+        nelTypes <- except ((note (ConversionError "Expected at least one type")) (NonEmptyArray.fromArray typesWithoutAlias))
         pure
           { types: nelTypes
           , imports: types >>= tableImports # Array.nub # Array.sort
@@ -160,9 +176,9 @@ dbRecordProp col@{ columnName, domainName, dataType, isNullable } =
     { name: columnName, typ: Cst.TType optioned, annots, position: emptyPos }
 
 domainRef :: String -> Cst.Type
-domainRef = case _ of
-  "CaseNoT" -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "CaseNoSupport"), typ: "CaseNo", params: [] }
-  name -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "Domains"), typ: name, params: [] }
+domainRef domainName = case Array.find (\aliasedType -> aliasedType.name == domainName) aliasedTypes of
+  Just aliasedType -> aliasedType.type
+  Nothing -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "Domains"), typ: domainName, params: [] }
 
 dbType :: String -> Cst.Type
 dbType dataType = case dataType of
