@@ -1,4 +1,4 @@
 #!/usr/bin/env node
 
-const Main = require('./output/Main');
+import * as Main from "./output/Main/index.js";
 Main.main();

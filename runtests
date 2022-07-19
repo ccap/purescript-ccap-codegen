@@ -17,17 +17,17 @@ for i in samples/*.tmpl; do
     # not parsed correctly. NOTE: this passing does NOT guarantee a
     # working purescript or scala file on generation; for example, if
     # a type is undefined, no error checking catches this.
-    ./codegen.js -m test -p unused $i
+    ./codegen.js -m test $i
 
     # Pretty-print county.tmpl to the console. Removes comments and
     # puts the template in a readable format.
-    ./codegen.js -m pretty -p unused $i
+    ./codegen.js -m pretty $i
 
     # Generate the purescript file from the given template
-    ./codegen.js -p Ccap.Cc.Test -m purs $i
+    ./codegen.js -m purs $i
 
     # Generate the scala file from the given template
-    ./codegen.js -p gov.wicourts.cc -m scala $i
+    ./codegen.js -m scala $i
 
     # TODO: Test compilation of generated output.
 done

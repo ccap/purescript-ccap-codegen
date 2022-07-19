@@ -10,7 +10,7 @@ import Data.Either (either)
 import Data.Int as Int
 import Data.Maybe (fromMaybe)
 import Data.Tuple (Tuple(..), uncurry)
-import Database.PostgreSQL.PG (PoolConfiguration, defaultPoolConfiguration, newPool)
+import Database.PostgreSQL.Pool as Pool
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
@@ -28,7 +28,7 @@ main = launchAff_ $ runSpec [ consoleReporter ] specs
 caseTmplFile :: FilePath
 caseTmplFile = "./test/resources/get-schema/Case.tmpl"
 
-poolConfig :: Effect PoolConfiguration
+poolConfig :: Effect Pool.Configuration
 poolConfig = do
   host <- lookupEnv "DB_HOST"
   port <- lookupEnv "DB_PORT" <#> (_ >>= Int.fromString)
@@ -36,7 +36,7 @@ poolConfig = do
   user <- lookupEnv "DB_USER"
   password <- lookupEnv "DB_PASSWORD"
   pure
-    $ (defaultPoolConfiguration $ fromMaybe "cir" db)
+    $ (Pool.defaultConfiguration $ fromMaybe "cir" db)
         { host = host
         , port = port
         , user = user
@@ -55,7 +55,7 @@ specs =
           fileSource <- ExceptT <<< liftEffect $ sourceCstTmpl caseTmplFile
           let
             { scalaPkg, pursPkg } = fileSource.contents.exports
-          pool <- ExceptT <<< liftEffect <<< map pure $ poolConfig >>= newPool
+          pool <- ExceptT <<< liftEffect <<< map pure $ poolConfig >>= Pool.new
           dbModule <- tableModule pool scalaPkg pursPkg "Case"
           pure $ Tuple fileSource.contents dbModule
       either fail (uncurry printAndDiff) results

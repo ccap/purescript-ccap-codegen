@@ -519,7 +519,7 @@ externalTypeRef (Tuple importedModule importedType) =
         typeName
 
 primaryClass :: Ast.Module -> Maybe Ast.TypeDecl
-primaryClass mod@(Ast.Module { types }) = Array.find (\(Ast.TypeDecl { isPrimary }) -> isPrimary) types
+primaryClass mod@(Ast.Module { types }) = NonEmptyArray.find (\(Ast.TypeDecl { isPrimary }) -> isPrimary) types
 
 isPrimaryClass :: String -> Ast.TypeDecl -> Boolean
 isPrimaryClass modName typeD = modName == Ast.typeDeclName typeD && Ast.isRecord (Ast.typeDeclTopType typeD)
