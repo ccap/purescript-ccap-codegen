@@ -177,7 +177,7 @@ typeDecl (Ast.TypeDecl { name, topType: tt, annots, params: typeParams }) =
                   <> " DecoderApi_"
                   <> name
                   <> pp
-                  <> " -> A.Json -> E.Either String "
+                  <> " -> A.Json -> E.Either JsonDecodeError "
                   <> if Array.null typeParams then
                       name
                     else
@@ -216,6 +216,7 @@ noArgSumJsonCodec :: String -> NonEmptyArray String -> Codegen Box
 noArgSumJsonCodec name vs = do
   tell
     [ { mod: "Data.Either", typ: Just "Either(..)", alias: Nothing }
+    , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError(..)", alias: Just "JDE" }
     ]
   let
     encode =
@@ -234,7 +235,7 @@ noArgSumJsonCodec name vs = do
 
   decodeBranch v = text (show v) <<+>> text "-> Right" <<+>> text v
 
-  fallthrough = text $ "s -> Left $ \"Invalid value \" <> show s <> \" for " <> name <> "\""
+  fallthrough = text $ "s -> Left $ JDE.TypeMismatch $ \"Invalid value \" <> show s <> \" for " <> name <> "\""
 
 sumJsonCodec :: String -> NonEmptyArray Ast.Constructor -> Codegen Box
 sumJsonCodec name cs = do
@@ -242,6 +243,8 @@ sumJsonCodec name cs = do
     [ { mod: "Data.Either", typ: Nothing, alias: Just "E" }
     , { mod: "Data.Tuple", typ: Nothing, alias: Just "T" }
     , { mod: "Data.Array", typ: Nothing, alias: Just "Array" }
+    , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError", alias: Nothing }
+    , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError(..)", alias: Just "JDE" }
     ]
   encodeBranches <- traverse encodeBranch cs
   decodeBranches <- traverse decodeBranch cs
@@ -312,7 +315,7 @@ sumJsonCodec name cs = do
                 )
         )
 
-  fallThrough = text $ "T.Tuple cn params -> E.Left $ \"Pattern match failed for \" <> show cn <> \" with \" <> show (Array.length params) <> \" parameters\""
+  fallThrough = text $ "T.Tuple cn params -> E.Left $ JDE.TypeMismatch $ \"Pattern match failed for \" <> show cn <> \" with \" <> show (Array.length params) <> \" parameters\""
 
 needsParens :: Ast.Type -> Boolean
 needsParens = case _ of
@@ -340,7 +343,7 @@ otherInstances name params = do
   tell
     [ { mod: "Prelude", typ: Nothing, alias: Nothing }
     , { mod: "Data.Generic.Rep", typ: Just "class Generic", alias: Nothing }
-    , { mod: "Data.Generic.Rep.Show", typ: Just "genericShow", alias: Nothing }
+    , { mod: "Data.Show.Generic", typ: Just "genericShow", alias: Nothing }
     ]
   let
     nameWithParams =
@@ -537,6 +540,7 @@ recordDecoderApi props = do
   if Array.null labelsAndTypes then do
     tell
       [ { mod: "Data.Either", typ: Nothing, alias: Just "E" }
+      , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError", alias: Nothing }
       ]
     pure (text "R.StandardDecoderApi")
   else do
@@ -547,6 +551,8 @@ recordDecoderApi props = do
       , { mod: "Data.Bifunctor", typ: Nothing, alias: Just "B" }
       , { mod: "Ccap.Codegen.Runtime", typ: Nothing, alias: Just "R" }
       , { mod: "Data.Decimal", typ: Just "Decimal", alias: Nothing }
+      , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError", alias: Nothing }
+      , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError(..)", alias: Just "JDE" }
       ]
     pure (delimitedLiteral Vert '{' '}' (standard <> labelsAndTypes))
   where
@@ -559,7 +565,10 @@ recordDecoderApi props = do
       , "fromRight :: forall a b. Partial => E.Either a b -> b"
       , "right :: forall a b. b -> E.Either a b"
       , "left :: forall a b. a -> E.Either a b"
-      , "addErrorPrefix :: forall a. String -> E.Either String a -> E.Either String a"
+      , "addErrorPrefix :: forall a. String -> E.Either JsonDecodeError a -> E.Either JsonDecodeError a"
+      , "missingValue :: forall b. String -> E.Either JsonDecodeError b"
+      , "typeMismatch :: forall b. String -> E.Either JsonDecodeError b"
+
       , "jsonCodec_primitive_decimal :: R.JsonCodec Decimal"
       ]
 
@@ -589,10 +598,12 @@ recordDecoderApiDecl props = do
       [ "nothing: M.Nothing"
       , "just: M.Just"
       , "isLeft: E.isLeft"
-      , "fromRight: E.fromRight"
+      , "fromRight: \\(E.Right v) -> v"
       , "right: E.Right"
       , "left: E.Left"
-      , "addErrorPrefix: \\s -> B.lmap (s <> _)"
+      , "addErrorPrefix: \\name -> B.lmap (JDE.Named name)"
+      , "missingValue: \\name -> E.Left $ JDE.Named name JDE.MissingValue"
+      , "typeMismatch: E.Left <<< JDE.TypeMismatch"
       , "jsonCodec_primitive_decimal: R.jsonCodec_decimal"
       ]
 
@@ -606,6 +617,7 @@ recordJsonCodec name typeParams props = do
     , { mod: "Ccap.Codegen.Runtime", typ: Nothing, alias: Just "R" }
     , { mod: "Foreign.Object", typ: Nothing, alias: Just "FO" }
     , { mod: "Prelude", typ: Nothing, alias: Nothing }
+    , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError", alias: Nothing }
     ]
   encodeProps <- recordWriteProps props
   let

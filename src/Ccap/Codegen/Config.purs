@@ -5,11 +5,14 @@ module Ccap.Codegen.Config
   ) where
 
 import Prelude
+import Data.Array as Array
 import Data.Either (Either(..))
-import Data.Maybe (Maybe(..), maybe)
+import Data.Foldable (fold)
+import Data.Maybe (Maybe, fromMaybe)
 import Data.String (Pattern(..))
 import Data.String (split) as String
-import Node.Yargs.Applicative (Y, yarg)
+import Options.Applicative as OptParse
+import Options.Applicative.Types as OptParse.Types
 
 data Mode
   = Pretty
@@ -23,55 +26,76 @@ type Config
   = { mode :: Mode
     , includes :: Array String
     , outputDirectory :: Maybe String
+    , targetFiles :: Array String
     }
 
-config :: Y (Either String Config)
-config = mkConfig <$> yMode <*> yOutput <*> yIncludes
-  where
-  mkConfig mode outputDirectory includes = mode <#> { mode: _, outputDirectory, includes }
+config :: OptParse.Parser Config
+config = do
+  (\mode includes outputDirectory targetFiles ->
+     { mode: mode
+     , includes: fromMaybe [] includes
+     , outputDirectory
+     , targetFiles
+     }
+   )
+   <$> modeOption
+   <*> includesOption
+   <*> outputOption
+   <*> filesOption
 
-yMode :: Y (Either String Mode)
-yMode = yarg "m" alts desc def true <#> readMode
-  where
-  alts = [ "mode" ]
+modeOption :: OptParse.Parser Mode
+modeOption =
+  let
+    readMode :: String -> Either String Mode
+    readMode = case _ of
+      "pretty" -> Right Pretty
+      "purs" -> Right Purs
+      "pursjs" -> Right PursJs
+      "scala" -> Right Scala
+      "show" -> Right Show
+      "test" -> Right Test
+      m -> Left $ "Unknown mode " <> show m
 
-  desc = Just "The output mode (must be one of pretty, purs, pursjs, scala, show, or test)"
+    modeParse :: OptParse.ReadM Mode
+    modeParse = OptParse.eitherReader readMode
+  in
+  OptParse.option modeParse
+    $ fold
+        [ OptParse.long "mode"
+        , OptParse.metavar "Mode"
+        , OptParse.short 'm'
+        , OptParse.help "The output mode (must be one of pretty, purs, pursjs, scala, show, or test)"
+        ]
 
-  def = Right "Mode is required"
+filesOption :: OptParse.Parser (Array String)
+filesOption =
+  map Array.fromFoldable
+    $ OptParse.many
+    $ OptParse.argument OptParse.str (OptParse.metavar "Target...")
 
-  readMode = case _ of
-    "pretty" -> Right Pretty
-    "purs" -> Right Purs
-    "pursjs" -> Right PursJs
-    "scala" -> Right Scala
-    "show" -> Right Show
-    "test" -> Right Test
-    m -> Left $ "Unknown mode " <> show m
+outputOption :: OptParse.Parser (Maybe String)
+outputOption =
+  OptParse.Types.optional
+     $ OptParse.strOption
+     $ fold
+        [ OptParse.long "output-directory"
+        , OptParse.metavar "Output directory"
+        , OptParse.short 'o'
+        , OptParse.help "Files will be written to this directory"
+        ]
 
-yOutput :: Y (Maybe String)
-yOutput = yarg "o" alts desc def true <#> nonEmpty
-  where
-  alts = [ "output-directory" ]
+includesOption :: OptParse.Parser (Maybe (Array String))
+includesOption =
+  let
+    split = String.split (Pattern ",")
 
-  desc = Just "Files will be written to this directory"
-
-  def = Left ""
-
-yIncludes :: Y (Array String)
-yIncludes = yarg "I" alts desc def false <#> parse
-  where
-  alts = [ "include" ]
-
-  desc = Just "Template definitions to include in scope"
-
-  def = Left ""
-
-  parse = maybe [] split <<< nonEmpty
-
-  split = String.split (Pattern ",")
-
--- Data.String.NonEmpty exist if more is needed
-nonEmpty :: String -> Maybe String
-nonEmpty "" = Nothing
-
-nonEmpty str = Just str
+    arrayStringParse = map split OptParse.str
+  in
+   OptParse.Types.optional
+    $ OptParse.option arrayStringParse
+    $ fold
+        [ OptParse.long "include"
+        , OptParse.metavar "Included templates"
+        , OptParse.short 'I'
+        , OptParse.help "Template definitions to include in scope"
+        ]

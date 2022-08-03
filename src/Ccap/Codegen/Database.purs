@@ -5,7 +5,7 @@ module Ccap.Codegen.Database
 
 import Prelude
 import Ccap.Codegen.Cst as Cst
-import Control.Monad.Except (ExceptT, except, withExceptT)
+import Control.Monad.Except (ExceptT, except, withExceptT, runExceptT)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
@@ -17,10 +17,10 @@ import Database.PostgreSQL (Connection, PGError(..))
 import Database.PostgreSQL.PG (Pool, Query(..), query, withConnection)
 import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row5(..))
 import Effect.Aff (Aff)
-import Text.Parsing.Parser.Pos (Position(..))
+import Parsing (Position(..))
 
 emptyPos :: Position
-emptyPos = Position { line: 0, column: 0 }
+emptyPos = Position { index: 0, line: 0, column: 0 }
 
 type Domain
   = { domainName :: String
@@ -57,7 +57,7 @@ maxLengthAnnotation = Cst.Annotation "validations" emptyPos <<< Array.singleton 
 domainModule :: Pool -> String -> String -> ExceptT String Aff Cst.Module
 domainModule pool scalaPkg pursPkg =
   withExceptT show
-    $ withConnection pool \conn -> do
+    $ withConnection runExceptT pool \conn -> do
         results <- query conn (Query sql) Row0
         let
           types = Array.sortWith Cst.typeDeclName $ domainTypeDecl <<< rowToDomain <$> results
@@ -120,7 +120,7 @@ occIdColumn =
 tableModule :: Pool -> String -> String -> String -> ExceptT String Aff Cst.Module
 tableModule pool scalaPkg pursPkg tableName =
   withExceptT show
-    $ withConnection pool \conn -> do
+    $ withConnection runExceptT pool \conn -> do
         columns <- queryColumns tableName conn
         nelColumns <- except (note (ConversionError ("Expected at least one column. Does the \"" <> tableName <> "\" table exist?")) (NonEmptyArray.fromArray columns))
         let

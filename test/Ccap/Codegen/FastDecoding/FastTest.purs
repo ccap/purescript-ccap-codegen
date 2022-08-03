@@ -5,16 +5,17 @@ module Test.Ccap.Codegen.FastDecoding.FastTest where
 import Ccap.Codegen.Runtime as R
 import Data.Argonaut.Core as A
 import Data.Argonaut.Decode (class DecodeJson)
+import Data.Argonaut.Decode.Error (JsonDecodeError(..))
 import Data.Argonaut.Encode (class EncodeJson)
 import Data.Array as Array
 import Data.Bifunctor as B
 import Data.Decimal (Decimal)
 import Data.Either as E
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe)
 import Data.Maybe as M
 import Data.Newtype (class Newtype)
+import Data.Show.Generic (genericShow)
 import Data.Tuple as T
 import Foreign.Object as FO
 import Prelude
@@ -58,7 +59,7 @@ type DecoderApi_WithParams a b c =
   , fromRight :: forall a b. Partial => E.Either a b -> b
   , right :: forall a b. b -> E.Either a b
   , left :: forall a b. a -> E.Either a b
-  , addErrorPrefix :: forall a. String -> E.Either String a -> E.Either String a
+  , addErrorPrefix :: forall a. String -> E.Either JsonDecodeError a -> E.Either JsonDecodeError a
   , jsonCodec_primitive_decimal :: R.JsonCodec Decimal
   , jsonCodec_ref :: R.JsonCodec (Ref c)
   , jsonCodec_refOpt :: R.JsonCodec (Maybe (Ref a))
@@ -74,10 +75,10 @@ decoderApi_WithParams jsonCodec_param_a jsonCodec_param_b jsonCodec_param_c =
   { nothing: M.Nothing
   , just: M.Just
   , isLeft: E.isLeft
-  , fromRight: E.fromRight
+  , fromRight: \(E.Right v) -> v
   , right: E.Right
   , left: E.Left
-  , addErrorPrefix: \s -> B.lmap (s <> _)
+  , addErrorPrefix: \_ -> B.lmap identity
   , jsonCodec_primitive_decimal: R.jsonCodec_decimal
   , jsonCodec_ref: jsonCodec_Ref jsonCodec_param_c
   , jsonCodec_refOpt: R.jsonCodec_maybe (jsonCodec_Ref jsonCodec_param_a)
@@ -88,7 +89,7 @@ decoderApi_WithParams jsonCodec_param_a jsonCodec_param_b jsonCodec_param_c =
   , jsonCodec_xx: jsonCodec_MyList R.jsonCodec_string
   , jsonCodec_yy: jsonCodec_MyTuple R.jsonCodec_string R.jsonCodec_int
   }
-foreign import decode_WithParams :: forall a b c. DecoderApi_WithParams a b c -> A.Json -> E.Either String (WithParams a b c)
+foreign import decode_WithParams :: forall a b c. DecoderApi_WithParams a b c -> A.Json -> E.Either JsonDecodeError (WithParams a b c)
 jsonCodec_WithParams :: forall a b c. R.JsonCodec a -> R.JsonCodec b -> R.JsonCodec c -> R.JsonCodec (WithParams a b c)
 jsonCodec_WithParams jsonCodec_param_a jsonCodec_param_b jsonCodec_param_c =
   { decode: decode_WithParams (decoderApi_WithParams jsonCodec_param_a jsonCodec_param_b jsonCodec_param_c)
@@ -132,7 +133,7 @@ type DecoderApi_Ref a =
   , fromRight :: forall a b. Partial => E.Either a b -> b
   , right :: forall a b. b -> E.Either a b
   , left :: forall a b. a -> E.Either a b
-  , addErrorPrefix :: forall a. String -> E.Either String a -> E.Either String a
+  , addErrorPrefix :: forall a. String -> E.Either JsonDecodeError a -> E.Either JsonDecodeError a
   , jsonCodec_primitive_decimal :: R.JsonCodec Decimal
   , jsonCodec_somethingA :: R.JsonCodec a
   }
@@ -141,14 +142,14 @@ decoderApi_Ref jsonCodec_param_a =
   { nothing: M.Nothing
   , just: M.Just
   , isLeft: E.isLeft
-  , fromRight: E.fromRight
+  , fromRight: \(E.Right v) -> v
   , right: E.Right
   , left: E.Left
-  , addErrorPrefix: \s -> B.lmap (s <> _)
+  , addErrorPrefix: \_ -> B.lmap identity
   , jsonCodec_primitive_decimal: R.jsonCodec_decimal
   , jsonCodec_somethingA: jsonCodec_param_a
   }
-foreign import decode_Ref :: forall a. DecoderApi_Ref a -> A.Json -> E.Either String (Ref a)
+foreign import decode_Ref :: forall a. DecoderApi_Ref a -> A.Json -> E.Either JsonDecodeError (Ref a)
 jsonCodec_Ref :: forall a. R.JsonCodec a -> R.JsonCodec (Ref a)
 jsonCodec_Ref jsonCodec_param_a =
   { decode: decode_Ref (decoderApi_Ref jsonCodec_param_a)
@@ -178,7 +179,7 @@ type DecoderApi_RecordOfOther =
 decoderApi_RecordOfOther :: DecoderApi_RecordOfOther
 decoderApi_RecordOfOther =
   R.standardDecoderApi
-foreign import decode_RecordOfOther :: DecoderApi_RecordOfOther -> A.Json -> E.Either String RecordOfOther
+foreign import decode_RecordOfOther :: DecoderApi_RecordOfOther -> A.Json -> E.Either JsonDecodeError RecordOfOther
 jsonCodec_RecordOfOther :: R.JsonCodec RecordOfOther
 jsonCodec_RecordOfOther =
   { decode: decode_RecordOfOther (decoderApi_RecordOfOther)
@@ -206,7 +207,7 @@ jsonCodec_MyList jsonCodec_param_a =
           param_0 <- jsonCodec_param_a.decode jsonParam_0
           param_1 <- (jsonCodec_MyList jsonCodec_param_a).decode jsonParam_1
           E.Right (Cons param_0 param_1)
-        T.Tuple cn params -> E.Left $ "Pattern match failed for " <> show cn <> " with " <> show (Array.length params) <> " parameters"
+        T.Tuple cn params -> E.Left $ TypeMismatch $ "Pattern match failed for " <> show cn <> " with " <> show (Array.length params) <> " parameters"
     , encode: case _ of
         Nil -> T.Tuple "Nil" []
         Cons param_0 param_1 -> T.Tuple "Cons" [jsonCodec_param_a.encode param_0, (jsonCodec_MyList jsonCodec_param_a).encode param_1]
@@ -228,7 +229,7 @@ jsonCodec_MyTuple jsonCodec_param_a jsonCodec_param_b =
           param_0 <- jsonCodec_param_a.decode jsonParam_0
           param_1 <- jsonCodec_param_b.decode jsonParam_1
           E.Right (MyTuple param_0 param_1)
-        T.Tuple cn params -> E.Left $ "Pattern match failed for " <> show cn <> " with " <> show (Array.length params) <> " parameters"
+        T.Tuple cn params -> E.Left $ TypeMismatch $ "Pattern match failed for " <> show cn <> " with " <> show (Array.length params) <> " parameters"
     , encode: case _ of
         MyTuple param_0 param_1 -> T.Tuple "MyTuple" [jsonCodec_param_a.encode param_0, jsonCodec_param_b.encode param_1]
     }
@@ -236,6 +237,7 @@ jsonCodec_MyTuple jsonCodec_param_a jsonCodec_param_b =
 
 data Blarg =
     Blue String
+  | Green Int Int
   | Red
 derive instance eqBlarg :: Eq Blarg
 derive instance ordBlarg :: Ord Blarg
@@ -249,10 +251,15 @@ jsonCodec_Blarg =
         T.Tuple "Blue" [jsonParam_0] -> do
           param_0 <- R.jsonCodec_string.decode jsonParam_0
           E.Right (Blue param_0)
+        T.Tuple "Green" [jsonParam_0, jsonParam_1] -> do
+          param_0 <- R.jsonCodec_int.decode jsonParam_0
+          param_1 <- R.jsonCodec_int.decode jsonParam_1
+          E.Right (Green param_0 param_1)
         T.Tuple "Red" [] -> E.Right Red
-        T.Tuple cn params -> E.Left $ "Pattern match failed for " <> show cn <> " with " <> show (Array.length params) <> " parameters"
+        T.Tuple cn params -> E.Left $ TypeMismatch $ "Pattern match failed for " <> show cn <> " with " <> show (Array.length params) <> " parameters"
     , encode: case _ of
         Blue param_0 -> T.Tuple "Blue" [R.jsonCodec_string.encode param_0]
+        Green param_0 param_1 -> T.Tuple "Green" [R.jsonCodec_int.encode param_0, R.jsonCodec_int.encode param_1]
         Red -> T.Tuple "Red" []
     }
     R.jsonCodec_constructor

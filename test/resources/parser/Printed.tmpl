@@ -9,8 +9,8 @@ type TagType: wrap Int
 type Optional: Maybe Int
 type Collection: Array Int
 type Point: {
-  x: Int
-  y: Int
+  x: Int,
+  y: Int,
 }
 type InternalRef: Integer
 type ExternalRef: Imported.ImportedType
@@ -27,19 +27,19 @@ type ArrayOfSomething a: Array a
 type Either a b: [
   | Left a
   | Right b
-  ]
+]
 type EitherWithStringError a: Either String a
 type List a: [
   | Nil
   | Cons a (List a)
-  ]
+]
 type Tuple a b: [
   | Tuple a b
-  ]
+]
 type NonEmptyList a: Tuple a (List a)
 type AnotherNonEmptyList a: {
-  head: a
-  tail: List a
+  head: a,
+  tail: List a,
 }
 type NonEmptyArray a: Tuple a (Array a)
 type Enum: [
@@ -51,7 +51,7 @@ type RecordOfStrings: {
   a: List String,
   b: List String
     <foo x="y">
-  c: List String
+  c: List String,
 }
 type NativeEither a b: wrap (Either a b)
   <scala t="scala.Either" decode="Decoder.either" encode="Encoder.either">
