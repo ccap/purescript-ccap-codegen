@@ -22,7 +22,6 @@ module Ccap.Codegen.Runtime
 import Prelude
 import Data.Argonaut.Core (Json)
 import Data.Argonaut.Core as Argonaut
-import Data.Argonaut (JsonDecodeError(..))
 import Data.Bifunctor (lmap)
 import Data.Decimal (Decimal)
 import Data.Decimal as Decimal
@@ -37,7 +36,7 @@ import Foreign.Object as Object
 import Unsafe.Coerce as Unsafe
 
 type Codec a b
-  = { decode :: a -> Either JsonDecodeError b
+  = { decode :: a -> Either String b
     , encode :: b -> a
     }
 
@@ -53,22 +52,18 @@ jsonCodec_json =
 type Api
   = { isLeft :: forall a b. Either a b -> Boolean
     , fromRight :: forall a b. Partial => Either a b -> b
-    , left :: forall a b. a -> Either a b
-    , missingValue :: forall b. String -> Either JsonDecodeError b
     , right :: forall a b. b -> Either a b
-    , typeMismatch :: forall b. String -> Either JsonDecodeError b
+    , left :: forall a b. a -> Either a b
     }
 
 type StandardDecoderApi
   = { nothing :: forall a. Maybe a
-    , fromRight :: forall a b. Partial => Either a b -> b
-    , isLeft :: forall a b. Either a b -> Boolean
     , just :: forall a. a -> Maybe a
-    , left :: forall a b. a -> Either a b
+    , isLeft :: forall a b. Either a b -> Boolean
+    , fromRight :: forall a b. Partial => Either a b -> b
     , right :: forall a b. b -> Either a b
-    , addErrorPrefix :: forall a. String -> Either JsonDecodeError a -> Either JsonDecodeError a
-    , missingValue :: forall b. String -> Either JsonDecodeError b
-    , typeMismatch :: forall b. String -> Either JsonDecodeError b
+    , left :: forall a b. a -> Either a b
+    , addErrorPrefix :: forall a. String -> Either String a -> Either String a
     , jsonCodec_primitive_decimal :: JsonCodec Decimal
     }
 
@@ -77,29 +72,25 @@ standardDecoderApi =
   { nothing: Nothing
   , just: Just
   , isLeft: Either.isLeft
-  , fromRight: \(Either.Right v) -> v
+  , fromRight: Either.fromRight
   , right: Right
   , left: Left
-  , addErrorPrefix: \name -> lmap (Named name)
+  , addErrorPrefix: \s -> lmap (s <> _)
   , jsonCodec_primitive_decimal: jsonCodec_decimal
-  , missingValue: \name -> Left $ Named name MissingValue
-  , typeMismatch: Left <<< TypeMismatch
   }
 
 api :: Api
 api =
   { isLeft: Either.isLeft
-  , fromRight: \(Either.Right v) -> v
+  , fromRight: Either.fromRight
   , right: Right
   , left: Left
-  , missingValue: \name -> Left $ Named name MissingValue
-  , typeMismatch: Left <<< TypeMismatch
   }
 
 foreign import decodeArray_ ::
   forall a.
   Api ->
-  (Json -> Either JsonDecodeError a) ->
+  (Json -> Either String a) ->
   Json ->
   Either String (Array a)
 
@@ -140,32 +131,32 @@ foreign import isNull_ ::
 
 jsonCodec_string :: JsonCodec String
 jsonCodec_string =
-  { decode: lmap TypeMismatch <<< decodeString_ api
+  { decode: decodeString_ api
   , encode: Argonaut.fromString
   }
 
 jsonCodec_decimal :: JsonCodec Decimal
 jsonCodec_decimal =
   { decode:
-      \j -> (lmap TypeMismatch $ decodeString_ api j) >>= (Decimal.fromString >>> note (TypeMismatch "This value must be a decimal"))
+      \j -> decodeString_ api j >>= (Decimal.fromString >>> note "This value must be a decimal")
   , encode: Argonaut.fromString <<< Decimal.toString
   }
 
 jsonCodec_number :: JsonCodec Number
 jsonCodec_number =
-  { decode: lmap TypeMismatch <<< decodeNumber_ api
+  { decode: decodeNumber_ api
   , encode: Argonaut.fromNumber
   }
 
 jsonCodec_int :: JsonCodec Int
 jsonCodec_int =
-  { decode: lmap TypeMismatch <<< decodeInt_ api
+  { decode: decodeInt_ api
   , encode: Argonaut.fromNumber <<< Int.toNumber
   }
 
 jsonCodec_boolean :: JsonCodec Boolean
 jsonCodec_boolean =
-  { decode: lmap TypeMismatch <<< decodeBoolean_ api
+  { decode: decodeBoolean_ api
   , encode: Argonaut.fromBoolean
   }
 
@@ -183,14 +174,14 @@ jsonCodec_array ::
   JsonCodec a ->
   JsonCodec (Array a)
 jsonCodec_array inner =
-  { decode: lmap TypeMismatch <<< decodeArray_ api inner.decode
+  { decode: decodeArray_ api inner.decode
   , encode: Argonaut.fromArray <<< map inner.encode
   }
 
-decodeProperty :: forall a. String -> JsonCodec a -> Object Json -> Either JsonDecodeError a
+decodeProperty :: forall a. String -> JsonCodec a -> Object Json -> Either String a
 decodeProperty prop codec o = do
-  v <- lmap TypeMismatch $ lookup_ api prop o
-  lmap (\s -> TypeMismatch $ "Property " <> prop <> ": " <> show s) (codec.decode v)
+  v <- lookup_ api prop o
+  lmap (\s -> "Property " <> prop <> ": " <> s) (codec.decode v)
 
 composeCodec ::
   forall a b c.
@@ -202,12 +193,12 @@ composeCodec codec1 codec2 =
   , encode: codec1.encode >>> codec2.encode
   }
 
-obj :: Json -> Either JsonDecodeError (Object Json)
-obj = lmap TypeMismatch <<< decodeObject_ api
+obj :: Json -> Either String (Object Json)
+obj = decodeObject_ api
 
 codec_custom ::
   forall t a b.
-  (b -> Either JsonDecodeError t) ->
+  (b -> Either String t) ->
   (t -> b) ->
   Codec a b ->
   Codec a t

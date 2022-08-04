@@ -1,5 +1,4 @@
 #!/usr/bin/env node
 
-import * as Main from './output/GetSchema/index.js';
-
+const Main = require('./output/GetSchema');
 Main.main();

@@ -36,6 +36,9 @@ scalaFile = base <> ".scala"
 pursFile :: FilePath
 pursFile = base <> ".purs_" -- purs_ so pulp doesn't try to compile it.
 
+importedFile :: FilePath
+importedFile = joinPaths parseDir "Imported.tmpl"
+
 specs :: Spec Unit
 specs =
   describe "The .tmpl file parser" do
