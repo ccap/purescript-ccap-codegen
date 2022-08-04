@@ -27,10 +27,10 @@ import Prelude
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe)
-import Data.Show.Generic (genericShow)
 import Node.Path (FilePath)
-import Parsing (Position)
+import Text.Parsing.Parser.Pos (Position)
 
 type Source a
   = { source :: FilePath

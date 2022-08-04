@@ -12,7 +12,7 @@ import Ccap.Codegen.Cst as Cst
 import Data.Maybe (maybe)
 import Data.String as String
 import Node.Path (FilePath)
-import Parsing (Position(..))
+import Text.Parsing.Parser.Pos (Position(..))
 
 data Error
   = Positioned FilePath Position Detail
