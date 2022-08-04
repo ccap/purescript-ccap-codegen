@@ -64,9 +64,6 @@ stringLiteral = tokenParser.stringLiteral
 reserved :: String -> Parser String Unit
 reserved = tokenParser.reserved
 
-commaSep1 :: forall a. Parser String a -> Parser String (Array a)
-commaSep1 inner = tokenParser.commaSep1 inner <#> Array.fromFoldable
-
 braces :: forall a. Parser String a -> Parser String a
 braces = tokenParser.braces
 
@@ -114,10 +111,10 @@ tRef _ = do
     mod = if init == Nil then Nothing else Just $ intercalate "." init
   pure { mod: map Cst.ModuleRef mod, typ, params }
 
-primitive :: String -> Cst.Primitive -> Parser String Cst.Type
+primitive :: String -> Cst.Primitive -> Parser String Cst.Typ
 primitive s decl = reserved s <#> const (Cst.Primitive decl)
 
-anyPrimitiveExceptJson :: Parser String Cst.Type
+anyPrimitiveExceptJson :: Parser String Cst.Typ
 anyPrimitiveExceptJson =
   primitive "Boolean" Cst.PBoolean
     <|> primitive "Int" Cst.PInt
@@ -125,10 +122,10 @@ anyPrimitiveExceptJson =
     <|> primitive "String" Cst.PString
     <|> primitive "StringValidationHack" Cst.PStringValidationHack
 
-tyTypeWithParens :: Unit -> Parser String Cst.Type
+tyTypeWithParens :: Unit -> Parser String Cst.Typ
 tyTypeWithParens _ = lexeme (char '(') *> map Cst.TypeWithParens (tyType unit) <* lexeme (char ')') <|> tyType unit
 
-tyType :: Unit -> Parser String Cst.Type
+tyType :: Unit -> Parser String Cst.Typ
 tyType _ =
   anyPrimitiveExceptJson
     <|> (reserved "Array" >>= typeOrParam <#> Cst.Array)
@@ -137,7 +134,7 @@ tyType _ =
 
 topType :: Unit -> Parser String Cst.TopType
 topType _ =
-  (tyTypeWithParens unit <#> Cst.Type)
+  (tyTypeWithParens unit <#> Cst.Typ)
     <|> (braces $ many1 recordProp <#> Cst.Record)
     <|> (brackets $ pipeSep1 (constructor unit) <#> Cst.Sum)
     <|> (reserved "wrap" >>= (\_ -> primitive "Json" Cst.PJson <|> tyTypeWithParens unit) <#> Cst.Wrap)

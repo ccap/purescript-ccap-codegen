@@ -35,7 +35,7 @@ records (Ast.Module mod) =
     (Array.fromFoldable mod.types)
 
 oneModule :: Ast.Module -> Maybe Box
-oneModule m@(Ast.Module mod) = do
+oneModule m@(Ast.Module _) = do
   let
     recs = records m
   if Array.null recs then
@@ -76,7 +76,7 @@ decodeProp { name, typ } =
     // indented (text ("return api.missingValue(" <> show ("Property '" <> name <> "'") <> ");"))
     // text "}"
     // case typ of
-        Ast.TParam (Cst.TypeParam p) ->
+        Ast.TParam (Cst.TypeParam _) ->
           decodeCustom
             { name
             , decoder: "api.jsonCodec_" <> name

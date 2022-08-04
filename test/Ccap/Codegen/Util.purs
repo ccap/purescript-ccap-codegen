@@ -59,7 +59,7 @@ onlyOne =
     >>> case _ of
         Cons x Nil -> Right x
         Nil -> Left "Array is empty"
-        Cons x xs -> Left "Array has multiple elements"
+        Cons _ _ -> Left "Array has multiple elements"
 
 shouldBeRight :: forall m a b. MonadThrow Error m => Show a => Show b => Either a b -> m Unit
 shouldBeRight = flip shouldSatisfy isRight
