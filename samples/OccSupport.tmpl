@@ -1,0 +1,12 @@
+scala: samples.OccSupport
+purs: Samples.OccSupport
+
+type OccId: wrap String
+  <scala
+    t="gov.wicourts.cc.model.OccId"
+    decode="Decoder.occId"
+    encode="gov.wicourts.cc.model.OccId.serialize">
+
+type Response: {
+  occId: OccId,
+}

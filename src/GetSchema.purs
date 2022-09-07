@@ -119,11 +119,11 @@ main = do
         "ts"
         [ "scala-pkg" ]
         (Just "scala package name for table")
-        (Left "")
+        (Right "flag 'scala-pkg' is required")
         true
     <*> yarg
         "tp"
         [ "purs-pkg" ]
         (Just "purescript package name for table")
-        (Left "")
+        (Right "flag 'purs-pkg' is required")
         true
