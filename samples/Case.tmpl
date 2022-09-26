@@ -5,8 +5,10 @@ import CaseNoSupport
 import Domains
 import OccSupport
 type Case: {
-  caseNo: CaseNoSupport.CaseNo,
-  countyNo: Domains.CountyNoT,
+  caseNo: CaseNoSupport.CaseNo
+    <primaryKey>
+  countyNo: Domains.CountyNoT
+    <primaryKey>
   caseType: Domains.CaseTypeT,
   filingDate: Domains.DateT,
   isConfidential: Boolean,
@@ -44,5 +46,6 @@ type Case: {
   lastDocNumber: Domains.CaseDocNoT,
   docStorageSet: Domains.DocStorageSetT,
   dcfCaseNo: Maybe Domains.DCFCaseNoT,
-  occId: OccSupport.OccId,
+  occId: OccSupport.OccId
+    <dbManaged>
 }

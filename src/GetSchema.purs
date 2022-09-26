@@ -107,7 +107,7 @@ main = do
         "c"
         [ "config" ]
         (Just "The database to use")
-        (Right "Config is required")
+        (Right "'config' is required")
         true
     <*> yarg
         "t"
@@ -119,11 +119,11 @@ main = do
         "ts"
         [ "scala-pkg" ]
         (Just "scala package name for table")
-        (Right "flag 'scala-pkg' is required")
+        (Right "'scala-pkg' is required")
         true
     <*> yarg
         "tp"
         [ "purs-pkg" ]
         (Just "purescript package name for table")
-        (Right "flag 'purs-pkg' is required")
+        (Right "'purs-pkg' is required")
         true

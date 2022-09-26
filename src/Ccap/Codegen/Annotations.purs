@@ -1,5 +1,8 @@
 module Ccap.Codegen.Annotations
-  ( getIsPositive
+  ( getInstances
+  , getIsDbManaged
+  , getIsPositive
+  , getIsPrimaryKey
   , getMaxLength
   , getMaxSize
   , getMinLength
@@ -13,11 +16,26 @@ import Control.Alt ((<|>))
 import Data.Array as Array
 import Data.Maybe (Maybe)
 
+params :: Array Cst.Annotation -> String -> Maybe (Array Cst.AnnotationParam)
+params annots annotKey = do
+  Cst.Annotation _ _ params' <-
+    Array.find
+      (\(Cst.Annotation n _ _) -> n == annotKey)
+      annots
+  pure params'
+
+optParamValue :: Array Cst.AnnotationParam -> String -> Maybe (Maybe String)
+optParamValue params' paramKey = do
+  Cst.AnnotationParam _ _ v <-
+    Array.find
+      (\(Cst.AnnotationParam n _ _) -> n == paramKey)
+      params'
+  pure v
+
 fieldWithOptParamValue :: String -> String -> Array Cst.Annotation -> Maybe (Maybe String)
 fieldWithOptParamValue annotKey paramKey annots = do
-  Cst.Annotation _ _ params <- Array.find (\(Cst.Annotation n _ _) -> n == annotKey) annots
-  Cst.AnnotationParam _ _ v <- Array.find (\(Cst.AnnotationParam n _ _) -> n == paramKey) params
-  pure v
+  params' <- params annots annotKey
+  optParamValue params' paramKey
 
 field :: String -> String -> Array Cst.Annotation -> Maybe String
 field annotKey paramKey = join <<< fieldWithOptParamValue annotKey paramKey
@@ -42,5 +60,19 @@ getMinLength = field "validations" "minLength"
 getMaxSize :: Array Cst.Annotation -> Maybe String
 getMaxSize = field "validations" "maxSize"
 
+getInstances :: Array Cst.Annotation -> Maybe { equal :: String, meta :: Maybe String }
+getInstances annots = do
+  params' <- params annots "instances"
+  let
+    attr = join <<< optParamValue params'
+  equal <- attr "equal"
+  pure { equal, meta: attr "meta" }
+
+getIsDbManaged :: Array Cst.Annotation -> Boolean
+getIsDbManaged = Array.any (\(Cst.Annotation name _ _) -> name == "dbManaged")
+
 getIsPositive :: Array Cst.Annotation -> Maybe Unit
 getIsPositive annots = fieldWithOptParamValue "validations" "positive" annots $> unit
+
+getIsPrimaryKey :: Array Cst.Annotation -> Boolean
+getIsPrimaryKey = Array.any (\(Cst.Annotation name _ _) -> name == "primaryKey")

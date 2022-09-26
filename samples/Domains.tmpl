@@ -3,1279 +3,2068 @@ scala: samples.Domains
 purs: Samples.Domains
 import DateTimeSupport
 type ABACityStateT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type ABARoutingNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="9">
 type AccDocNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AccSeverityT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type AccidentDocNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type AcctCatCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type AcctCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type AcctNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="15">
 type AcctTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type ActionCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type ActionDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type ActionPayTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type ActionSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ActionTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type ActivStatusCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type ActivStatusDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type ActiveDirectGuidT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="36">
 type ActivityDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type ActivityTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type ActorNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type AddrSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AddressIDT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AddtlReasonDescT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type AddtlReasonIDT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AgencyTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type AliasCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type AliasNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AmendNoNewT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AnnotRangePageNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AnnotRngPgStOffsT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AnnotTransSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AnnotationQuoteT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type AnnotationRangeEndOffsetT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AnnotationRangeEndT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type AnnotationRangeStartOffsetT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AnnotationRangeStartT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type AnnotationSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AnnotationTextT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type AppNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type AppearCodeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="15">
 type AppearCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type AppearCourtNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AppearancesT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="140">
 type ApplicationCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type ArrestCaseNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="12">
 type ArrestTrackingNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="14">
 type AschPctBasisT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type AsgnOptionIDT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AssessFacilityIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type AssessModCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type AssignmentMethodT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type AssignmentNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="9">
 type AssignmentTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type AttachmentSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AttnT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type AttyAddrLocSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AttyAddrNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AttyAdmitByCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type AttyAdmitByDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type AttyAdmitCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type AttyAdmitDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type AttyEventCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type AttyEventDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type AttyFirmIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="7">
 type AttyFirmNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type AttyNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AttySeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AttyStatusCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type AttyStatusDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type AttyTitleCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type AttyTitleDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type AuditIDT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type AuthorityTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="24">
 type AvailDateRangeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type BailiffNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type BankAcctNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="15">
 type BankNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="9">
 type BarEffStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="60">
 type BarSchoolCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type BarServiceClassT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="6">
 type BasePathT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type BatchIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="36">
 type BatchNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type BillerGroupIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type BillerIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type BondCondSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type BondCondTemplCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type BondCondTemplDescT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type BondCondTextT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="200">
 type BondCondTypeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="15">
 type BondCondTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type BondConditionsT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type BondIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="15">
 type BondSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type BondType2T: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type BondTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type BookCaseNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="12">
 type BookingORIT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="9">
 type BooleanT: wrap Boolean
+  <instances equal="cats.instances.boolean.catsKernelStdOrderForBoolean">
 type BranchIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type BranchNewT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type BusinessNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="60">
 type CCExpT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="7">
 type CPIMnemonicT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type CalAccountIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type CalDispoCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type CalDurationT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type CalExportOptionT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type CalMessageIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type CalSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CalSmsMessageNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CapPrefixDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="150">
 type CapPrefixSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CaptionT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="140">
 type CaseCloseSummaryT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type CaseDocNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CaseNoteSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CaseNoteT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type CaseOptInSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CaseSeqNoNewT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CaseSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CaseSuffixCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type CaseSuffixDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type CaseTransitionCdeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type CaseTypeAbbrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type CaseTypeDescT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type CaseTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type CashierCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type ChallengeSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ChargeIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="15">
 type ChargeNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ChargeSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ChargeStatusCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type ChargeToStepSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CheckHeightT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type CheckNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="60">
 type CheckNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type ChgDispoCodeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type ChildWelEpisodeIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ChildWelHistSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ChildWelfareIdNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CitnFilingSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CitnNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="16">
 type CityT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type CityTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type CivilEventTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type CivilJdgmtSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CivilMoneyCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type ClassNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type ClientMessageIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type CollAgencyCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type CollHistCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type ColumnNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type ColumnOrderNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CommentT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="45">
 type ConcurConsecCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type ConcurConsecDtlNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ConcurConsecSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CondCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type CondSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ConditionTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type ConfirmationIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="36">
 type ConstraintNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type ConstraintSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CorrelationIDT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type CorrelationTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type CostAgainstCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type CostAgainstDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type CountryIDT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CountryT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type CountyNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type CountyNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CourtActionCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type CourtActionDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type CourtDebitAcctNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CourtDebitActNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type CourtRptrCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type CourtTypeCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type CourtTypeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type CpiT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CtofcCaseSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CtofcNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type CtofcNoteSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CtofcNoteT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type CtofcNotificSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CtofcTypeCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type CustomSearchNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="60">
 type CustomSearchSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CustomViewNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="60">
 type CustomViewSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CvJEventSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CvJMoneySeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type CycleCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type DCFCaseNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="13">
 type DCFParticipantId: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type DFCondAssessSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DMVSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DNRCustomerNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DNREnvelopeNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DNRFormVersCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type DNRLicenseCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type DNRLicenseDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type DNRLocTypeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type DNRLocationCodeT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DNRLocationDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type DNRLocationTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type DNRMoneyCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type DNRRegionCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type DNRRegionDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type DNRSentSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DNRSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DOCSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DOJSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DOTSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DTDIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DTDT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type DWDWarrantNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="15">
 type DaCaseNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="12">
 type DateT: wrap DateTimeSupport.Date
+  <instances equal="gov.wicourts.common.LocalDateInstances.localDateEqual" meta="gov.wicourts.common.Meta.metaLocalDate">
 type DaysServedT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type DbIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type DebtHistSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DebtNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type DebtSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DebtStatusCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type DebtStatusDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type DebtStatusHistCdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type DefReqdReplyT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type DefendantIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="15">
 type DemeritPointT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DescriptionT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type DisbAgencyNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type DisbAgencyNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type DisbBatchNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DischargeReasonT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DischrgReasDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type DispoCodeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type DispoCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type DispoFormConSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DispoFormSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DistinguishedNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="160">
 type DistrictNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DivisionCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="24">
 type DktTxtT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10000">
 type DmvCommunityCodeT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DmvCommunityNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="35">
 type DocAccessCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type DocCategoryDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type DocCategoryT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type DocDOCTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type DocDraftIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DocGroupNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type DocGroupSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DocIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DocIndexSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DocIndexStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type DocNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type DocNotcHistSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DocNoteT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type DocNoteTransSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DocStorageSetT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type DocTextT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10000000">
 type DocTypeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type DocTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type DocViewSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DocletNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="15">
 type DocletTabSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DocumentTextT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type DomainNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type DorCountyNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DotCodeT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DrawerIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type DriverLicNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type EAccountNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type EAccountStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type EAcctCCEmailSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type EFileBatchIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type EPayTranSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type EPmtCitnStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type EPmtRcvblStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type ESBRoutingCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type EcourtsAcctLongDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1000">
 type EcourtsAcctShortDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type EcourtsAcctTypeSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type EcourtsAddrSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type EcourtsAuthorityTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type EcourtsCompanyNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type EcourtsCompanySeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type EcourtsFirmNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type EcourtsFirmSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type EcourtsGroupSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type EcourtsLockCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type EcourtsPasswordT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="60">
 type EcourtsTargetT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="60">
 type EcourtsUserIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="32">
 type EcourtsYubiKeyIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type EmailT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type EmployerT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type EnfmtActionCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type EnfmtDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type EventCatDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type EventCategoryT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type EventCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type EventDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type EventStatusCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type EventStatusDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type EventTypeCodeDescT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type EventTypeCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type EventTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type ExLogSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ExhibitNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type ExhibitSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ExhibitStatusCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type ExpRecTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type ExpenseSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ExpenseTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type EyeColorCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type FastAppAppT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="60">
 type FeatureDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type FeatureNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type FeeWaiverSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type FileLocTypeIDT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type FileLocationFrameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type FileLocationNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type FileLocationSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type FileLocationTapeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type FileNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type FileStampTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type FinAgencyTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type FinPurgeSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type FineForfSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type FirstNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type FontPreferenceT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type FontT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type ForgvnMonySeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type FormDescriptionT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type FormNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type FormNumberT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type FormTypeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type FormTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type FormVersCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type FormulaSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type FullNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="132">
 type FunctionalAreaT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type GenLedAcctT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type GenLetterDocIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type GlClsT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type GlobalLinkIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type GracePdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type GradYearT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type HairColorCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type HashT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type HashedSecretT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="64">
 type HexColorT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="6">
 type HistSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type HolidaySeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type HostNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type HostT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type HoursServedT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type IBRCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type IBRDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type ICSResourceSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ImportExceptionCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type ImportSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type IncrementT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type InstitutionNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type InstitutionNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type IntegrityCheckNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type IntegrityCheckSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type IntegrityTypeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type InterceptStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="15">
 type InterfaceNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type InterfaceStatusT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type IntermedXMLSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type IntprCertLevelT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type IntprCertLvlDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type IntprNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type InvoiceCodeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="60">
 type InvoiceCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type IpAddressT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="15">
 type IssAgencyNmT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type IssAgencyNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JAReasonCodeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type JAReasonCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type JSONT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type JarFileNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type JavaPackageNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type JdgmtLienTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type JdgmtPartyNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JdgmtPartyStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type JdgmtPartyTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type JdgmtSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JobBatchNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JobCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type JobDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type JobIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JobNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type JobTitleT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type JocFormSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JocNotcSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JointSevAssessNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JudAssignNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="12">
 type JudAssignSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JudgeNotesT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type JudgmentIntRateT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type JudgmentPriorityT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JurInstrOrdSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JurisdActionCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type JurisdActionDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type JurorAvailabilityCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type JurorCheckInMsgT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2000">
 type JurorIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JurorPostpReqSeqT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JurorPostpReqStatT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type JurorStatGreetingT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2000">
 type JurorStatusCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type JuryBranchIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type JuryBranchNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type JuryCaseResultT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type JuryCatSeqNo: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JuryInstTmplSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JuryInstrDocTextT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type JuryInstrNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type JuryInstrSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JuryInstrTitleT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="300">
 type JuryInstrTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type JuryReportSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JurySizeT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type JuryYearT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type JustisNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="8">
 type KeyEventGroupNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type KeyEventSeqT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type LCSubTextT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type LanguageCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type LanguageDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type LanguageNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type LanguageT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type LastNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="60">
 type LiClassT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type LiEndorsementT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type LineSpacingT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type LinkActionT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="6">
 type LinkDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type LinkIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type LinkNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type LinkTargetT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1000">
 type LocDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type LocT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type LocalGovtNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="60">
 type LocalGovtSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type LogDescriptionT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type LogFileNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="200">
 type LogLocationT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type LogNoteCaseSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type LogNoteSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type LogNoteTextT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type LogRecordSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type LogSheetOrigDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type LogSheetOrigTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type LookUpCategoryT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type LookUpCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="15">
 type LookUpDescT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type LookUpIDT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type MD5HashT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="32">
 type MailCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type MailDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type MailServiceTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type MailingOrderNewT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type MaintCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type MaritalStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type MasterJurorSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type MaxPmtsToMissT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type MeasureDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type MeasureGroupDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type MeasureGroupId: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type MeasureIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type MessageDocSeqNoT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type MessageSeqNoT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type MessageTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type MiddleNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type MileT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type MileageRateT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type MimeTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type MoneyT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type MonthNoNewT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type MotionDispoCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type MotionDispoDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type MunicipalityCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="7">
 type MunicipalityDescT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type MunicipalityIDT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type NCICAgencyIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="9">
 type NCICCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type NCICDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="80">
 type NameInfoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="60">
 type NamePrefixT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type NameSuffixT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type NewPartyAKASeqNoT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type NewPartyAttySeqNoT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type NoJurorT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type NotcAgencyCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type NotcRecEmAudSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type NotcRecFromSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type NotcRecipEStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type NotcRecipSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type NotesT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type NumDaysNewT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type OccupationT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type OffenseDateRangeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type OfficerIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type OfficerSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type OnHighwayT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type OpClassT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type OpEndorsementT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type OperLicNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type OperationT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type OrderSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type OrderTypeCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type OrderTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type OrganizationCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type PRDSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PageAnnotateSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PageNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PanelDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type PanelIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type PanelMemberNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PanelRandomNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PartyNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PartySeqNoT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type PartyTypeCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type PartyTypeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="35">
 type PartyTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type PayableNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PayableSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PaymentChannelT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type PaymentDeferCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type PaymentMethodT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type PaymentStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type PctCoordinateT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type PdCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type PenaltyStatuteT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="21">
 type PendingCaseSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PercentageT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type PeremptoryNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PeriodSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PermRevMethDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type PermReviewMethodT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PermReviewSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PersonIDT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PersonRoleCodeT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PersonRoleIDT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PhoneExtT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type PhoneIDT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PhoneIntlT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type PhoneT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="12">
 type PlaceEndTypeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type PlaceSettingDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type PlacementEndTypeT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PlacementReasDescT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type PlacementReasonT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PlacementSettingT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PleaCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type PleaPriorityT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PlntfAgencyNmT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type PlntfAgencyNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PlntfAgencyTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type PmtMethodT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type PmtPriorityT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PoolDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type PoolIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type PoolImportStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type PoolMemberNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PoolRequestDocNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type PoolRequestSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PopulationT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PortT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PositionT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type PostponeReasonT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type PrefNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type PrimAddrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type PrintStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type PrinterNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="31">
 type PriorityT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PrisonerIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="12">
 type ProHacViceAttyNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type ProSeNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ProsAgencyNmT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type ProsAgencyNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ProtOrdActionTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type ProtOrdActnDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type ProtOrderSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type PrtEngineCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type PublicOptInCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="6">
 type QueryNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type QuestionSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type QueueNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="32">
 type RaceCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type RcptSchedSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RcptTypeCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type RcvblAcctDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type RcvblAcctTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type RcvblNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ReasonCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type RecommendCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type RecommendDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type RecordTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type RecordingLocationT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type RecurCalSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RecurHolidaySeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RecurTimeBlkSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RedactAttemptNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RegExValidationT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type RejectionCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type RelSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RelationIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RelationshipCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type RelationshipDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type ReportIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type ReportMethodCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type ReportNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type ReportNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ReportTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type ReqAgencyNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ReviewMessageT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="500">
 type ReviewSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RngDaPrtyAliasSeqT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RoomSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RowOrderT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RptrStatusCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type RptrStatusDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type RungCorrTypeIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type RungDaChargeSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RungDaCitnSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RungDaPartySeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type RungHostIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type RungStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type RungUserIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="32">
 type SDCAddressT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type SDCAgencyIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="6">
 type SDCCityT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="22">
 type SDCFirstNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type SDCLastNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="32">
 type SDCOperLicNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="14">
 type SDCSsnT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="9">
 type SalesTaxPctT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type SatisfactionT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type ScanHistSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ScannedDocSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type SccaCaseNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="14">
 type SchedCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type SchedDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type ScreenNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type ScvCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type SearchNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="125">
 type SearchStatuteCiteT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type SearchWarrantSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type SeatChartSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type SecAddrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type SectionNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type SentCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type SentToT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type SentencePriorityT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type SeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type SequentialIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type SevClsCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type SexCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type SignatureT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type SmsMessageNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type SortOrderNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type SortTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type SoundexT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type SpclNotcSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type SpeakerT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="125">
 type Ssn2T: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type Ssn3T: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="11">
 type StampActionT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type StampLineT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="22">
 type StampTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type StatIBRCodeSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type StatNCICCodeSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type StatReportSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type StatRowNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type StatUCRACodeSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type StatUCRRtACdSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type StateDescT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type StateIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type StateT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type StatusCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type StatuteCiteT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="21">
 type StatuteDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type StatuteSevSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type StatuteTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type StepAgencyCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type StepAgencyDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="35">
 type StepDOJSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type StepImportStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type StickerTextT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type SupDurationT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type SuperAgencyNmT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type SuperAgencyNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type SupportingDocSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type SyncSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type TROOrderNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type TableNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type TagDescr: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type TagDocAutoDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type TagDocAutoIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type TagDocSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type TagNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type TagTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type TapeCounterNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="16">
 type TapeLocT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="18">
 type TempAccessCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="12">
 type TenderCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type TenderSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type TextT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2000">
 type ThrottleIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type TimeBlkTpSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type TimeBlockSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type TimeT: wrap DateTimeSupport.Time
+  <instances equal="gov.wicourts.common.LocalTimeInstances.equalLocalTime" meta="gov.wicourts.common.Meta.metaLocalTime">
 type TimestampP3T: wrap DateTimeSupport.Timestamp
+  <instances equal="gov.wicourts.common.LocalDateTimeInstances.localDateTimeEqual" meta="gov.wicourts.common.Meta.metaLocalDateTime">
 type TimestampT: wrap DateTimeSupport.Timestamp
+  <instances equal="gov.wicourts.common.LocalDateTimeInstances.localDateTimeEqual" meta="gov.wicourts.common.Meta.metaLocalDateTime">
 type TitleT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type TranDetailSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type TranIdSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type TranIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="12">
 type TranImageSeqNoT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type TranNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type TranTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type TranscriptCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type TranscriptDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">
 type TriggeredCalNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type TriggeredCalSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type TripCodeDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="30">
 type TripCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type TripErrDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type TripHistSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type TripSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type UCRACodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type UCRADescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type UCRRtACdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type UCRRtADescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
 type URLT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type UUIDT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="36">
 type UnifiedCaseNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="14">
 type UpdateTypeIdT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type UserBarCodeNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type UserBarCodeTypeNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type UserIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="8">
 type VersionNoT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type VersionT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type VoirDireNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type VoirDireSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type VoteCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type VoteDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type WarrantSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type WarrantTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type WccaAgencyNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type WccaCommentsT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type WccaPasswordT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="32">
 type WccaProfileNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type WccaTimeBlkSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type WccaTitleT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type WccaUserNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="32">
 type WccaUserTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="32">
 type WcisActivityCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type WcisChrgDispoCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="2">
 type WcisClsCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="5">
 type WcisClsDescrT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type WcisClsJudgeTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type WcisCondTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type WcisSentCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="4">
 type WcisSpecStatusT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type WeightedRandomT: wrap Decimal
+  <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type WithdrawalOrdDescT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="50">
 type WithdrwlOrdBasisT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
 type WitnessSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type WitnessTypeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">
 type WorkstationIdT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type XMLIntT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type XMLSeqNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type XMLStringValueT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type XMLTagNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="255">
 type XmlNameT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="40">
 type XmlT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
 type XmlUsageT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="20">
 type YearNoT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type ZipCodeT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type ZipT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="10">
 type ZoneT: wrap String
+  <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="1">

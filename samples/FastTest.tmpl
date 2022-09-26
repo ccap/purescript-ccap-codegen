@@ -1,0 +1,68 @@
+scala: gov.wicourts.codegen.test.fastdecoding.FastTest
+purs: Test.Ccap.Codegen.FastDecoding.FastTest
+
+import Domains
+
+type Basic: WithParams (Ref Decimal) Int (Array Boolean)
+
+type WithParams a b c: {
+  stringTest: String,
+  intTest: Int,
+  booleanTest: Boolean,
+  decimalTest: Decimal,
+  stringOpt: Maybe String,
+  intOpt: Maybe Int,
+  booleanOpt: Maybe Boolean,
+  decimalOpt: Maybe Decimal,
+
+  stringT: Domains.TextT,
+  intT: Domains.CountyNoT,
+  booleanT: Domains.BooleanT,
+  decimalT: Domains.HoursServedT,
+  stringOptT: Maybe Domains.TextT,
+  intOptT: Maybe Domains.CountyNoT,
+  booleanOptT: Maybe Domains.BooleanT,
+  decimalOptT: Maybe Domains.HoursServedT,
+
+  ref: Ref c,
+  refOpt: Maybe (Ref a),
+  anotherRef: Ref Int,
+  yetAnotherRef: Maybe (Ref String)
+
+  arrayOfB: Array b,
+  aC: c,
+
+  xx: MyList String,
+  yy: MyTuple String Int
+}
+
+type Ref a: {
+  intTest: Int,
+  somethingA: a,
+}
+
+type ArrayOfSomething a: Array a
+
+type Foo: Array String
+
+type RecordOfOther: {
+  x: Int,
+  y: Int,
+}
+
+type MyList a: [
+  | Nil
+  | Cons a (MyList a)
+  ]
+
+type MyTuple a b: [
+  | MyTuple a b
+  ]
+
+type Blarg: [
+  | Blue String
+  | Green Int Int
+  | Red
+  ]
+
+type X: wrap String

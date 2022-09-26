@@ -1,4 +1,9 @@
-module Ccap.Codegen.Util where
+module Ccap.Codegen.Util
+  ( ensureNewline
+  , liftEffectSafely
+  , processResult
+  , scrubEolSpaces
+  ) where
 
 import Prelude
 import Control.Monad.Error.Class (try)
