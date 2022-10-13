@@ -99,7 +99,7 @@ standardImports :: Array String
 standardImports =
   [ "gov.wicourts.jsoncommon.Encoder"
   , "gov.wicourts.jsoncommon.Decoder"
-  , "scalaz.Monad"
+  , "cats.Monad"
   ]
 
 imports :: Ast.Module -> Box
@@ -151,7 +151,7 @@ wrapDecoder :: Array Cst.Annotation -> String -> Ast.ScalaDecoderType -> Ast.Typ
 wrapDecoder annots name dType t dec = do
   topDec <- decoder annots t
   let
-    body = (topDec <<>> text ".disjunction.andThen") `paren` [ dec ] // text ".validation"
+    body = (topDec <<>> text ".toEither.andThen") `paren` [ dec ] // text ".toValidated"
   pure $ defDecoder true name dType body
 
 data TypeDeclOutputMode
@@ -194,14 +194,14 @@ typeDecl outputMode (Ast.TypeDecl { name, topType: tt, annots: an, params: pp, s
         let
           tagname = text (name <> "T")
 
-          scalatyp = text "scalaz.@@[" <<>> ty <<>> char ',' <<+>> tagname <<>> char ']'
+          scalatyp = text "gov.wicourts.common.@@[" <<>> ty <<>> char ',' <<+>> tagname <<>> char ']'
         pure
           $ vcat Boxes.left
               [ text "final abstract class" <<+>> tagname
               , text "type" <<+>> text name <<+>> char '=' <<+>> scalatyp
-              , text "val" <<+>> text name <<>> char ':' <<+>> text "scalaz.Tag.TagOf["
+              , text "val" <<+>> text name <<>> char ':' <<+>> text "gov.wicourts.common.Tag.TagOf["
                   <<>> tagname
-                  <<>> text "] = scalaz.Tag.of["
+                  <<>> text "] = gov.wicourts.common.Tag.of["
                   <<>> tagname
                   <<>> char ']'
               , defEncoder true name pp (e <<>> text ".tagged")
@@ -212,7 +212,7 @@ typeDecl outputMode (Ast.TypeDecl { name, topType: tt, annots: an, params: pp, s
         wrappedDecoder <-
           maybe'
             (\_ -> pure noGenericParameters)
-            (\dType -> wrapDecoder an name dType t (text decode <<>> text ".disjunction"))
+            (\dType -> wrapDecoder an name dType t (text decode <<>> text ".toEither"))
             scalaDecoderType
         pure
           $ text "type"
@@ -314,7 +314,7 @@ typeDecl outputMode (Ast.TypeDecl { name, topType: tt, annots: an, params: pp, s
               name
               Ast.Field
               (Ast.Primitive Cst.PString)
-              (((text ("Decoder.enum[M, " <> name) <<>> char ']') `paren` params) // text ".disjunction")
+              (((text ("Decoder.enum[M, " <> name) <<>> char ']') `paren` params) // text ".toEither")
           pure $ trait // ((text "object" <<+>> text name) `curly` variants) // enc // dec
       )
       (Ast.noArgConstructorNames constructors)
@@ -407,11 +407,11 @@ sumTypeDecoder name constructors = do
     func =
       text ("val d: Decoder.Form[M, " <> name <> "] =")
         // indented (text "p match" `curly` (branches `NonEmptyArray.snoc` failureBranch))
-        // text "d.disjunction"
+        // text "d.toEither"
   pure
-    ( text "Decoder.constructor.disjunction.flatMap { p =>"
+    ( text "Decoder.constructor.toEither.flatMap { p =>"
         // indented func
-        // text "}.validation"
+        // text "}.toValidated"
     )
 
 dataConstructor :: TypeDeclOutputMode -> String -> Array Cst.TypeParam -> Boolean -> Ast.Constructor -> Codegen Box
@@ -651,11 +651,11 @@ smallRecordDecoder name props = do
   ps <- traverse (\r -> recordFieldDecoder r <#> (_ <<>> char ',')) props
   pure
     $ paren_
-        (text ("scalaz.Apply[Decoder.Form[M, *]].apply" <> show (NonEmptyArray.length props)))
+        (text ("cats.Apply[Decoder.Form[M, *]].map" <> show (NonEmptyArray.length props)))
         ps
         (text ("(" <> name <> ".apply)"))
 
--- | tree type for bulding scalaz Apply statements
+-- | tree type for bulding cats Apply statements
 data TupleApplyStatement
   = Final (Array Ast.RecordProp)
   | Intermediate (Array TupleApplyStatement)
@@ -666,7 +666,7 @@ largeRecordDecoder name nelProps = buildApplyStatement tupleStatements
   -- XXX A compromise considering the late hour
   props = NonEmptyArray.toArray nelProps
 
-  -- | collects all the props into a tree that can be parsed into scalaz.Apply statements
+  -- | collects all the props into a tree that can be parsed into cats.Apply statements
   tupleStatements :: Array TupleApplyStatement
   tupleStatements = go (Final <$> chunksOf 5 props)
     where
@@ -677,7 +677,7 @@ largeRecordDecoder name nelProps = buildApplyStatement tupleStatements
 
   -- | builds the Apply statements. The recursive funcion `go` returns a record with the two parts of
   -- | the syntax that need to be nested:
-  -- | 1. the arguments to scalaz.Apply.tupleN (decoderDefinitionSyntax)
+  -- | 1. the arguments to cats.Apply.tupleN (decoderDefinitionSyntax)
   -- | 2. the syntax to extract the values from the tuples (extractionSyntax)
   buildApplyStatement :: Array TupleApplyStatement -> Codegen Box
   buildApplyStatement statements =
@@ -688,7 +688,7 @@ largeRecordDecoder name nelProps = buildApplyStatement tupleStatements
         decs <- traverse _.decoderDefinitionSyntax recursionResults
         pure
           $ paren_
-              (text ("scalaz.Apply[Decoder.Form[M, *]].apply" <> show (Array.length statements)))
+              (text ("cats.Apply[Decoder.Form[M, *]].map" <> show (Array.length statements)))
               decs
               (curly (emptyBox 0 0) [ applyAllParams (recursionResults <#> _.extractionSyntax) ])
     where
@@ -713,7 +713,7 @@ largeRecordDecoder name nelProps = buildApplyStatement tupleStatements
               decs <- traverse (\r -> recordFieldDecoder r <#> (_ <<>> char ',')) part
               pure
                 $ paren_
-                    (text ("scalaz.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length part)))
+                    (text ("cats.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length part)))
                     decs
                     (char ',')
         , extractionSyntax:
@@ -729,7 +729,7 @@ largeRecordDecoder name nelProps = buildApplyStatement tupleStatements
               decs <- traverse (_.decoderDefinitionSyntax) recursionResults
               pure
                 $ paren_
-                    (text ("scalaz.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length parts)))
+                    (text ("cats.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length parts)))
                     decs
                     (char ',')
         , extractionSyntax:
