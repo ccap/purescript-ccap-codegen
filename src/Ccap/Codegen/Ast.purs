@@ -5,7 +5,7 @@ module Ccap.Codegen.Ast
   , ScalaDecoderType(..)
   , TRef
   , TopType(..)
-  , Type(..)
+  , Typ(..)
   , TypeDecl(..)
   , TypeOrParam(..)
   , isRecord
@@ -42,19 +42,19 @@ newtype TypeDecl
   }
 
 data TopType
-  = Type Type
-  | Wrap Type
+  = Typ Typ
+  | Wrap Typ
   | Record (NonEmptyArray RecordProp)
   | Sum (NonEmptyArray Constructor)
 
-data Type
+data Typ
   = Primitive Cst.Primitive
   | Ref TRef
   | Array TypeOrParam
   | Option TypeOrParam
 
 data TypeOrParam
-  = TType Type
+  = TType Typ
   | TParam Cst.TypeParam
 
 type TRef
@@ -128,11 +128,11 @@ derive instance genericConstructor :: Generic Constructor _
 instance showConstructor :: Show Constructor where
   show t = genericShow t
 
-derive instance eqType :: Eq Type
+derive instance eqTyp :: Eq Typ
 
-derive instance genericType :: Generic Type _
+derive instance genericTyp :: Generic Typ _
 
-instance showType :: Show Type where
+instance showTyp :: Show Typ where
   show t = genericShow t
 
 derive instance eqTopType :: Eq TopType
