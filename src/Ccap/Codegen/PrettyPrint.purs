@@ -55,7 +55,7 @@ typeDecl (Cst.TypeDecl { name, topType: tt, annots, params }) =
     ps = leadingSpace <<< map (\(Cst.TypeParam s) -> text s)
 
     ty = case tt of
-      Cst.Type t -> dec <<+>> tyType t
+      Cst.Typ t -> dec <<+>> tyType t
       Cst.Wrap t -> dec <<+>> text "wrap" <<+>> tyType t
       Cst.Record props ->
         dec <<+>> char '{'
@@ -93,7 +93,7 @@ typeOrParam = case _ of
   Cst.TType t -> tyType t
   Cst.TParam (Cst.TypeParam t) -> text t
 
-tyType :: Cst.Type -> Box
+tyType :: Cst.Typ -> Box
 tyType = case _ of
   Cst.Primitive p -> primitive p
   Cst.Ref _ { mod: Nothing, typ, params: [] } -> text typ

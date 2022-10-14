@@ -35,7 +35,7 @@ records (Ast.Module mod) =
     (Array.fromFoldable mod.types)
 
 oneModule :: Ast.Module -> Maybe Box
-oneModule m@(Ast.Module mod) = do
+oneModule m@(Ast.Module _) = do
   let
     recs = records m
   if Array.null recs then
@@ -48,12 +48,12 @@ oneModule m@(Ast.Module mod) = do
 
 oneRecord :: String -> NonEmptyArray Ast.RecordProp -> Box
 oneRecord name props =
-  text ("exports.decode_" <> name <> " = function (api) {")
+  text ("export const decode_" <> name <> " = function (api) {")
     // indented
         ( text "return function(json) {"
             // indented
                 ( text "if (! (typeof json === 'object' && !Array.isArray(json) && json !== null)) {"
-                    // indented (text "return api.left('This value must be an object');")
+                    // indented (text "return api.typeMismatch('This value must be an object');")
                     // text "}"
                     // text ""
                     // vsep 1 Boxes.left (map decodeProp props)
@@ -73,10 +73,10 @@ decodeProp :: Ast.RecordProp -> Box
 decodeProp { name, typ } =
   text ("let " <> name <> ";")
     // text ("if (! ('" <> name <> "' in json)) {")
-    // indented (text ("return api.left(" <> show ("Property '" <> name <> "' does not exist") <> ");"))
+    // indented (text ("return api.missingValue(" <> show ("Property '" <> name <> "'") <> ");"))
     // text "}"
     // case typ of
-        Ast.TParam (Cst.TypeParam p) ->
+        Ast.TParam (Cst.TypeParam _) ->
           decodeCustom
             { name
             , decoder: "api.jsonCodec_" <> name
@@ -148,7 +148,7 @@ decodeProp { name, typ } =
 decodeFastStandard :: { name :: String, negTest :: String, descr :: String } -> Box
 decodeFastStandard { name, negTest, descr } =
   text ("if (" <> negTest <> ") {")
-    // indented (text ("return api.left(" <> (show ("Property '" <> name <> "' must be a(n) " <> descr)) <> ");"))
+    // indented (text ("return api.typeMismatch(" <> (show ("Property '" <> name <> "' must be a(n) " <> descr)) <> ");"))
     // text "}"
     // text (name <> " = json." <> name <> ";")
 
@@ -159,7 +159,7 @@ decodeFastOptionStandard { name, negTest, descr } =
     // text "} else {"
     // indented
         ( text ("if (" <> negTest <> ") {")
-            // indented (text ("return api.left(" <> (show ("Property '" <> name <> "' must be a(n) " <> descr)) <> ");"))
+            // indented (text ("return api.typeMismatch(" <> (show ("Property '" <> name <> "' must be a(n) " <> descr)) <> ");"))
             // text "}"
             // text (name <> " = api.just(json." <> name <> ");")
         )

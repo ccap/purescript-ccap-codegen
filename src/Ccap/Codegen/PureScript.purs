@@ -134,7 +134,7 @@ typeDecl (Ast.TypeDecl { name, topType: tt, annots, params: typeParams }) =
     dec kw = text kw <<+>> text (name <> pp) <<+>> char '='
   in
     case tt of
-      Ast.Type t -> do
+      Ast.Typ t -> do
         ty <- tyType t false
         j <- jsonCodec t false
         pure $ (dec "type" <<+>> ty)
@@ -143,7 +143,7 @@ typeDecl (Ast.TypeDecl { name, topType: tt, annots, params: typeParams }) =
         Nothing -> do
           other <- otherInstances name typeParams
           ty <- tyType t false
-          j <- newtypeJsonCodec name t
+          j <- newtypeJsonCodec t
           newtype_ <- newtypeInstances name
           pure
             $ dec "newtype"
@@ -154,7 +154,7 @@ typeDecl (Ast.TypeDecl { name, topType: tt, annots, params: typeParams }) =
             // defJsonCodec name typeParams j
         Just { typ, decode, encode } -> do
           ty <- externalRef typ
-          j <- externalJsonCodec name t decode encode
+          j <- externalJsonCodec t decode encode
           pure
             $ dec "type"
             <<+>> ty
@@ -177,7 +177,7 @@ typeDecl (Ast.TypeDecl { name, topType: tt, annots, params: typeParams }) =
                   <> " DecoderApi_"
                   <> name
                   <> pp
-                  <> " -> A.Json -> E.Either String "
+                  <> " -> A.Json -> E.Either JsonDecodeError "
                   <> if Array.null typeParams then
                       name
                     else
@@ -194,7 +194,7 @@ typeDecl (Ast.TypeDecl { name, topType: tt, annots, params: typeParams }) =
                   Ast.WithArgs (Cst.ConstructorName n) args -> do
                     params <- tyTypeOrParams (NonEmptyArray.toArray args)
                     pure (text n <<+>> hsep 1 Boxes.top params)
-              codec <- sumJsonCodec name constructors
+              codec <- sumJsonCodec constructors
               pure
                 $ dec "data"
                 // indented (hsep 1 Boxes.bottom $ vcat Boxes.left <$> [ NonEmptyArray.drop 1 cs <#> \_ -> char '|', NonEmptyArray.toArray cs ])
@@ -216,6 +216,7 @@ noArgSumJsonCodec :: String -> NonEmptyArray String -> Codegen Box
 noArgSumJsonCodec name vs = do
   tell
     [ { mod: "Data.Either", typ: Just "Either(..)", alias: Nothing }
+    , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError(..)", alias: Just "JDE" }
     ]
   let
     encode =
@@ -234,14 +235,16 @@ noArgSumJsonCodec name vs = do
 
   decodeBranch v = text (show v) <<+>> text "-> Right" <<+>> text v
 
-  fallthrough = text $ "s -> Left $ \"Invalid value \" <> show s <> \" for " <> name <> "\""
+  fallthrough = text $ "s -> Left $ JDE.TypeMismatch $ \"Invalid value \" <> show s <> \" for " <> name <> "\""
 
-sumJsonCodec :: String -> NonEmptyArray Ast.Constructor -> Codegen Box
-sumJsonCodec name cs = do
+sumJsonCodec :: NonEmptyArray Ast.Constructor -> Codegen Box
+sumJsonCodec cs = do
   tell
     [ { mod: "Data.Either", typ: Nothing, alias: Just "E" }
     , { mod: "Data.Tuple", typ: Nothing, alias: Just "T" }
     , { mod: "Data.Array", typ: Nothing, alias: Just "Array" }
+    , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError", alias: Nothing }
+    , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError(..)", alias: Just "JDE" }
     ]
   encodeBranches <- traverse encodeBranch cs
   decodeBranches <- traverse decodeBranch cs
@@ -312,9 +315,9 @@ sumJsonCodec name cs = do
                 )
         )
 
-  fallThrough = text $ "T.Tuple cn params -> E.Left $ \"Pattern match failed for \" <> show cn <> \" with \" <> show (Array.length params) <> \" parameters\""
+  fallThrough = text $ "T.Tuple cn params -> E.Left $ JDE.TypeMismatch $ \"Pattern match failed for \" <> show cn <> \" with \" <> show (Array.length params) <> \" parameters\""
 
-needsParens :: Ast.Type -> Boolean
+needsParens :: Ast.Typ -> Boolean
 needsParens = case _ of
   Ast.Primitive _ -> false
   Ast.Ref { params } -> not Array.null params
@@ -340,7 +343,7 @@ otherInstances name params = do
   tell
     [ { mod: "Prelude", typ: Nothing, alias: Nothing }
     , { mod: "Data.Generic.Rep", typ: Just "class Generic", alias: Nothing }
-    , { mod: "Data.Generic.Rep.Show", typ: Just "genericShow", alias: Nothing }
+    , { mod: "Data.Show.Generic", typ: Just "genericShow", alias: Nothing }
     ]
   let
     nameWithParams =
@@ -361,7 +364,7 @@ otherInstances name params = do
     // text ("instance show" <> name <> " :: " <> depends "Show" <> "Show " <> nameWithParams <> " where")
     // indented (text "show a = genericShow a")
 
-tyType :: Ast.Type -> Boolean -> Codegen Box
+tyType :: Ast.Typ -> Boolean -> Codegen Box
 tyType tt includeParensIfNeeded =
   let
     wrap tycon t = tyType t true <#> \ty -> text tycon <<+>> ty
@@ -421,13 +424,13 @@ externalRef s = fromMaybe (text s # pure) (splitType s <#> externalType)
 emitRuntime :: Box -> Codegen Box
 emitRuntime b = emit { mod: "Ccap.Codegen.Runtime", typ: Nothing, alias: Just "R" } b
 
-newtypeJsonCodec :: String -> Ast.Type -> Codegen Box
-newtypeJsonCodec name t = do
+newtypeJsonCodec :: Ast.Typ -> Codegen Box
+newtypeJsonCodec t = do
   i <- jsonCodec t true
   emitRuntime $ text "R.codec_newtype" <<+>> i
 
-externalJsonCodec :: String -> Ast.Type -> String -> String -> Codegen Box
-externalJsonCodec name t decode encode = do
+externalJsonCodec :: Ast.Typ -> String -> String -> Codegen Box
+externalJsonCodec t decode encode = do
   i <- jsonCodec t true
   decode_ <- externalRef decode
   encode_ <- externalRef encode
@@ -436,7 +439,7 @@ externalJsonCodec name t decode encode = do
 codecName :: Maybe String -> String -> String
 codecName mod t = qualify mod $ "jsonCodec_" <> t
 
-jsonCodec :: Ast.Type -> Boolean -> Codegen Box
+jsonCodec :: Ast.Typ -> Boolean -> Codegen Box
 jsonCodec ty includeParensIfNeeded = do
   let
     tycon :: String -> Box -> Box
@@ -537,6 +540,7 @@ recordDecoderApi props = do
   if Array.null labelsAndTypes then do
     tell
       [ { mod: "Data.Either", typ: Nothing, alias: Just "E" }
+      , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError", alias: Nothing }
       ]
     pure (text "R.StandardDecoderApi")
   else do
@@ -547,6 +551,8 @@ recordDecoderApi props = do
       , { mod: "Data.Bifunctor", typ: Nothing, alias: Just "B" }
       , { mod: "Ccap.Codegen.Runtime", typ: Nothing, alias: Just "R" }
       , { mod: "Data.Decimal", typ: Just "Decimal", alias: Nothing }
+      , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError", alias: Nothing }
+      , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError(..)", alias: Just "JDE" }
       ]
     pure (delimitedLiteral Vert '{' '}' (standard <> labelsAndTypes))
   where
@@ -559,7 +565,10 @@ recordDecoderApi props = do
       , "fromRight :: forall a b. Partial => E.Either a b -> b"
       , "right :: forall a b. b -> E.Either a b"
       , "left :: forall a b. a -> E.Either a b"
-      , "addErrorPrefix :: forall a. String -> E.Either String a -> E.Either String a"
+      , "addErrorPrefix :: forall a. String -> E.Either JsonDecodeError a -> E.Either JsonDecodeError a"
+      , "missingValue :: forall b. String -> E.Either JsonDecodeError b"
+      , "typeMismatch :: forall b. String -> E.Either JsonDecodeError b"
+
       , "jsonCodec_primitive_decimal :: R.JsonCodec Decimal"
       ]
 
@@ -589,14 +598,16 @@ recordDecoderApiDecl props = do
       [ "nothing: M.Nothing"
       , "just: M.Just"
       , "isLeft: E.isLeft"
-      , "fromRight: E.fromRight"
+      , "fromRight: \\(E.Right v) -> v"
       , "right: E.Right"
       , "left: E.Left"
-      , "addErrorPrefix: \\s -> B.lmap (s <> _)"
+      , "addErrorPrefix: \\name -> B.lmap (JDE.Named name)"
+      , "missingValue: \\name -> E.Left $ JDE.Named name JDE.MissingValue"
+      , "typeMismatch: E.Left <<< JDE.TypeMismatch"
       , "jsonCodec_primitive_decimal: R.jsonCodec_decimal"
       ]
 
-hasDecoderFastPath :: Ast.Type -> Boolean
+hasDecoderFastPath :: Ast.Typ -> Boolean
 hasDecoderFastPath = isJust <<< fastPathDecoderType
 
 recordJsonCodec :: String -> Array Cst.TypeParam -> NonEmptyArray Ast.RecordProp -> Codegen Box
@@ -606,6 +617,7 @@ recordJsonCodec name typeParams props = do
     , { mod: "Ccap.Codegen.Runtime", typ: Nothing, alias: Just "R" }
     , { mod: "Foreign.Object", typ: Nothing, alias: Just "FO" }
     , { mod: "Prelude", typ: Nothing, alias: Nothing }
+    , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError", alias: Nothing }
     ]
   encodeProps <- recordWriteProps props
   let
@@ -615,8 +627,6 @@ recordJsonCodec name typeParams props = do
             ( text "FO.fromFoldable"
                 // indented encodeProps
             )
-
-    names = props <#> _.name >>> text
 
     decode = text ("decode: decode_" <> name <> " (decoderApi_" <> name <> defParams typeParams <> ")")
   pure $ delimitedLiteral Vert '{' '}' [ decode, encode ]

@@ -5,47 +5,50 @@ module GetSchema
 import Prelude
 import Ccap.Codegen.Cst as Cst
 import Ccap.Codegen.Database as Database
+import Ccap.Codegen.GetSchemaConfig (GetSchemaConfig, getSchemaConfig)
 import Ccap.Codegen.PrettyPrint as PrettyPrint
 import Ccap.Codegen.Util (liftEffectSafely, processResult, scrubEolSpaces)
 import Control.Monad.Except (ExceptT, except)
 import Data.Either (Either(..), note)
+import Data.Filterable (filter)
 import Data.Foldable (traverse_)
 import Data.Int (fromString) as Int
 import Data.Maybe (Maybe(..))
 import Data.String as String
 import Data.Traversable (for)
-import Database.PostgreSQL.PG (PoolConfiguration, defaultPoolConfiguration, newPool)
+import Database.PostgreSQL.Pool as Pool
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Class.Console as Console
-import Node.Yargs.Applicative (flag, runY, yarg)
-import Node.Yargs.Setup (usage)
+import Options.Applicative as OptParse
 
-app :: Boolean -> String -> String -> String -> String -> Effect Unit
-app domains dbConfig tableParam scalaPkg pursPkg =
+app :: GetSchemaConfig -> Effect Unit
+app config =
   launchAff_
     $ processResult do
         let
-          checkString s =
-            if String.length s > 0 then
-              Just s
-            else
-              Nothing
+          checkMaybeString = filter (\s -> String.length s > 0)
 
-          table = checkString tableParam
-        poolConfig <- except (readPoolConfig dbConfig)
+          table = checkMaybeString config.table
+        poolConfig <- except (readPoolConfig config.database)
         let
-          config = { domains, table, poolConfig, scalaPkg, pursPkg }
-        fromDb <- dbModules config
+          c =
+            { domains: config.domains
+            , table
+            , poolConfig
+            , scalaPkg: config.scalaPkg
+            , pursPkg: config.pursPkg
+            }
+        fromDb <- dbModules c
         traverse_ writeModule fromDb
   where
-  readPoolConfig :: String -> Either String PoolConfiguration
+  readPoolConfig :: String -> Either String Pool.Configuration
   readPoolConfig s = fromParts parts
     where
     parts = String.split (String.Pattern ":") s
 
-    poolConfig db = (defaultPoolConfiguration db) { idleTimeoutMillis = Just 500 }
+    poolConfig db = (Pool.defaultConfiguration db) { idleTimeoutMillis = Just 500 }
 
     fromParts [ host, port, db, user ] =
       portFromString port
@@ -72,7 +75,7 @@ app domains dbConfig tableParam scalaPkg pursPkg =
 
 dbModules :: Config -> ExceptT String Aff (Maybe Cst.Module)
 dbModules config = do
-  pool <- liftEffect $ newPool config.poolConfig
+  pool <- liftEffect $ Pool.new config.poolConfig
   if config.domains then
     Just <$> Database.domainModule pool config.scalaPkg config.pursPkg
   else
@@ -81,7 +84,7 @@ dbModules config = do
 type Config
   = { domains :: Boolean
     , table :: Maybe String
-    , poolConfig :: PoolConfiguration
+    , poolConfig :: Pool.Configuration
     , scalaPkg :: String
     , pursPkg :: String
     }
@@ -96,34 +99,5 @@ writeModule = liftEffectSafely <<< print
 
 main :: Effect Unit
 main = do
-  let
-    setup = usage "$0 --config <host>:<port>:<db>:<user> [ --domains | --table <table> ]"
-  runY setup $ app
-    <$> flag
-        "d"
-        [ "domains" ]
-        (Just "Query database domains")
-    <*> yarg
-        "c"
-        [ "config" ]
-        (Just "The database to use")
-        (Right "Config is required")
-        true
-    <*> yarg
-        "t"
-        [ "table" ]
-        (Just "Query the provided database table")
-        (Left "")
-        true
-    <*> yarg
-        "ts"
-        [ "scala-pkg" ]
-        (Just "scala package name for table")
-        (Left "")
-        true
-    <*> yarg
-        "tp"
-        [ "purs-pkg" ]
-        (Just "purescript package name for table")
-        (Left "")
-        true
+  configuration <- OptParse.execParser $ OptParse.info getSchemaConfig (OptParse.fullDesc)
+  app configuration

@@ -142,12 +142,12 @@ defDecoder includeName name dType dec =
     text ("def jsonDecoder" <> includedName <> typeParams ([ Cst.TypeParam "M[_]: Monad" ]) <> ": Decoder." <> decoderType dType <> "[M, " <> name <> "] =")
       // indented dec
 
-wrapEncoder :: String -> Array Cst.TypeParam -> Ast.Type -> Box -> Codegen Box
+wrapEncoder :: String -> Array Cst.TypeParam -> Ast.Typ -> Box -> Codegen Box
 wrapEncoder name pp t enc = do
   e <- encoder t
   pure $ defEncoder true name pp ((e <<>> text ".compose") `paren` [ enc ])
 
-wrapDecoder :: Array Cst.Annotation -> String -> Ast.ScalaDecoderType -> Ast.Type -> Box -> Codegen Box
+wrapDecoder :: Array Cst.Annotation -> String -> Ast.ScalaDecoderType -> Ast.Typ -> Box -> Codegen Box
 wrapDecoder annots name dType t dec = do
   topDec <- decoder annots t
   let
@@ -165,7 +165,7 @@ noGenericParameters = text "// Scala decoders that involve parameterized types a
 
 typeDecl :: TypeDeclOutputMode -> Ast.TypeDecl -> Codegen Box
 typeDecl outputMode (Ast.TypeDecl { name, topType: tt, annots: an, params: pp, scalaDecoderType }) = case tt of
-  Ast.Type t -> do
+  Ast.Typ t -> do
     ty <- typeDef outputMode t
     e <- encoder t
     d <-
@@ -240,7 +240,7 @@ typeDecl outputMode (Ast.TypeDecl { name, topType: tt, annots: an, params: pp, s
                   1 -> singletonRecordDecoder name (NonEmptyArray.head props)
                   x
                     | x <= 12 -> smallRecordDecoder name props
-                  x -> largeRecordDecoder name props
+                  _ -> largeRecordDecoder name props
               )
         )
         scalaDecoderType
@@ -371,15 +371,13 @@ sumTypeDecoder name constructors = do
       else
         name <> "." <> s
 
-    curly0 :: Box -> Array Box -> Box
-    curly0 pref inner = vcat Boxes.left (pref <<+>> char '{' : (indented <$> inner) `Array.snoc` text "}.validation")
   branches <-
     for constructors case _ of
       Ast.NoArg (Cst.ConstructorName n) -> pure (text ("case (" <> show n <> ", Nil) => Decoder.construct0(" <> withName n <> ")"))
       Ast.WithArgs (Cst.ConstructorName n) args -> do
         parts <-
           forWithIndex args \i c -> case c of
-            Ast.TParam (Cst.TypeParam p) -> pure (text "(not implemented)")
+            Ast.TParam (Cst.TypeParam _) -> pure (text "(not implemented)")
             Ast.TType t -> do
               dec <- decoder [] t
               pure (dec <<>> text (".param(" <> show i <> ", param_" <> show i <> ")"))
@@ -476,7 +474,7 @@ list = generic "List"
 option :: Box -> Box
 option = generic "Option"
 
-typeDef :: TypeDeclOutputMode -> Ast.Type -> Codegen Box
+typeDef :: TypeDeclOutputMode -> Ast.Typ -> Codegen Box
 typeDef mode = case _ of
   Ast.Ref tRef -> typeRef mode tRef
   Ast.Array (Ast.TType t) -> list <$> typeDef mode t
@@ -519,7 +517,7 @@ externalTypeRef (Tuple importedModule importedType) =
         typeName
 
 primaryClass :: Ast.Module -> Maybe Ast.TypeDecl
-primaryClass mod@(Ast.Module { types }) = Array.find (\(Ast.TypeDecl { isPrimary }) -> isPrimary) types
+primaryClass (Ast.Module { types }) = NonEmptyArray.find (\(Ast.TypeDecl { isPrimary }) -> isPrimary) types
 
 isPrimaryClass :: String -> Ast.TypeDecl -> Boolean
 isPrimaryClass modName typeD = modName == Ast.typeDeclName typeD && Ast.isRecord (Ast.typeDeclTopType typeD)
@@ -530,7 +528,7 @@ needsQualifier modName = not <<< isPrimaryClass modName
 prefix :: Array String -> String -> String
 prefix names = intercalate "." <<< Array.snoc names
 
-encoder :: Ast.Type -> Codegen Box
+encoder :: Ast.Typ -> Codegen Box
 encoder = case _ of
   Ast.Ref tRef@{ params } -> do
     refParams <-
@@ -544,7 +542,7 @@ encoder = case _ of
   Ast.Option (Ast.TParam (Cst.TypeParam e)) -> pure (jsonOption (text ("jsonEncoder_param_" <> initialUpper e)))
   Ast.Primitive p -> pure $ text $ "Encoder" <> jsonPrimitive p
 
-decoder :: Array Cst.Annotation -> Ast.Type -> Codegen Box
+decoder :: Array Cst.Annotation -> Ast.Typ -> Codegen Box
 decoder annots = case _ of
   Ast.Ref tRef -> jsonTypeRef "Decoder" [] tRef
   Ast.Array (Ast.TType t) -> decoder annots t <#> jsonList
@@ -557,8 +555,7 @@ jsonRef :: String -> String -> String
 jsonRef which typ = "json" <> which <> typ -- should be blank if it is the primary class
 
 jsonTypeRef :: String -> Array Box -> Ast.TRef -> Codegen Box
-jsonTypeRef which params { decl, typ, isPrimaryRef } = do
-  thisMod <- asks _.currentModule
+jsonTypeRef which params { decl, typ, isPrimaryRef } =
   pure
     ( text
         ( maybe
@@ -615,7 +612,7 @@ decoderType = case _ of
   Ast.Field -> "Field"
   Ast.Form -> "Form"
 
-encodeType :: Ast.Type -> Box -> Codegen Box
+encodeType :: Ast.Typ -> Box -> Codegen Box
 encodeType t e = encoder t <#> (_ <<>> text ".encode" `paren1` [ e ])
 
 encodeTypeParam :: Cst.TypeParam -> Box -> Box

@@ -5,7 +5,7 @@ module Ccap.Codegen.Database
 
 import Prelude
 import Ccap.Codegen.Cst as Cst
-import Control.Monad.Except (ExceptT, except, withExceptT)
+import Control.Monad.Except (ExceptT, except, withExceptT, runExceptT)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
@@ -17,10 +17,10 @@ import Database.PostgreSQL (Connection, PGError(..))
 import Database.PostgreSQL.PG (Pool, Query(..), query, withConnection)
 import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row5(..))
 import Effect.Aff (Aff)
-import Text.Parsing.Parser.Pos (Position(..))
+import Parsing (Position(..))
 
 emptyPos :: Position
-emptyPos = Position { line: 0, column: 0 }
+emptyPos = Position { index: 0, line: 0, column: 0 }
 
 type Domain
   = { domainName :: String
@@ -30,7 +30,7 @@ type Domain
 
 type AliasedType
   = { name :: String
-    , type :: Cst.Type
+    , type :: Cst.Typ
     }
 
 aliasedTypes :: Array AliasedType
@@ -57,7 +57,7 @@ maxLengthAnnotation = Cst.Annotation "validations" emptyPos <<< Array.singleton 
 domainModule :: Pool -> String -> String -> ExceptT String Aff Cst.Module
 domainModule pool scalaPkg pursPkg =
   withExceptT show
-    $ withConnection pool \conn -> do
+    $ withConnection runExceptT pool \conn -> do
         results <- query conn (Query sql) Row0
         let
           types = Array.sortWith Cst.typeDeclName $ domainTypeDecl <<< rowToDomain <$> results
@@ -120,7 +120,7 @@ occIdColumn =
 tableModule :: Pool -> String -> String -> String -> ExceptT String Aff Cst.Module
 tableModule pool scalaPkg pursPkg tableName =
   withExceptT show
-    $ withConnection pool \conn -> do
+    $ withConnection runExceptT pool \conn -> do
         columns <- queryColumns tableName conn
         nelColumns <- except (note (ConversionError ("Expected at least one column. Does the \"" <> tableName <> "\" table exist?")) (NonEmptyArray.fromArray columns))
         let
@@ -175,12 +175,12 @@ dbRecordProp col@{ columnName, domainName, dataType, isNullable } =
   in
     { name: columnName, typ: Cst.TType optioned, annots, position: emptyPos }
 
-domainRef :: String -> Cst.Type
+domainRef :: String -> Cst.Typ
 domainRef domainName = case Array.find (\aliasedType -> aliasedType.name == domainName) aliasedTypes of
   Just aliasedType -> aliasedType.type
   Nothing -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "Domains"), typ: domainName, params: [] }
 
-dbType :: String -> Cst.Type
+dbType :: String -> Cst.Typ
 dbType dataType = case dataType of
   "numeric" -> Cst.Primitive Cst.PDecimal
   "character varying" -> Cst.Primitive Cst.PString
