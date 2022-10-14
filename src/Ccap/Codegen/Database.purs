@@ -30,7 +30,7 @@ type Domain
 
 type AliasedType
   = { name :: String
-    , type :: Cst.Type
+    , type :: Cst.Typ
     }
 
 aliasedTypes :: Array AliasedType
@@ -175,12 +175,12 @@ dbRecordProp col@{ columnName, domainName, dataType, isNullable } =
   in
     { name: columnName, typ: Cst.TType optioned, annots, position: emptyPos }
 
-domainRef :: String -> Cst.Type
+domainRef :: String -> Cst.Typ
 domainRef domainName = case Array.find (\aliasedType -> aliasedType.name == domainName) aliasedTypes of
   Just aliasedType -> aliasedType.type
   Nothing -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "Domains"), typ: domainName, params: [] }
 
-dbType :: String -> Cst.Type
+dbType :: String -> Cst.Typ
 dbType dataType = case dataType of
   "numeric" -> Cst.Primitive Cst.PDecimal
   "character varying" -> Cst.Primitive Cst.PString
