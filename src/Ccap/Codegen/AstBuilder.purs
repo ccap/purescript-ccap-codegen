@@ -23,12 +23,12 @@ import Data.Compactable (compact)
 import Data.Either (Either(..), note)
 import Data.Foldable (any, elem)
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Set (Set)
 import Data.Set as Set
+import Data.Show.Generic (genericShow)
 import Data.String as String
 import Data.Traversable (for, sequence, traverse)
 import Data.Tuple (Tuple(..))
@@ -36,7 +36,7 @@ import Data.Validation.Semigroup as Validation
 import Effect (Effect)
 import Node.Path (FilePath)
 import Node.Path as Path
-import Text.Parsing.Parser.Pos (Position)
+import Parsing (Position)
 
 type BuildParams
   = { files :: Array FilePath
@@ -269,7 +269,7 @@ cstTypeDeclToAstTypeDecl buildParams@{ filePath, dups: typeDeclDups, importedMod
     d@(Ast.TypeDecl _) <-
       note
         (Error.Positioned filePath refPos (Error.TypeRef Error.QualifiedNotDefined ref))
-        (Array.find (\t -> Ast.typeDeclName t == ref.typ) types)
+        (NonEmptyArray.find (\t -> Ast.typeDeclName t == ref.typ) types)
     pure (Tuple m d)
 
   cstRecordPropToAstRecordProp :: Set String -> Cst.RecordProp -> Either Error.Error Ast.RecordProp

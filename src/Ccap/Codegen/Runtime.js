@@ -1,6 +1,6 @@
 /** @format */
 
-exports.decodeArray_ = function(api) {
+export const decodeArray_ = function(api) {
   return function(decode) {
     return function(ary) {
       if (Object.prototype.toString.call(ary) === '[object Array]') {
@@ -21,7 +21,7 @@ exports.decodeArray_ = function(api) {
   };
 };
 
-exports.decodeString_ = function(api) {
+export const decodeString_ = function(api) {
   return function(json) {
     if (typeof json === 'string') {
       return api.right(json);
@@ -31,7 +31,7 @@ exports.decodeString_ = function(api) {
   };
 };
 
-exports.decodeBoolean_ = function(api) {
+export const decodeBoolean_ = function(api) {
   return function(json) {
     if (typeof json === 'boolean') {
       return api.right(json);
@@ -41,7 +41,7 @@ exports.decodeBoolean_ = function(api) {
   };
 };
 
-exports.decodeNumber_ = function(api) {
+export const decodeNumber_ = function(api) {
   return function(json) {
     if (typeof json === 'number') {
       return api.right(json);
@@ -51,7 +51,7 @@ exports.decodeNumber_ = function(api) {
   };
 };
 
-exports.decodeInt_ = function(api) {
+export const decodeInt_ = function(api) {
   return function(json) {
     if (typeof json === 'number' && (json | 0) === json) {
       return api.right(json);
@@ -61,7 +61,7 @@ exports.decodeInt_ = function(api) {
   };
 };
 
-exports.decodeObject_ = function(api) {
+export const decodeObject_ = function(api) {
   return function(json) {
     if (typeof json === 'object' && !Array.isArray(json) && json !== null) {
       return api.right(json);
@@ -71,7 +71,7 @@ exports.decodeObject_ = function(api) {
   };
 };
 
-exports.lookup_ = function(api) {
+export const lookup_ = function(api) {
   return function(prop) {
     return function(obj) {
       if (prop in obj) {
@@ -83,6 +83,6 @@ exports.lookup_ = function(api) {
   };
 };
 
-exports.isNull_ = function(json) {
+export const isNull_ = function(json) {
   return json === null;
 };

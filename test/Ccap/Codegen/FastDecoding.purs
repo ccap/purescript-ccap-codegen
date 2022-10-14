@@ -17,7 +17,7 @@ specs =
       let
         sample :: FastTest.Basic
         sample =
-          { stringTest: "a"
+          { stringTest: "b"
           , intTest: 1
           , booleanTest: true
           , decimalTest: zero
@@ -46,4 +46,4 @@ specs =
         json = FastTest.jsonCodec_Basic.encode sample
 
         back = FastTest.jsonCodec_Basic.decode json
-      either fail (_ `shouldEqual` sample) back
+      either (fail <<< show) (_ `shouldEqual` sample) back
