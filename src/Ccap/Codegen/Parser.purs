@@ -14,7 +14,7 @@ import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Bifunctor (lmap)
-import Data.Char.Unicode (isLower)
+import Data.CodePoint.Unicode (isLower)
 import Data.Either (Either)
 import Data.Foldable (intercalate)
 import Data.Identity (Identity)
@@ -25,15 +25,15 @@ import Data.List.NonEmpty as NonEmpty
 import Data.Maybe (Maybe(..), maybe)
 import Data.NonEmpty ((:|))
 import Data.String.CodeUnits (fromCharArray, singleton) as SCU
+import Data.String.CodePoints as CodePoints
 import Node.Path (FilePath)
 import Node.Path as Path
-import Text.Parsing.Parser (Parser, ParserT, position, runParser)
-import Text.Parsing.Parser as Parser
-import Text.Parsing.Parser.Combinators (option, optional, try, (<?>))
-import Text.Parsing.Parser.Language (javaStyle)
-import Text.Parsing.Parser.Pos (Position(..))
-import Text.Parsing.Parser.String (char, satisfy)
-import Text.Parsing.Parser.Token (GenLanguageDef(..), GenTokenParser, alphaNum, makeTokenParser, unGenLanguageDef, upper)
+import Parsing (Parser, ParserT, Position(..), position, runParser)
+import Parsing as Parser
+import Parsing.Combinators (option, optional, try, (<?>))
+import Parsing.Language (javaStyle)
+import Parsing.String (char, satisfy)
+import Parsing.Token (GenLanguageDef(..), GenTokenParser, alphaNum, makeTokenParser, unGenLanguageDef, upper)
 
 tokenParser :: GenTokenParser String Identity
 tokenParser =
@@ -84,7 +84,7 @@ whiteSpace :: Parser String Unit
 whiteSpace = tokenParser.whiteSpace
 
 lower :: Parser String Char
-lower = satisfy isLower <?> "lowercase letter"
+lower = satisfy (isLower <<< CodePoints.codePointFromChar) <?> "lowercase letter"
 
 identifier :: Parser String String
 identifier = tokenParser.identifier
