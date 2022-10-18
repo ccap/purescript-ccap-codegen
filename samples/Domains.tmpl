@@ -575,7 +575,7 @@ type DaCaseNoT: wrap String
   <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="12">
 type DateT: wrap DateTimeSupport.Date
-  <instances equal="gov.wicourts.common.LocalDateInstances.localDateEqual" meta="gov.wicourts.common.Meta.metaLocalDate">
+  <instances equal="gov.wicourts.common.instances.dates.localDateEqual" meta="gov.wicourts.common.Meta.metaLocalDate">
 type DaysServedT: wrap Decimal
   <instances equal="cats.instances.bigDecimal.catsKernelStdOrderForBigDecimal">
 type DbIdT: wrap String
@@ -861,6 +861,8 @@ type FileLocationTapeT: wrap String
 type FileNameT: wrap String
   <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="100">
+type FileSizeT: wrap Int
+  <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type FileStampTypeT: wrap String
   <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="3">
@@ -1878,11 +1880,11 @@ type TimeBlkTpSeqNoT: wrap Int
 type TimeBlockSeqNoT: wrap Int
   <instances equal="cats.instances.int.catsKernelStdOrderForInt">
 type TimeT: wrap DateTimeSupport.Time
-  <instances equal="gov.wicourts.common.LocalTimeInstances.equalLocalTime" meta="gov.wicourts.common.Meta.metaLocalTime">
+  <instances equal="gov.wicourts.common.instances.times.equalLocalTime" meta="gov.wicourts.common.Meta.metaLocalTime">
 type TimestampP3T: wrap DateTimeSupport.Timestamp
-  <instances equal="gov.wicourts.common.LocalDateTimeInstances.localDateTimeEqual" meta="gov.wicourts.common.Meta.metaLocalDateTime">
+  <instances equal="gov.wicourts.common.instances.dates.localDateTimeEqual" meta="gov.wicourts.common.Meta.metaLocalDateTime">
 type TimestampT: wrap DateTimeSupport.Timestamp
-  <instances equal="gov.wicourts.common.LocalDateTimeInstances.localDateTimeEqual" meta="gov.wicourts.common.Meta.metaLocalDateTime">
+  <instances equal="gov.wicourts.common.instances.dates.localDateTimeEqual" meta="gov.wicourts.common.Meta.metaLocalDateTime">
 type TitleT: wrap String
   <instances equal="cats.instances.string.catsKernelStdOrderForString">
   <validations maxLength="25">

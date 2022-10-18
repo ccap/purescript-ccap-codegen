@@ -23,12 +23,12 @@ import Data.Compactable (compact)
 import Data.Either (Either(..), note)
 import Data.Foldable (any, elem)
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Set (Set)
 import Data.Set as Set
+import Data.Show.Generic (genericShow)
 import Data.String as String
 import Data.Traversable (for, sequence, traverse)
 import Data.Tuple (Tuple(..))
@@ -36,7 +36,7 @@ import Data.Validation.Semigroup as Validation
 import Effect (Effect)
 import Node.Path (FilePath)
 import Node.Path as Path
-import Text.Parsing.Parser.Pos (Position)
+import Parsing (Position)
 
 type BuildParams
   = { files :: Array FilePath
@@ -75,10 +75,8 @@ buildAstModule (ModuleWithImports { mod, imports: is }) = do
         T.lift (Left (NonEmptyArray.singleton (Error.ModuleNameMismatch mod.source { moduleName: modName, scalaName, pursName })))
       else
         pure unit
-      importedModules <- for is \m@(ModuleWithImports { mod: i }) -> map _.contents (buildAstModule m)
+      importedModules <- for is \m@(ModuleWithImports _) -> map _.contents (buildAstModule m)
       let
-        allTypeDeclNames = map Cst.typeDeclName mod.contents.types
-
         params =
           { dups: findDups (map Cst.typeDeclName mod.contents.types)
           , filePath: mod.source
@@ -125,7 +123,7 @@ findDups ss =
     )
 
 cstTypeDeclToAstTypeDecl :: BuildTypeDeclParams -> Cst.TypeDecl -> Either Error.Error Ast.TypeDecl
-cstTypeDeclToAstTypeDecl buildParams@{ filePath, dups: typeDeclDups, importedModules, decls, moduleName } decl@(Cst.TypeDecl { position: pos, name, topType, annots, params: typeParams }) = do
+cstTypeDeclToAstTypeDecl { filePath, dups: typeDeclDups, importedModules, decls, moduleName } decl@(Cst.TypeDecl { position: pos, name, topType, annots, params: typeParams }) = do
   if Set.member name typeDeclDups then
     Left (Error.Positioned filePath pos (Error.TypeDecl Error.DuplicateType decl))
   else
@@ -133,7 +131,7 @@ cstTypeDeclToAstTypeDecl buildParams@{ filePath, dups: typeDeclDups, importedMod
   checkCycles Set.empty decl
   scalaDecoderType <- scalaDecoderTypeDecl decl
   case topType of
-    Cst.Type typ -> map (\t -> Ast.TypeDecl { name, topType: Ast.Type t, annots, isPrimary: false, params: typeParams, scalaDecoderType }) (cstTypeToAstType pos typ)
+    Cst.Typ typ -> map (\t -> Ast.TypeDecl { name, topType: Ast.Typ t, annots, isPrimary: false, params: typeParams, scalaDecoderType }) (cstTypeToAstType pos typ)
     Cst.Wrap typ -> map (\t -> Ast.TypeDecl { name, topType: Ast.Wrap t, annots, isPrimary: false, params: typeParams, scalaDecoderType }) (cstTypeToAstType pos typ)
     Cst.Record props -> do
       let
@@ -149,7 +147,7 @@ cstTypeDeclToAstTypeDecl buildParams@{ filePath, dups: typeDeclDups, importedMod
       else
         map
           (\cs -> Ast.TypeDecl { name, topType: Ast.Sum cs, annots, isPrimary: false, params: typeParams, scalaDecoderType })
-          (traverse ((cstConstructorToAstConstructor pos) dups) constructors)
+          (traverse ((cstConstructorToAstConstructor pos)) constructors)
   where
   hasConstructorArguments :: NonEmptyArray Cst.Constructor -> Boolean
   hasConstructorArguments =
@@ -166,8 +164,8 @@ cstTypeDeclToAstTypeDecl buildParams@{ filePath, dups: typeDeclDups, importedMod
     else
       Right unit
     case r.topType of
-      Cst.Type ty -> checkCyclesType ty
-      Cst.Wrap ty -> Right unit
+      Cst.Typ ty -> checkCyclesType ty
+      Cst.Wrap _ -> Right unit
       Cst.Record props ->
         void
           ( for props \{ typ } -> case typ of
@@ -176,9 +174,9 @@ cstTypeDeclToAstTypeDecl buildParams@{ filePath, dups: typeDeclDups, importedMod
           )
       Cst.Sum _ -> Right unit
     where
-    checkCyclesType :: Cst.Type -> Either Error.Error Unit
+    checkCyclesType :: Cst.Typ -> Either Error.Error Unit
     checkCyclesType = case _ of
-      Cst.Ref refPos ref@{ mod, params, typ } -> case mod of
+      Cst.Ref refPos ref@{ mod } -> case mod of
         Nothing -> do
           d <- lookupCurrentModuleTypeDecl refPos ref
           checkCycles (Set.insert r.name visited) d
@@ -196,7 +194,7 @@ cstTypeDeclToAstTypeDecl buildParams@{ filePath, dups: typeDeclDups, importedMod
     if not Array.null r.params then
       Right Nothing
     else case r.topType of
-      Cst.Type ty -> scalaDecoderType ty
+      Cst.Typ ty -> scalaDecoderType ty
       Cst.Wrap ty -> scalaDecoderType ty
       Cst.Record _ -> Right (Just Ast.Form)
       Cst.Sum cs ->
@@ -209,7 +207,7 @@ cstTypeDeclToAstTypeDecl buildParams@{ filePath, dups: typeDeclDups, importedMod
               )
           )
     where
-    scalaDecoderType :: Cst.Type -> Either Error.Error (Maybe Ast.ScalaDecoderType)
+    scalaDecoderType :: Cst.Typ -> Either Error.Error (Maybe Ast.ScalaDecoderType)
     scalaDecoderType = case _ of
       Cst.Ref refPos ref@{ mod } -> case mod of
         Nothing -> do
@@ -225,7 +223,7 @@ cstTypeDeclToAstTypeDecl buildParams@{ filePath, dups: typeDeclDups, importedMod
       Cst.Primitive _ -> Right (Just Ast.Field)
       Cst.TypeWithParens ty -> scalaDecoderType ty
 
-  cstTypeToAstType :: Position -> Cst.Type -> Either Error.Error Ast.Type
+  cstTypeToAstType :: Position -> Cst.Typ -> Either Error.Error Ast.Typ
   cstTypeToAstType typePos = case _ of
     Cst.Primitive p -> Right (Ast.Primitive p)
     Cst.TypeWithParens typ -> cstTypeToAstType typePos typ
@@ -247,7 +245,7 @@ cstTypeDeclToAstTypeDecl buildParams@{ filePath, dups: typeDeclDups, importedMod
                 }
             )
       Just n -> do
-        Tuple m d@(Ast.TypeDecl { topType: tt, isPrimary: isPrimaryRef, params: declParams, scalaDecoderType }) <- lookupImportedModuleTypeDecl refPos ref n
+        Tuple m d@(Ast.TypeDecl { isPrimary: isPrimaryRef, params: declParams }) <- lookupImportedModuleTypeDecl refPos ref n
         ps <- traverse (cstTypeParamToAstTypeParam refPos) params
         if Array.length params /= Array.length declParams then
           Left (Error.Positioned filePath refPos (Error.TypeRef (Error.IncorrectArity { found: Array.length params, expected: Array.length declParams }) ref))
@@ -269,7 +267,7 @@ cstTypeDeclToAstTypeDecl buildParams@{ filePath, dups: typeDeclDups, importedMod
     d@(Ast.TypeDecl _) <-
       note
         (Error.Positioned filePath refPos (Error.TypeRef Error.QualifiedNotDefined ref))
-        (Array.find (\t -> Ast.typeDeclName t == ref.typ) types)
+        (NonEmptyArray.find (\t -> Ast.typeDeclName t == ref.typ) types)
     pure (Tuple m d)
 
   cstRecordPropToAstRecordProp :: Set String -> Cst.RecordProp -> Either Error.Error Ast.RecordProp
@@ -287,8 +285,8 @@ cstTypeDeclToAstTypeDecl buildParams@{ filePath, dups: typeDeclDups, importedMod
     Cst.NoArg (Cst.ConstructorName c) -> c
     Cst.WithArgs (Cst.ConstructorName c) _ -> c
 
-  cstConstructorToAstConstructor :: Position -> Set String -> Cst.Constructor -> Either Error.Error Ast.Constructor
-  cstConstructorToAstConstructor conPos dups constructor = do
+  cstConstructorToAstConstructor :: Position -> Cst.Constructor -> Either Error.Error Ast.Constructor
+  cstConstructorToAstConstructor conPos constructor = do
     case constructor of
       Cst.NoArg n -> Right (Ast.NoArg n)
       Cst.WithArgs n params -> map (Ast.WithArgs n) (traverse (cstTypeParamToAstTypeParam conPos) params)
@@ -340,7 +338,7 @@ parseImports params mod = do
   pure result
 
 parseImport :: BuildParams -> Cst.Source Cst.Module -> Cst.Import -> StateT ImportState (ExceptT Error.Error Effect) ModuleWithImports
-parseImport params mod i@(Cst.Import position ref) = do
+parseImport params mod i@(Cst.Import position _) = do
   s <- S.get
   path <- T.lift (ExceptT (imports params mod i))
   if Set.member path s.visiting then

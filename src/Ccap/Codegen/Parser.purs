@@ -14,7 +14,7 @@ import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Bifunctor (lmap)
-import Data.Char.Unicode (isLower)
+import Data.CodePoint.Unicode (isLower)
 import Data.Either (Either)
 import Data.Foldable (intercalate)
 import Data.Identity (Identity)
@@ -25,15 +25,15 @@ import Data.List.NonEmpty as NonEmpty
 import Data.Maybe (Maybe(..), maybe)
 import Data.NonEmpty ((:|))
 import Data.String.CodeUnits (fromCharArray, singleton) as SCU
+import Data.String.CodePoints as CodePoints
 import Node.Path (FilePath)
 import Node.Path as Path
-import Text.Parsing.Parser (Parser, ParserT, position, runParser)
-import Text.Parsing.Parser as Parser
-import Text.Parsing.Parser.Combinators (option, optional, try, (<?>))
-import Text.Parsing.Parser.Language (javaStyle)
-import Text.Parsing.Parser.Pos (Position(..))
-import Text.Parsing.Parser.String (char, satisfy)
-import Text.Parsing.Parser.Token (GenLanguageDef(..), GenTokenParser, alphaNum, makeTokenParser, unGenLanguageDef, upper)
+import Parsing (Parser, ParserT, Position(..), position, runParser)
+import Parsing as Parser
+import Parsing.Combinators (option, optional, try, (<?>))
+import Parsing.Language (javaStyle)
+import Parsing.String (char, satisfy)
+import Parsing.Token (GenLanguageDef(..), GenTokenParser, alphaNum, makeTokenParser, unGenLanguageDef, upper)
 
 tokenParser :: GenTokenParser String Identity
 tokenParser =
@@ -64,9 +64,6 @@ stringLiteral = tokenParser.stringLiteral
 reserved :: String -> Parser String Unit
 reserved = tokenParser.reserved
 
-commaSep1 :: forall a. Parser String a -> Parser String (Array a)
-commaSep1 inner = tokenParser.commaSep1 inner <#> Array.fromFoldable
-
 braces :: forall a. Parser String a -> Parser String a
 braces = tokenParser.braces
 
@@ -84,7 +81,7 @@ whiteSpace :: Parser String Unit
 whiteSpace = tokenParser.whiteSpace
 
 lower :: Parser String Char
-lower = satisfy isLower <?> "lowercase letter"
+lower = satisfy (isLower <<< CodePoints.codePointFromChar) <?> "lowercase letter"
 
 identifier :: Parser String String
 identifier = tokenParser.identifier
@@ -114,10 +111,10 @@ tRef _ = do
     mod = if init == Nil then Nothing else Just $ intercalate "." init
   pure { mod: map Cst.ModuleRef mod, typ, params }
 
-primitive :: String -> Cst.Primitive -> Parser String Cst.Type
+primitive :: String -> Cst.Primitive -> Parser String Cst.Typ
 primitive s decl = reserved s <#> const (Cst.Primitive decl)
 
-anyPrimitiveExceptJson :: Parser String Cst.Type
+anyPrimitiveExceptJson :: Parser String Cst.Typ
 anyPrimitiveExceptJson =
   primitive "Boolean" Cst.PBoolean
     <|> primitive "Int" Cst.PInt
@@ -125,10 +122,10 @@ anyPrimitiveExceptJson =
     <|> primitive "String" Cst.PString
     <|> primitive "StringValidationHack" Cst.PStringValidationHack
 
-tyTypeWithParens :: Unit -> Parser String Cst.Type
+tyTypeWithParens :: Unit -> Parser String Cst.Typ
 tyTypeWithParens _ = lexeme (char '(') *> map Cst.TypeWithParens (tyType unit) <* lexeme (char ')') <|> tyType unit
 
-tyType :: Unit -> Parser String Cst.Type
+tyType :: Unit -> Parser String Cst.Typ
 tyType _ =
   anyPrimitiveExceptJson
     <|> (reserved "Array" >>= typeOrParam <#> Cst.Array)
@@ -137,7 +134,7 @@ tyType _ =
 
 topType :: Unit -> Parser String Cst.TopType
 topType _ =
-  (tyTypeWithParens unit <#> Cst.Type)
+  (tyTypeWithParens unit <#> Cst.Typ)
     <|> (braces $ many1 recordProp <#> Cst.Record)
     <|> (brackets $ pipeSep1 (constructor unit) <#> Cst.Sum)
     <|> (reserved "wrap" >>= (\_ -> primitive "Json" Cst.PJson <|> tyTypeWithParens unit) <#> Cst.Wrap)

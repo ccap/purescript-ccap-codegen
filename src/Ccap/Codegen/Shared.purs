@@ -128,7 +128,7 @@ data FastPathDecoderType
   | FOptionString
   | FOptionJson
 
-fastPathDecoderType :: Ast.Type -> Maybe FastPathDecoderType
+fastPathDecoderType :: Ast.Typ -> Maybe FastPathDecoderType
 fastPathDecoderType = case _ of
   Ast.Primitive p -> Just (cstPrimitiveToDecoderType p)
   Ast.Ref { decl: Just (Tuple _ (Ast.TypeDecl { topType: Ast.Wrap tt, annots })) }

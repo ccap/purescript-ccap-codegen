@@ -13,7 +13,7 @@ module Ccap.Codegen.Cst
   , Source
   , TRef
   , TopType(..)
-  , Type(..)
+  , Typ(..)
   , TypeDecl(..)
   , TypeOrParam(..)
   , TypeParam(..)
@@ -27,10 +27,10 @@ import Prelude
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Generic.Rep (class Generic)
-import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe)
+import Data.Show.Generic (genericShow)
 import Node.Path (FilePath)
-import Text.Parsing.Parser.Pos (Position)
+import Parsing (Position)
 
 type Source a
   = { source :: FilePath
@@ -78,20 +78,20 @@ newtype TypeParam
   = TypeParam String
 
 data TopType
-  = Type Type
-  | Wrap Type
+  = Typ Typ
+  | Wrap Typ
   | Record (NonEmptyArray RecordProp)
   | Sum (NonEmptyArray Constructor)
 
-data Type
+data Typ
   = Primitive Primitive
   | Ref Position TRef
   | Array TypeOrParam
   | Option TypeOrParam
-  | TypeWithParens Type
+  | TypeWithParens Typ
 
 data TypeOrParam
-  = TType Type
+  = TType Typ
   | TParam TypeParam
 
 type TRef
@@ -138,7 +138,7 @@ typeDeclTopType (TypeDecl { topType }) = topType
 -- | Return all type references used in a Declared Type
 topTypeReferences :: TopType -> Array TRef
 topTypeReferences = case _ of
-  Type typ -> typeReferences typ
+  Typ typ -> typeReferences typ
   Wrap typ -> typeReferences typ
   Record props ->
     NonEmptyArray.toArray props >>= _.typ
@@ -156,7 +156,7 @@ topTypeReferences = case _ of
                   TParam _ -> []
 
 -- | Return all type references in any used type.
-typeReferences :: Type -> Array TRef
+typeReferences :: Typ -> Array TRef
 typeReferences = case _ of
   Ref _ tRef -> [ tRef ]
   Primitive _ -> []
@@ -220,11 +220,11 @@ derive instance genericModuleRef :: Generic ModuleRef _
 instance showModuleRef :: Show ModuleRef where
   show t = genericShow t
 
-derive instance eqType :: Eq Type
+derive instance eqTyp :: Eq Typ
 
-derive instance genericType :: Generic Type _
+derive instance genericTyp :: Generic Typ _
 
-instance showType :: Show Type where
+instance showTyp :: Show Typ where
   show t = genericShow t
 
 derive instance eqTopType :: Eq TopType

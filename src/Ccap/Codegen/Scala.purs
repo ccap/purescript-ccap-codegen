@@ -16,6 +16,7 @@ import Data.Array.NonEmpty as NonEmptyArray
 import Data.Compactable (compact)
 import Data.Either (Either(..))
 import Data.Foldable (class Foldable, any, intercalate)
+import Data.List.NonEmpty as NonEmptyList
 import Data.Maybe (Maybe(..), fromMaybe, maybe, maybe')
 import Data.Monoid (guard)
 import Data.String as String
@@ -324,7 +325,7 @@ defDecoder includeName name dType =
     , typ: typeDescr ("Decoder." <> decoderType dType) [ "M", name ]
     }
 
-wrapEncoder :: String -> Array Cst.TypeParam -> Ast.Type -> String -> Codegen Box
+wrapEncoder :: String -> Array Cst.TypeParam -> Ast.Typ -> String -> Codegen Box
 wrapEncoder name pp t enc = do
   e <- encoder t
   pure
@@ -339,7 +340,7 @@ wrapDecoder ::
   Array Cst.Annotation ->
   String ->
   Ast.ScalaDecoderType ->
-  Ast.Type ->
+  Ast.Typ ->
   Box ->
   Codegen Box
 wrapDecoder annots name dType t dec = do
@@ -612,7 +613,7 @@ columnType prop@{ typ } =
     underlyingType ::
       Tuple Ast.Module Ast.TypeDecl ->
       Either Cst.Primitive (Tuple Cst.ModuleName String)
-    underlyingType decl@(Tuple mod typDecl) =
+    underlyingType decl@(Tuple _ typDecl) =
       let
         Tuple mn@(Cst.ModuleName modName) typeName = moduleName decl
       in
@@ -700,14 +701,14 @@ hasOccId_ mod =
     ( \modDecl -> case Ast.typeDeclTopType modDecl of
         Ast.Record props -> hasOccId props
         Ast.Sum _ -> false
-        Ast.Type _ -> false
+        Ast.Typ _ -> false
         Ast.Wrap _ -> false
     )
     (primaryClass mod)
 
 typeDecl :: TypeDeclOutputMode -> Ast.TypeDecl -> Codegen Box
 typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, params: pp, scalaDecoderType }) = case tt of
-  Ast.Type t -> do
+  Ast.Typ t -> do
     ty <- typeDef outputMode t
     e <- encoder t
     d <-
@@ -807,7 +808,7 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
                       (singletonRecordDecoder name (NonEmptyArray.head props))
                   x
                     | x <= 12 -> smallRecordDecoder name props
-                  x -> largeRecordDecoder name props
+                  _ -> largeRecordDecoder name props
               )
         )
         scalaDecoderType
@@ -837,7 +838,7 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
               let
                 allProps = nonPrimaryKeyProps <> primaryKeyProps
 
-                moduleName prop@{ typ } =
+                moduleName { typ } =
                   let
                     fromRef ref =
                       map
@@ -1086,7 +1087,7 @@ sumTypeDecoder name constructors = do
       Ast.WithArgs (Cst.ConstructorName n) args -> do
         parts <-
           forWithIndex args \i c -> case c of
-            Ast.TParam (Cst.TypeParam p) -> pure "(not implemented)"
+            Ast.TParam (Cst.TypeParam _) -> pure "(not implemented)"
             Ast.TType t -> do
               dec <- decoder [] t
               pure (dec <> ".param(" <> show i <> ", param_" <> show i <> ")")
@@ -1217,7 +1218,7 @@ list = generic "List"
 option :: String -> String
 option = generic "Option"
 
-typeDef :: TypeDeclOutputMode -> Ast.Type -> Codegen String
+typeDef :: TypeDeclOutputMode -> Ast.Typ -> Codegen String
 typeDef mode = case _ of
   Ast.Ref tRef -> typeRef mode tRef
   Ast.Array (Ast.TType t) -> list <$> typeDef mode t
@@ -1282,7 +1283,7 @@ underlyingSqlType = case _ of
   _ -> "text"
 
 primaryClass :: Ast.Module -> Maybe Ast.TypeDecl
-primaryClass mod@(Ast.Module { types }) = Array.find (\(Ast.TypeDecl { isPrimary }) -> isPrimary) types
+primaryClass (Ast.Module { types }) = NonEmptyList.find (\(Ast.TypeDecl { isPrimary }) -> isPrimary) types
 
 isPrimaryClass :: String -> Ast.TypeDecl -> Boolean
 isPrimaryClass modName typeD = modName == Ast.typeDeclName typeD && Ast.isRecord (Ast.typeDeclTopType typeD)
@@ -1293,7 +1294,7 @@ needsQualifier modName = not <<< isPrimaryClass modName
 prefix :: Array String -> String -> String
 prefix names = intercalate "." <<< Array.snoc names
 
-encoder :: Ast.Type -> Codegen String
+encoder :: Ast.Typ -> Codegen String
 encoder = case _ of
   Ast.Ref tRef@{ params } -> do
     refParams <-
@@ -1311,7 +1312,7 @@ data Coder
   = De
   | En
 
-decoder :: Array Cst.Annotation -> Ast.Type -> Codegen String
+decoder :: Array Cst.Annotation -> Ast.Typ -> Codegen String
 decoder annots = case _ of
   Ast.Ref tRef -> jsonTypeRef De [] tRef
   Ast.Array (Ast.TType t) -> decoder annots t <#> jsonList
@@ -1334,8 +1335,7 @@ jsonRef coder typ =
     "json" <> which <> typ <> typParam
 
 jsonTypeRef :: Coder -> Array String -> Ast.TRef -> Codegen String
-jsonTypeRef coder params { decl, typ, isPrimaryRef } = do
-  thisMod <- asks _.currentModule
+jsonTypeRef coder params { decl, typ, isPrimaryRef } =
   pure
     ( ( maybe
           (jsonRef coder (guard (not isPrimaryRef) typ))
@@ -1388,7 +1388,7 @@ decoderType = case _ of
   Ast.Field -> "Field"
   Ast.Form -> "Form"
 
-encodeType :: Ast.Type -> String -> Codegen String
+encodeType :: Ast.Typ -> String -> Codegen String
 encodeType t e =
   map
     (\e' -> e' <> ".encode" <> parenH_ [ e ])

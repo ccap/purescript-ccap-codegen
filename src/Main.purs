@@ -16,7 +16,7 @@ import Ccap.Codegen.PureScriptJs as PureScriptJs
 import Ccap.Codegen.Scala as Scala
 import Ccap.Codegen.Shared (OutputSpec)
 import Ccap.Codegen.Util (ensureNewline, liftEffectSafely, processResult, scrubEolSpaces)
-import Control.Monad.Except (ExceptT(..), except, runExcept, runExceptT)
+import Control.Monad.Except (ExceptT(..), except, runExceptT)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Bifunctor (lmap)
@@ -24,30 +24,22 @@ import Data.Either (Either(..))
 import Data.Foldable (for_)
 import Data.Maybe (fromMaybe, maybe)
 import Data.String as String
-import Data.Traversable (traverse, traverse_)
+import Data.Traversable (traverse_)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Class.Console as Console
-import Foreign (readString)
-import Foreign.Generic (Foreign)
 import Node.Encoding (Encoding(..))
 import Node.FS.Sync as Sync
 import Node.Path (FilePath)
 import Node.Path as Path
-import Node.Yargs.Applicative (rest, runY)
-import Node.Yargs.Setup (usage)
+import Options.Applicative as OptParse
 
-app :: Either String Config -> Array Foreign -> Effect Unit
-app eConfig fs =
+app :: Config -> Effect Unit
+app config =
   launchAff_
-    $ processResult do
-        config <- except eConfig
-        files <- except $ readFiles fs
-        writeModules config files
-
-readFiles :: Array Foreign -> Either String (Array FilePath)
-readFiles = lmap show <<< runExcept <<< traverse readString
+    $ processResult
+    $ writeModules config config.targetFiles
 
 writeModules :: Config -> Array FilePath -> ExceptT String Aff Unit
 writeModules config files = case config.mode of
@@ -110,8 +102,6 @@ writeOutput config outputSpec mod = do
       contents
 
 main :: Effect Unit
-main =
-  let
-    setup = usage "$0 --mode <mode> a.tmpl"
-  in
-    runY setup $ app <$> config <*> rest
+main = do
+  configuration <- OptParse.execParser $ OptParse.info config (OptParse.fullDesc)
+  app configuration
