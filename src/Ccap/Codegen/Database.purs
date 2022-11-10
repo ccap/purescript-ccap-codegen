@@ -5,6 +5,7 @@ module Ccap.Codegen.Database
 
 import Prelude
 import Ccap.Codegen.Cst as Cst
+import Ccap.Codegen.Shared (dbSupportTypes)
 import Control.Monad.Except (ExceptT, except, withExceptT, runExceptT)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
@@ -13,9 +14,10 @@ import Data.Either (note)
 import Data.Foldable (any)
 import Data.Maybe (Maybe(..), isNothing, maybe)
 import Data.Monoid (guard)
+import Data.String as String
 import Database.PostgreSQL (Connection, PGError(..))
 import Database.PostgreSQL.PG (Pool, Query(..), query, withConnection)
-import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row5(..))
+import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row6(..))
 import Effect.Aff (Aff)
 import Parsing (Position(..))
 
@@ -33,8 +35,24 @@ type AliasedType
     , type :: Cst.Typ
     }
 
+type Config
+  = { scalaPkg :: String
+    , pursPkg :: String
+    , enableQueryDao :: Boolean
+    }
+
 aliasedTypes :: Array AliasedType
-aliasedTypes = [ { name: "CaseNoT", type: Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "CaseNoSupport"), typ: "CaseNo", params: [] } } ]
+aliasedTypes =
+  [ { name: "CaseNoT"
+    , type:
+        Cst.Ref
+          emptyPos
+          { mod: Just (Cst.ModuleRef "CaseNoSupport")
+          , typ: "CaseNo"
+          , params: []
+          }
+    }
+  ]
 
 rowToDomain :: Row3 String String (Maybe Int) -> Domain
 rowToDomain (Row3 domainName dataType charMaxLen) =
@@ -44,7 +62,14 @@ rowToDomain (Row3 domainName dataType charMaxLen) =
   }
 
 domainTypeDecl :: Domain -> Cst.TypeDecl
-domainTypeDecl domain = Cst.TypeDecl { position: emptyPos, name: domain.domainName, topType: Cst.Wrap (dbType domain.dataType), annots: annotations domain, params: [] }
+domainTypeDecl domain =
+  Cst.TypeDecl
+    { position: emptyPos
+    , name: domain.domainName
+    , topType: Cst.Wrap (dbType domain.dataType)
+    , annots: Array.cons (instancesAnnotation domain.dataType) (annotations domain)
+    , params: []
+    }
 
 annotations :: forall r. { charMaxLen :: Maybe Int | r } -> Array Cst.Annotation
 annotations = Array.fromFoldable <<< map maxLengthAnnotation <<< _.charMaxLen
@@ -54,8 +79,8 @@ maxLengthAnnotation = Cst.Annotation "validations" emptyPos <<< Array.singleton 
   where
   param = Cst.AnnotationParam "maxLength" emptyPos <<< Just <<< show
 
-domainModule :: Pool -> String -> String -> ExceptT String Aff Cst.Module
-domainModule pool scalaPkg pursPkg =
+domainModule :: Pool -> Config -> ExceptT String Aff Cst.Module
+domainModule pool { scalaPkg, pursPkg } =
   withExceptT show
     $ withConnection runExceptT pool \conn -> do
         results <- query conn (Query sql) Row0
@@ -96,16 +121,20 @@ type DbColumn
     , dataType :: String
     , domainName :: Maybe String
     , charMaxLen :: Maybe Int
+    , isDbManaged :: Boolean
     , isNullable :: String
+    , isPrimaryKey :: Boolean
     }
 
-dbRowToColumn :: Row5 String String (Maybe String) (Maybe Int) String -> DbColumn
-dbRowToColumn (Row5 columnName dataType domainName charMaxLen isNullable) =
+dbRowToColumn :: Row6 String String (Maybe String) (Maybe Int) String Boolean -> DbColumn
+dbRowToColumn (Row6 columnName dataType domainName charMaxLen isNullable isPrimaryKey) =
   { columnName
   , dataType
   , domainName
   , charMaxLen
+  , isDbManaged: false
   , isNullable
+  , isPrimaryKey
   }
 
 occIdColumn :: DbColumn
@@ -114,17 +143,19 @@ occIdColumn =
   , dataType: "occid"
   , domainName: Nothing
   , charMaxLen: Nothing
+  , isDbManaged: true
   , isNullable: "NO"
+  , isPrimaryKey: false
   }
 
-tableModule :: Pool -> String -> String -> String -> ExceptT String Aff Cst.Module
-tableModule pool scalaPkg pursPkg tableName =
+tableModule :: Pool -> Config -> String -> ExceptT String Aff Cst.Module
+tableModule pool config@{ scalaPkg, pursPkg } tableName =
   withExceptT show
     $ withConnection runExceptT pool \conn -> do
         columns <- queryColumns tableName conn
         nelColumns <- except (note (ConversionError ("Expected at least one column. Does the \"" <> tableName <> "\" table exist?")) (NonEmptyArray.fromArray columns))
         let
-          decl = tableType tableName (nelColumns `NonEmptyArray.snoc` occIdColumn)
+          decl = tableType config tableName (nelColumns `NonEmptyArray.snoc` occIdColumn)
         pure
           { types: NonEmptyArray.singleton decl
           , imports: tableImports decl # Array.sort
@@ -151,27 +182,58 @@ queryColumns tableName conn = do
   where
   sql =
     """
-          select column_name, data_type, domain_name, character_maximum_length, is_nullable
-          from information_schema.columns
-          where table_name = $1 and
-                  data_type in ('numeric', 'character varying', 'character',
-                                'integer', 'smallint', 'text', 'uuid',
-                                'boolean', 'date', 'time without time zone',
-                                'timestamp with time zone', 'interval')
-          order by ordinal_position ;
-          """
+    SELECT
+        c.column_name
+      , c.data_type
+      , c.domain_name
+      , c.character_maximum_length
+      , c.is_nullable
+      , i.indisprimary is true
+    FROM
+      information_schema.columns c
+      INNER JOIN pg_attribute a ON (
+        quote_ident(c.table_name) :: regclass = a.attrelid
+        AND c.column_name = a.attname
+      )
+      LEFT OUTER JOIN pg_index i ON (
+        a.attrelid = i.indrelid
+        AND a.attnum = ANY(i.indkey)
+        AND i.indisprimary
+      )
+    WHERE
+      c.table_name = $1
+      AND c.data_type IN
+        ('numeric', 'character varying', 'character',
+         'integer', 'smallint', 'text', 'uuid',
+         'boolean', 'date', 'time without time zone',
+         'timestamp with time zone', 'interval'
+        )
+    ORDER BY c.ordinal_position ;
+    """
 
-tableType :: String -> NonEmptyArray DbColumn -> Cst.TypeDecl
-tableType tableName columns = Cst.TypeDecl { position: emptyPos, name: tableName, topType: Cst.Record (dbRecordProp <$> columns), annots: [], params: [] }
+tableType :: Config -> String -> NonEmptyArray DbColumn -> Cst.TypeDecl
+tableType config tableName columns =
+  Cst.TypeDecl
+    { position: emptyPos
+    , name: tableName
+    , topType: Cst.Record (dbRecordProp config <$> columns)
+    , annots: []
+    , params: []
+    }
 
-dbRecordProp :: DbColumn -> Cst.RecordProp
-dbRecordProp col@{ columnName, domainName, dataType, isNullable } =
+dbRecordProp :: Config -> DbColumn -> Cst.RecordProp
+dbRecordProp config col@{ columnName, domainName, dataType, isDbManaged, isNullable, isPrimaryKey } =
   let
     baseType = maybe (dbType dataType) domainRef domainName
 
     optioned = if isNullable == "YES" then Cst.Option (Cst.TType baseType) else baseType
 
-    annots = guard (isNothing domainName) annotations col
+    annots =
+      guard config.enableQueryDao
+        ( (Array.fromFoldable (dbManagedAnnotation isDbManaged))
+            <> (Array.fromFoldable (primaryKeyAnnotation isPrimaryKey))
+        )
+        <> guard (isNothing domainName) annotations col
   in
     { name: columnName, typ: Cst.TType optioned, annots, position: emptyPos }
 
@@ -196,3 +258,60 @@ dbType dataType = case dataType of
   "interval" -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "DateTimeSupport"), typ: "Duration", params: [] }
   "occid" -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "OccSupport"), typ: "OccId", params: [] }
   _ -> Cst.Primitive Cst.PString -- XXX
+
+dbManagedAnnotation :: Boolean -> Maybe Cst.Annotation
+dbManagedAnnotation isDbManaged =
+  if isDbManaged then
+    Just (Cst.Annotation "dbManaged" emptyPos [])
+  else
+    Nothing
+
+instancesAnnotation :: String -> Cst.Annotation
+instancesAnnotation dataType =
+  let
+    attr attrName s = Cst.AnnotationParam attrName emptyPos (Just s)
+
+    attrs e m =
+      Array.cons
+        (attr "equal" e)
+        (Array.fromFoldable (map (attr "meta") m))
+
+    capitalize s = (String.toUpper (String.take 1 s)) <> String.drop 1 s
+
+    primAttrs t =
+      attrs
+        ("cats.instances." <> t <> ".catsKernelStdOrderFor" <> capitalize t)
+        Nothing
+
+    intAttrs = primAttrs "int"
+
+    stringAttrs = primAttrs "string"
+  in
+    Cst.Annotation
+      "instances"
+      emptyPos
+      ( maybe
+          ( case dataType of
+              "boolean" -> primAttrs "boolean"
+              "character varying" -> stringAttrs
+              "character" -> stringAttrs
+              "integer" -> intAttrs
+              "numeric" -> primAttrs "bigDecimal"
+              "smallint" -> intAttrs
+              "text" -> stringAttrs
+              _ -> stringAttrs
+          )
+          ( \{ instances } ->
+              [ attr "equal" instances.equal
+              , attr "meta" instances.meta
+              ]
+          )
+          (Array.find (eq dataType <<< _.dataType) dbSupportTypes)
+      )
+
+primaryKeyAnnotation :: Boolean -> Maybe Cst.Annotation
+primaryKeyAnnotation isPrimaryKey =
+  if isPrimaryKey then
+    Just (Cst.Annotation "primaryKey" emptyPos [])
+  else
+    Nothing

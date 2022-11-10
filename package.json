@@ -8,7 +8,8 @@
     "build": "spago build --purs-args '--censor-lib --strict'",
     "postinstall": "spago install",
     "test": "./runtests",
-    "test-db": "dotenv spago test --purs-args '-m Test.GetSchema'"
+    "test-db": "dotenv spago test --purs-args '-m Test.GetSchema'",
+    "pscid:build": "yarn spago build"
   },
   "dependencies": {
     "decimal.js": "10.2.0",
@@ -21,8 +22,9 @@
     "purescript": "^0.15.4",
     "purescript-language-server": "^0.16.6",
     "purescript-psa": "^0.8.2",
-    "purty": "6.2.0",
+    "purty": "7.0.0",
     "rimraf": "^2.6.2",
-    "spago": "^0.20.8"
+    "spago": "^0.20.8",
+    "pscid": "2.9.3"
   }
 }

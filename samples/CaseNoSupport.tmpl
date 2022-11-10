@@ -1,0 +1,32 @@
+scala: samples.CaseNoSupport
+purs: Samples.CaseNoSupport
+
+type CaseNo: wrap String
+    <scala
+        t="gov.wicourts.common.CaseNo"
+        decode="Decoder.caseNo"
+        encode="gov.wicourts.common.CaseNo.CaseNoConverter.asString">
+    <purs
+        t="Ccap.Common.Data.CaseNo.CaseNo"
+        decode="Ccap.Common.Data.CaseNo.decodeCaseNo"
+        encode="Ccap.Common.Data.CaseNo.expanded">
+
+type CaseNoRange: wrap String
+    <scala
+        t="gov.wicourts.common.CaseNoRange"
+        decode="Decoder.caseNoRange"
+        encode="gov.wicourts.common.CaseNoRange.expanded">
+    <purs
+        t="Ccap.Common.Data.CaseNo.CaseNoRange"
+        decode="Ccap.Common.Data.CaseNo.decodeCaseNoRange"
+        encode="Ccap.Common.Data.CaseNo.encodeCaseNoRange">
+
+type CaseNoSearchOutput: wrap String
+    <scala
+      t="gov.wicourts.common.CaseNoSearchOutput"
+      decode="Decoder.caseNoSearchOutput"
+      encode="gov.wicourts.common.CaseNoSearchOutput.expanded">
+    <purs
+      t="Ccap.Common.Data.CaseNo.CaseNoSearchOutput"
+      decode="Ccap.Common.Data.CaseNo.decodeCaseNoSearchOutput"
+      encode="Ccap.Common.Data.CaseNo.encodeCaseNoSearchOutput">

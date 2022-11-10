@@ -49,7 +49,7 @@ specs =
               resourced <- except $ parse tmplFile printed
               pure $ Tuple input resourced
       either fail (uncurry compareModules) results
-    it "Prints a scala a file as expected" do
+    it "Prints a scala file as expected" do
       results <-
         liftEffect
           $ runExceptT do

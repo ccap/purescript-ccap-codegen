@@ -1,7 +1,9 @@
 module Ccap.Codegen.Shared
-  ( DelimitedLiteralDir(..)
+  ( DbSupportType
+  , DelimitedLiteralDir(..)
   , FastPathDecoderType(..)
   , OutputSpec
+  , dbSupportTypes
   , delimitedLiteral
   , fastPathDecoderType
   , indented
@@ -16,6 +18,72 @@ import Data.Maybe (Maybe(..), isNothing)
 import Data.Tuple (Tuple(..))
 import Text.PrettyPrint.Boxes (Box, char, emptyBox, hcat, vcat, (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes (left, top) as Boxes
+
+type DbSupportType
+  = { dataType :: String
+    , instances ::
+        { equal :: String
+        , meta :: String
+        }
+    , isCommon :: Boolean
+    , moduleName :: String
+    , typeName :: String
+    , underlyingSqlType :: String
+    }
+
+dbSupportTypes :: Array DbSupportType
+dbSupportTypes =
+  [ { dataType: "date"
+    , instances:
+        { equal: "gov.wicourts.common.instances.dates.localDateEqual"
+        , meta: "gov.wicourts.common.Meta.metaLocalDate"
+        }
+    , isCommon: true
+    , moduleName: "DateTimeSupport"
+    , typeName: "Date"
+    , underlyingSqlType: "date"
+    }
+  , { dataType: "interval"
+    , instances:
+        { equal: "gov.wicourts.jsoncommon.data.DurationWithLife.Duration.eqDuration"
+        , meta: "gov.wicourts.jsoncommon.data.DurationWithLife.Duration.metaDuration"
+        }
+    , isCommon: false
+    , moduleName: "DateTimeSupport"
+    , typeName: "Duration"
+    , underlyingSqlType: "interval"
+    }
+  , { dataType: "time without time zone"
+    , instances:
+        { equal: "gov.wicourts.common.instances.times.equalLocalTime"
+        , meta: "gov.wicourts.common.Meta.metaLocalTime"
+        }
+    , isCommon: true
+    , moduleName: "DateTimeSupport"
+    , typeName: "Time"
+    , underlyingSqlType: "time"
+    }
+  , { dataType: "timestamp with time zone"
+    , instances:
+        { equal: "gov.wicourts.common.instances.dates.localDateTimeEqual"
+        , meta: "gov.wicourts.common.Meta.metaLocalDateTime"
+        }
+    , isCommon: true
+    , moduleName: "DateTimeSupport"
+    , typeName: "Timestamp"
+    , underlyingSqlType: "timestamp"
+    }
+  , { dataType: "uuid"
+    , instances:
+        { equal: "gov.wicourts.common.instances.uuid.equalUUID"
+        , meta: "gov.wicourts.common.Meta.metaUuid"
+        }
+    , isCommon: true
+    , moduleName: "UUIDSupport"
+    , typeName: "UUID"
+    , underlyingSqlType: "uuid"
+    }
+  ]
 
 type OutputSpec
   = { render :: Ast.Module -> Maybe String

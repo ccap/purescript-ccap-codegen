@@ -6,9 +6,9 @@ spago build
 
 case $1 in
     ccap)
-        DB=dev15-db.wicourts.gov:5612:cc:viewer
-        ./get-schema.js --config $DB -d > samples/Domains.tmpl
-        ./get-schema.js --config $DB -t Case > samples/Case.tmpl
+        DB=dev15-db.wicourts.gov:5612:cc:viewer:somepassword
+        ./get-schema.js --config $DB -d > samples/Domains.tmpl --purs-pkg Samples.Domains --scala-pkg samples.Domains
+        ./get-schema.js --config $DB -t Case > samples/Case.tmpl --purs-pkg Samples.Case --scala-pkg samples.Case
         ;;
 esac
 

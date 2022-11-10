@@ -2,178 +2,257 @@
 
 package test
 
+import cats.Monad
 import gov.wicourts.jsoncommon.Decoder
 import gov.wicourts.jsoncommon.Encoder
-import scalaz.Monad
 
 object Printed {
-
   type YesNo = Boolean
-  def jsonEncoderYesNo: Encoder[YesNo, argonaut.Json] =
+  def jsonEncoderYesNo: Encoder[YesNo, argonaut.Json] = {
     Encoder.boolean
-  def jsonDecoderYesNo[M[_]: Monad]: Decoder.Field[M, YesNo] =
-    Decoder.boolean
-
+  }
+  def jsonDecoderYesNo[M[_]: Monad]: Decoder.Field[M, YesNo] = {
+    Decoder.boolean[M]
+  }
   type Number = BigDecimal
-  def jsonEncoderNumber: Encoder[Number, argonaut.Json] =
+  def jsonEncoderNumber: Encoder[Number, argonaut.Json] = {
     Encoder.decimal
-  def jsonDecoderNumber[M[_]: Monad]: Decoder.Field[M, Number] =
-    Decoder.decimal
-
+  }
+  def jsonDecoderNumber[M[_]: Monad]: Decoder.Field[M, Number] = {
+    Decoder.decimal[M]
+  }
   type Text = String
-  def jsonEncoderText: Encoder[Text, argonaut.Json] =
+  def jsonEncoderText: Encoder[Text, argonaut.Json] = {
     Encoder.string
-  def jsonDecoderText[M[_]: Monad]: Decoder.Field[M, Text] =
-    Decoder.string
-
+  }
+  def jsonDecoderText[M[_]: Monad]: Decoder.Field[M, Text] = {
+    Decoder.string[M]
+  }
   type Integer = Int
-  def jsonEncoderInteger: Encoder[Integer, argonaut.Json] =
+  def jsonEncoderInteger: Encoder[Integer, argonaut.Json] = {
     Encoder.int
-  def jsonDecoderInteger[M[_]: Monad]: Decoder.Field[M, Integer] =
-    Decoder.int
-
+  }
+  def jsonDecoderInteger[M[_]: Monad]: Decoder.Field[M, Integer] = {
+    Decoder.int[M]
+  }
   final abstract class TagTypeT
-  type TagType = scalaz.@@[Int, TagTypeT]
-  val TagType: scalaz.Tag.TagOf[TagTypeT] = scalaz.Tag.of[TagTypeT]
-  def jsonEncoderTagType: Encoder[TagType, argonaut.Json] =
+  type TagType = gov.wicourts.common.@@[Int, TagTypeT]
+  val TagType: gov.wicourts.common.Tag.TagOf[TagTypeT] = gov.wicourts.common.Tag.of[TagTypeT]
+  def jsonEncoderTagType: Encoder[TagType, argonaut.Json] = {
     Encoder.int.tagged
-  def jsonDecoderTagType[M[_]: Monad]: Decoder.Field[M, TagType] =
-    Decoder.int.tagged
-
+  }
+  def jsonDecoderTagType[M[_]: Monad]: Decoder.Field[M, TagType] = {
+    Decoder.int[M].tagged
+  }
   type Optional = Option[Int]
-  def jsonEncoderOptional: Encoder[Optional, argonaut.Json] =
+  def jsonEncoderOptional: Encoder[Optional, argonaut.Json] = {
     Encoder.int.option
-  def jsonDecoderOptional[M[_]: Monad]: Decoder.Field[M, Optional] =
-    Decoder.int.option
-
+  }
+  def jsonDecoderOptional[M[_]: Monad]: Decoder.Field[M, Optional] = {
+    Decoder.int[M].option
+  }
   type Collection = List[Int]
-  def jsonEncoderCollection: Encoder[Collection, argonaut.Json] =
+  def jsonEncoderCollection: Encoder[Collection, argonaut.Json] = {
     Encoder.int.list
-  def jsonDecoderCollection[M[_]: Monad]: Decoder.Field[M, Collection] =
-    Decoder.int.list
-
+  }
+  def jsonDecoderCollection[M[_]: Monad]: Decoder.Field[M, Collection] = {
+    Decoder.int[M].list
+  }
   final case class Point(
     x: Int,
     y: Int,
   )
-  def jsonEncoderPoint: Encoder[Point, argonaut.Json] =
+  def jsonEncoderPoint: Encoder[Point, argonaut.Json] = {
     x => argonaut.Json.obj(
       "x" -> Encoder.int.encode(x.x),
       "y" -> Encoder.int.encode(x.y),
     )
-  def jsonDecoderPoint[M[_]: Monad]: Decoder.Form[M, Point] =
-    scalaz.Apply[Decoder.Form[M, *]].apply2(
-      Decoder.int.property("x"),
-      Decoder.int.property("y"),
+  }
+  def jsonDecoderPoint[M[_]: Monad]: Decoder.Form[M, Point] = {
+    cats.Apply[Decoder.Form[M, *]].map2(
+      Decoder.int[M].property("x"),
+      Decoder.int[M].property("y"),
     )(Point.apply)
+  }
   object Point {
     object FieldNames {
       val X: String = "x"
       val Y: String = "y"
     }
   }
-
   type InternalRef = Integer
-  def jsonEncoderInternalRef: Encoder[InternalRef, argonaut.Json] =
+  def jsonEncoderInternalRef: Encoder[InternalRef, argonaut.Json] = {
     jsonEncoderInteger
-  def jsonDecoderInternalRef[M[_]: Monad]: Decoder.Field[M, InternalRef] =
-    jsonDecoderInteger
-
+  }
+  def jsonDecoderInternalRef[M[_]: Monad]: Decoder.Field[M, InternalRef] = {
+    jsonDecoderInteger[M]
+  }
   type ExternalRef = Imported.ImportedType
-  def jsonEncoderExternalRef: Encoder[ExternalRef, argonaut.Json] =
+  def jsonEncoderExternalRef: Encoder[ExternalRef, argonaut.Json] = {
     Imported.jsonEncoderImportedType
-  def jsonDecoderExternalRef[M[_]: Monad]: Decoder.Field[M, ExternalRef] =
-    Imported.jsonDecoderImportedType
-
+  }
+  def jsonDecoderExternalRef[M[_]: Monad]: Decoder.Field[M, ExternalRef] = {
+    Imported.jsonDecoderImportedType[M]
+  }
   type Validated = String
-  def jsonEncoderValidated: Encoder[Validated, argonaut.Json] =
+  def jsonEncoderValidated: Encoder[Validated, argonaut.Json] = {
     Encoder.string
-  def jsonDecoderValidated[M[_]: Monad]: Decoder.Field[M, Validated] =
-    Decoder.string.maxLength(5)
-
+  }
+  def jsonDecoderValidated[M[_]: Monad]: Decoder.Field[M, Validated] = {
+    Decoder.string[M].maxLength(5)
+  }
   type ValidatedMaybe = Option[String]
-  def jsonEncoderValidatedMaybe: Encoder[ValidatedMaybe, argonaut.Json] =
+  def jsonEncoderValidatedMaybe: Encoder[ValidatedMaybe, argonaut.Json] = {
     Encoder.string.option
-  def jsonDecoderValidatedMaybe[M[_]: Monad]: Decoder.Field[M, ValidatedMaybe] =
-    Decoder.string.maxLength(5).option
-
+  }
+  def jsonDecoderValidatedMaybe[M[_]: Monad]: Decoder.Field[M, ValidatedMaybe] = {
+    Decoder.string[M].maxLength(5).option
+  }
   final case class ValidatedRec(
     name: String,
   )
-  def jsonEncoderValidatedRec: Encoder[ValidatedRec, argonaut.Json] =
+  def jsonEncoderValidatedRec: Encoder[ValidatedRec, argonaut.Json] = {
     x => argonaut.Json.obj(
       "name" -> Encoder.string.encode(x.name),
     )
-  def jsonDecoderValidatedRec[M[_]: Monad]: Decoder.Form[M, ValidatedRec] =
-    Decoder.string.maxLength(5).property("name").map(ValidatedRec.apply)
+  }
+  def jsonDecoderValidatedRec[M[_]: Monad]: Decoder.Form[M, ValidatedRec] = {
+    Decoder.string[M].maxLength(5).property("name").map(ValidatedRec.apply)
+  }
   object ValidatedRec {
     object FieldNames {
       val Name: String = "name"
     }
   }
-
   type ArrayOfArrayOfArrayString = List[List[List[String]]]
-  def jsonEncoderArrayOfArrayOfArrayString: Encoder[ArrayOfArrayOfArrayString, argonaut.Json] =
+  def jsonEncoderArrayOfArrayOfArrayString: Encoder[ArrayOfArrayOfArrayString, argonaut.Json] = {
     Encoder.string.list.list.list
-  def jsonDecoderArrayOfArrayOfArrayString[M[_]: Monad]: Decoder.Field[M, ArrayOfArrayOfArrayString] =
-    Decoder.string.list.list.list
-
+  }
+  def jsonDecoderArrayOfArrayOfArrayString[M[_]: Monad]: Decoder.Field[M, ArrayOfArrayOfArrayString] = {
+    Decoder.string[M].list.list.list
+  }
   type ArrayOfSomething[A] = List[A]
-  def jsonEncoderArrayOfSomething[A](jsonEncoder_param_A: Encoder[A, argonaut.Json]): Encoder[ArrayOfSomething[A], argonaut.Json] =
+  def jsonEncoderArrayOfSomething[A](
+    jsonEncoder_param_A: Encoder[A, argonaut.Json],
+  ): Encoder[ArrayOfSomething[A], argonaut.Json] = {
     jsonEncoder_param_A.list
+  }
   // Scala decoders that involve parameterized types are not supported
-
   sealed trait Either[A, B]
   object Either {
-    final case class Left[A, B](param_0: A) extends Either[A, B]
-    final case class Right[A, B](param_0: B) extends Either[A, B]
+    final case class Left[A, B](
+      param_0: A,
+    ) extends Either[A, B]
+    final case class Right[A, B](
+      param_0: B,
+    ) extends Either[A, B]
   }
-  def jsonEncoderEither[A, B](jsonEncoder_param_A: Encoder[A, argonaut.Json], jsonEncoder_param_B: Encoder[B, argonaut.Json]): Encoder[Either[A, B], argonaut.Json] =
-    _ match  {
-      case Either.Left(param_0) => Encoder.constructor("Left", List(jsonEncoder_param_A.encode(param_0)))
-      case Either.Right(param_0) => Encoder.constructor("Right", List(jsonEncoder_param_B.encode(param_0)))
+  def jsonEncoderEither[A, B](
+    jsonEncoder_param_A: Encoder[A, argonaut.Json],
+    jsonEncoder_param_B: Encoder[B, argonaut.Json],
+  ): Encoder[Either[A, B], argonaut.Json] = {
+    _ match {
+      case Either.Left(
+        param_0,
+      ) =>
+        Encoder.constructor(
+          "Left",
+          List(
+            jsonEncoder_param_A.encode(param_0),
+          ),
+        )
+      case Either.Right(
+        param_0,
+      ) =>
+        Encoder.constructor(
+          "Right",
+          List(
+            jsonEncoder_param_B.encode(param_0),
+          ),
+        )
     }
+  }
   // Scala decoders that involve parameterized types are not supported
-
   type EitherWithStringError[A] = Either[String, A]
-  def jsonEncoderEitherWithStringError[A](jsonEncoder_param_A: Encoder[A, argonaut.Json]): Encoder[EitherWithStringError[A], argonaut.Json] =
+  def jsonEncoderEitherWithStringError[A](
+    jsonEncoder_param_A: Encoder[A, argonaut.Json],
+  ): Encoder[EitherWithStringError[A], argonaut.Json] = {
     jsonEncoderEither(Encoder.string, jsonEncoder_param_A)
+  }
   // Scala decoders that involve parameterized types are not supported
-
   sealed trait List[A]
   object List {
     final case class Nil[A]() extends List[A]
-    final case class Cons[A](param_0: A, param_1: List[A]) extends List[A]
+    final case class Cons[A](
+      param_0: A,
+      param_1: List[A],
+    ) extends List[A]
   }
-  def jsonEncoderList[A](jsonEncoder_param_A: Encoder[A, argonaut.Json]): Encoder[List[A], argonaut.Json] =
-    _ match  {
-      case List.Nil() => Encoder.constructor("Nil", Nil)
-      case List.Cons(param_0, param_1) => Encoder.constructor("Cons", List(jsonEncoder_param_A.encode(param_0), jsonEncoderList(jsonEncoder_param_A).encode(param_1)))
+  def jsonEncoderList[A](
+    jsonEncoder_param_A: Encoder[A, argonaut.Json],
+  ): Encoder[List[A], argonaut.Json] = {
+    _ match {
+      case List.Nil() =>
+        Encoder.constructor(
+          "Nil",
+          Nil,
+        )
+      case List.Cons(
+        param_0,
+        param_1,
+      ) =>
+        Encoder.constructor(
+          "Cons",
+          List(
+            jsonEncoder_param_A.encode(param_0),
+            jsonEncoderList(jsonEncoder_param_A).encode(param_1),
+          ),
+        )
     }
+  }
   // Scala decoders that involve parameterized types are not supported
-
-
-  final case class Tuple[A, B](param_0: A, param_1: B)
-  def jsonEncoderTuple[A, B](jsonEncoder_param_A: Encoder[A, argonaut.Json], jsonEncoder_param_B: Encoder[B, argonaut.Json]): Encoder[Tuple[A, B], argonaut.Json] =
-    _ match  {
-      case Tuple(param_0, param_1) => Encoder.constructor("Tuple", List(jsonEncoder_param_A.encode(param_0), jsonEncoder_param_B.encode(param_1)))
+  final case class Tuple[A, B](
+    param_0: A,
+    param_1: B,
+  )
+  def jsonEncoderTuple[A, B](
+    jsonEncoder_param_A: Encoder[A, argonaut.Json],
+    jsonEncoder_param_B: Encoder[B, argonaut.Json],
+  ): Encoder[Tuple[A, B], argonaut.Json] = {
+    _ match {
+      case Tuple(
+        param_0,
+        param_1,
+      ) =>
+        Encoder.constructor(
+          "Tuple",
+          List(
+            jsonEncoder_param_A.encode(param_0),
+            jsonEncoder_param_B.encode(param_1),
+          ),
+        )
     }
+  }
   // Scala decoders that involve parameterized types are not supported
-
   type NonEmptyList[A] = Tuple[A, List[A]]
-  def jsonEncoderNonEmptyList[A](jsonEncoder_param_A: Encoder[A, argonaut.Json]): Encoder[NonEmptyList[A], argonaut.Json] =
+  def jsonEncoderNonEmptyList[A](
+    jsonEncoder_param_A: Encoder[A, argonaut.Json],
+  ): Encoder[NonEmptyList[A], argonaut.Json] = {
     jsonEncoderTuple(jsonEncoder_param_A, jsonEncoderList(jsonEncoder_param_A))
+  }
   // Scala decoders that involve parameterized types are not supported
-
   final case class AnotherNonEmptyList[A](
     head: A,
     tail: List[A],
   )
-  def jsonEncoderAnotherNonEmptyList[A](jsonEncoder_param_A: Encoder[A, argonaut.Json]): Encoder[AnotherNonEmptyList[A], argonaut.Json] =
+  def jsonEncoderAnotherNonEmptyList[A](
+    jsonEncoder_param_A: Encoder[A, argonaut.Json],
+  ): Encoder[AnotherNonEmptyList[A], argonaut.Json] = {
     x => argonaut.Json.obj(
       "head" -> jsonEncoder_param_A.encode(x.head),
       "tail" -> jsonEncoderList(jsonEncoder_param_A).encode(x.tail),
     )
+  }
   // Scala decoders that involve parameterized types are not supported
   object AnotherNonEmptyList {
     object FieldNames {
@@ -181,12 +260,13 @@ object Printed {
       val Tail: String = "tail"
     }
   }
-
   type NonEmptyArray[A] = Tuple[A, List[A]]
-  def jsonEncoderNonEmptyArray[A](jsonEncoder_param_A: Encoder[A, argonaut.Json]): Encoder[NonEmptyArray[A], argonaut.Json] =
+  def jsonEncoderNonEmptyArray[A](
+    jsonEncoder_param_A: Encoder[A, argonaut.Json],
+  ): Encoder[NonEmptyArray[A], argonaut.Json] = {
     jsonEncoderTuple(jsonEncoder_param_A, jsonEncoder_param_A.list)
+  }
   // Scala decoders that involve parameterized types are not supported
-
   sealed trait Enum {
     def tag: String
   }
@@ -201,39 +281,42 @@ object Printed {
       override def tag: String = "Blue"
     }
   }
-  def jsonEncoderEnum: Encoder[Enum, argonaut.Json] =
+  def jsonEncoderEnum: Encoder[Enum, argonaut.Json] = {
     Encoder.string.compose(
       _.tag
     )
-  def jsonDecoderEnum[M[_]: Monad]: Decoder.Field[M, Enum] =
-    Decoder.string.disjunction.andThen(
+  }
+  def jsonDecoderEnum[M[_]: Monad]: Decoder.Field[M, Enum] = {
+    Decoder.string[M].toEither.andThen(
       Decoder.enum[M, Enum](
         "Enum",
         ("Red", Enum.Red),
         ("Green", Enum.Green),
         ("Blue", Enum.Blue),
       )
-      .disjunction
+      .toEither
     )
-    .validation
-
+    .toValidated
+  }
   final case class RecordOfStrings(
     a: List[String],
     b: List[String],
     c: List[String],
   )
-  def jsonEncoderRecordOfStrings: Encoder[RecordOfStrings, argonaut.Json] =
+  def jsonEncoderRecordOfStrings: Encoder[RecordOfStrings, argonaut.Json] = {
     x => argonaut.Json.obj(
       "a" -> jsonEncoderList(Encoder.string).encode(x.a),
       "b" -> jsonEncoderList(Encoder.string).encode(x.b),
       "c" -> jsonEncoderList(Encoder.string).encode(x.c),
     )
-  def jsonDecoderRecordOfStrings[M[_]: Monad]: Decoder.Form[M, RecordOfStrings] =
-    scalaz.Apply[Decoder.Form[M, *]].apply3(
-      jsonDecoderList.property("a"),
-      jsonDecoderList.property("b"),
-      jsonDecoderList.property("c"),
+  }
+  def jsonDecoderRecordOfStrings[M[_]: Monad]: Decoder.Form[M, RecordOfStrings] = {
+    cats.Apply[Decoder.Form[M, *]].map3(
+      jsonDecoderList[M].property("a"),
+      jsonDecoderList[M].property("b"),
+      jsonDecoderList[M].property("c"),
     )(RecordOfStrings.apply)
+  }
   object RecordOfStrings {
     object FieldNames {
       val A: String = "a"
@@ -241,12 +324,14 @@ object Printed {
       val C: String = "c"
     }
   }
-
   type NativeEither = scala.Either
-  def jsonEncoderNativeEither[A, B](jsonEncoder_param_A: Encoder[A, argonaut.Json], jsonEncoder_param_B: Encoder[B, argonaut.Json]): Encoder[NativeEither[A, B], argonaut.Json] =
+  def jsonEncoderNativeEither[A, B](
+    jsonEncoder_param_A: Encoder[A, argonaut.Json],
+    jsonEncoder_param_B: Encoder[B, argonaut.Json],
+  ): Encoder[NativeEither[A, B], argonaut.Json] = {
     jsonEncoderEither(jsonEncoder_param_A, jsonEncoder_param_B).compose(
       Encoder.either
     )
+  }
   // Scala decoders that involve parameterized types are not supported
-
 }
