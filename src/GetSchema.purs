@@ -34,11 +34,9 @@ app config =
         poolConfig <- except (readPoolConfig config.database)
         let
           c =
-            { domains: config.domains
-            , table
+            { table
             , poolConfig
-            , scalaPkg: config.scalaPkg
-            , pursPkg: config.pursPkg
+            , getSchemaConfig: config
             }
         fromDb <- dbModules c
         traverse_ writeModule fromDb
@@ -74,19 +72,17 @@ app config =
     portFromString = note "Database port must be an integer" <<< Int.fromString
 
 dbModules :: Config -> ExceptT String Aff (Maybe Cst.Module)
-dbModules config = do
+dbModules config@{ getSchemaConfig: { scalaPkg, pursPkg, enableQueryDao } } = do
   pool <- liftEffect $ Pool.new config.poolConfig
-  if config.domains then
-    Just <$> Database.domainModule pool config.scalaPkg config.pursPkg
+  if config.getSchemaConfig.domains then
+    Just <$> Database.domainModule pool { scalaPkg, pursPkg, enableQueryDao }
   else
-    for config.table $ Database.tableModule pool config.scalaPkg config.pursPkg
+    for config.table $ Database.tableModule pool { scalaPkg, pursPkg, enableQueryDao }
 
 type Config
-  = { domains :: Boolean
-    , table :: Maybe String
+  = { table :: Maybe String
     , poolConfig :: Pool.Configuration
-    , scalaPkg :: String
-    , pursPkg :: String
+    , getSchemaConfig :: GetSchemaConfig
     }
 
 prependNotice :: String -> String

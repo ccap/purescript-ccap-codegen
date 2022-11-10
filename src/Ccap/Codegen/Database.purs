@@ -35,6 +35,12 @@ type AliasedType
     , type :: Cst.Typ
     }
 
+type Config
+  = { scalaPkg :: String
+    , pursPkg :: String
+    , enableQueryDao :: Boolean
+    }
+
 aliasedTypes :: Array AliasedType
 aliasedTypes =
   [ { name: "CaseNoT"
@@ -73,8 +79,8 @@ maxLengthAnnotation = Cst.Annotation "validations" emptyPos <<< Array.singleton 
   where
   param = Cst.AnnotationParam "maxLength" emptyPos <<< Just <<< show
 
-domainModule :: Pool -> String -> String -> ExceptT String Aff Cst.Module
-domainModule pool scalaPkg pursPkg =
+domainModule :: Pool -> Config -> ExceptT String Aff Cst.Module
+domainModule pool { scalaPkg, pursPkg } =
   withExceptT show
     $ withConnection runExceptT pool \conn -> do
         results <- query conn (Query sql) Row0
@@ -142,14 +148,14 @@ occIdColumn =
   , isPrimaryKey: false
   }
 
-tableModule :: Pool -> String -> String -> String -> ExceptT String Aff Cst.Module
-tableModule pool scalaPkg pursPkg tableName =
+tableModule :: Pool -> Config -> String -> ExceptT String Aff Cst.Module
+tableModule pool config@{ scalaPkg, pursPkg } tableName =
   withExceptT show
     $ withConnection runExceptT pool \conn -> do
         columns <- queryColumns tableName conn
         nelColumns <- except (note (ConversionError ("Expected at least one column. Does the \"" <> tableName <> "\" table exist?")) (NonEmptyArray.fromArray columns))
         let
-          decl = tableType tableName (nelColumns `NonEmptyArray.snoc` occIdColumn)
+          decl = tableType config tableName (nelColumns `NonEmptyArray.snoc` occIdColumn)
         pure
           { types: NonEmptyArray.singleton decl
           , imports: tableImports decl # Array.sort
@@ -205,26 +211,28 @@ queryColumns tableName conn = do
     ORDER BY c.ordinal_position ;
     """
 
-tableType :: String -> NonEmptyArray DbColumn -> Cst.TypeDecl
-tableType tableName columns =
+tableType :: Config -> String -> NonEmptyArray DbColumn -> Cst.TypeDecl
+tableType config tableName columns =
   Cst.TypeDecl
     { position: emptyPos
     , name: tableName
-    , topType: Cst.Record (dbRecordProp <$> columns)
+    , topType: Cst.Record (dbRecordProp config <$> columns)
     , annots: []
     , params: []
     }
 
-dbRecordProp :: DbColumn -> Cst.RecordProp
-dbRecordProp col@{ columnName, domainName, dataType, isDbManaged, isNullable, isPrimaryKey } =
+dbRecordProp :: Config -> DbColumn -> Cst.RecordProp
+dbRecordProp config col@{ columnName, domainName, dataType, isDbManaged, isNullable, isPrimaryKey } =
   let
     baseType = maybe (dbType dataType) domainRef domainName
 
     optioned = if isNullable == "YES" then Cst.Option (Cst.TType baseType) else baseType
 
     annots =
-      (Array.fromFoldable (dbManagedAnnotation isDbManaged))
-        <> (Array.fromFoldable (primaryKeyAnnotation isPrimaryKey))
+      guard config.enableQueryDao
+        ( (Array.fromFoldable (dbManagedAnnotation isDbManaged))
+            <> (Array.fromFoldable (primaryKeyAnnotation isPrimaryKey))
+        )
         <> guard (isNothing domainName) annotations col
   in
     { name: columnName, typ: Cst.TType optioned, annots, position: emptyPos }

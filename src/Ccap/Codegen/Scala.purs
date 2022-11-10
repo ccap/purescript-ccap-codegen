@@ -251,9 +251,8 @@ defDecl declSpec = defDecl' declSpec ""
 
 defDef :: DeclSpec -> Box -> Box
 defDef declSpec defn =
-  defDecl' declSpec " = {"
+  defDecl' declSpec " ="
     // indented defn
-    // Boxes.text "}"
 
 defDef1 :: DeclSpec -> String -> Box
 defDef1 declSpec defn = defDecl' declSpec (" = " <> defn)
@@ -365,11 +364,6 @@ defDbMetadata ::
   Box
 defDbMetadata name nonPrimaryKeyProps primaryKeyProps =
   let
-    sortedPrimaryKeyProps =
-      NonEmptyArray.sortWith
-        (\(Tuple prop _) -> prop.name)
-        primaryKeyProps
-
     typParams = [ name, "PrimaryKey" ]
 
     colType = dbMetadata <> ".Column[" <> name <> "]"
@@ -484,7 +478,7 @@ defDbMetadata name nonPrimaryKeyProps primaryKeyProps =
         "nonPrimaryKeyColumns"
         "List"
         "List"
-        (Array.sortWith (\(Tuple prop _) -> prop.name) nonPrimaryKeyProps)
+        nonPrimaryKeyProps
 
     primaryKey =
       defDef
@@ -498,7 +492,7 @@ defDbMetadata name nonPrimaryKeyProps primaryKeyProps =
             ""
             ( map
                 (\(Tuple { name: propName } _) -> "entity." <> propName)
-                sortedPrimaryKeyProps
+                primaryKeyProps
             )
         )
 
@@ -507,7 +501,7 @@ defDbMetadata name nonPrimaryKeyProps primaryKeyProps =
         "primaryKeyColumns"
         "NonEmptyList"
         "NonEmptyList.of"
-        sortedPrimaryKeyProps
+        primaryKeyProps
 
     tableName =
       defDef
@@ -551,33 +545,36 @@ defInstances name typ annots =
               <> name
               <> ".unwrap)"
         in
-          Boxes.vcat
-            Boxes.left
-            [ defDef
-                { modifiers: [ "implicit" ]
-                , name: "equal" <> name
-                , typParams: []
-                , args: []
-                , typ: typeDescr "cats.Eq" [ name ]
-                }
-                ( Boxes.text
-                    ( "cats.Eq.by((x: "
-                        <> name
-                        <> ") => "
-                        <> name
-                        <> ".unwrap(x))("
-                        <> equal
-                        <> ")"
+          curlyV
+            ("object " <> name <> "T")
+            [ Boxes.vcat
+                Boxes.left
+                [ defDef
+                    { modifiers: [ "implicit" ]
+                    , name: "equal" <> name
+                    , typParams: []
+                    , args: []
+                    , typ: typeDescr "cats.Eq" [ name ]
+                    }
+                    ( Boxes.text
+                        ( "cats.Eq.by((x: "
+                            <> name
+                            <> ") => "
+                            <> name
+                            <> ".unwrap(x))("
+                            <> equal
+                            <> ")"
+                        )
                     )
-                )
-            , defDef
-                { modifiers: [ "implicit" ]
-                , name: "meta" <> name
-                , typParams: []
-                , args: []
-                , typ: typeDescr "doobie.Meta" [ name ]
-                }
-                (Boxes.text (meta' <> timap))
+                , defDef
+                    { modifiers: [ "implicit" ]
+                    , name: "meta" <> name
+                    , typParams: []
+                    , args: []
+                    , typ: typeDescr "doobie.Meta" [ name ]
+                    }
+                    (Boxes.text (meta' <> timap))
+                ]
             ]
     )
     (Annotations.getInstances annots)
@@ -679,7 +676,7 @@ defPrimaryKey primaryKeyProps =
         ""
         ( map
             (\(Tuple _ { typ }) -> typ)
-            (NonEmptyArray.sortWith (\(Tuple p _) -> p.name) primaryKeyProps)
+            primaryKeyProps
         )
     )
 
@@ -777,7 +774,7 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
     recordFieldTypes <-
       traverse
         (recordFieldType outputMode)
-        (NonEmptyArray.sortWith _.name props)
+        props
     recordFields <- traverse recordFieldEncoder props
     let
       modName = objectName mod
@@ -1434,10 +1431,10 @@ smallRecordDecoder name props = do
   recordFieldDecoders <-
     traverse
       recordFieldDecoder
-      (NonEmptyArray.sortWith _.name props)
+      props
   pure
     ( parenVStrings
-        ("cats.Apply[Decoder.Form[M, *]].map" <> show (NonEmptyArray.length props))
+        ("Decoder.formApplicative[M].map" <> show (NonEmptyArray.length props))
         ","
         ("(" <> name <> ".apply)")
         recordFieldDecoders
@@ -1452,7 +1449,7 @@ largeRecordDecoder :: String -> NonEmptyArray Ast.RecordProp -> Codegen Box
 largeRecordDecoder name nelProps = buildApplyStatement tupleStatements
   where
   -- XXX A compromise considering the late hour
-  props = NonEmptyArray.toArray (NonEmptyArray.sortWith _.name nelProps)
+  props = NonEmptyArray.toArray nelProps
 
   -- | collects all the props into a tree that can be parsed into cats.Apply statements
   tupleStatements :: Array TupleApplyStatement
@@ -1476,7 +1473,7 @@ largeRecordDecoder name nelProps = buildApplyStatement tupleStatements
         decs <- traverse _.decoderDefinitionSyntax recursionResults
         pure
           ( parenVBoxes
-              ("cats.Apply[Decoder.Form[M, *]].map" <> show (Array.length statements))
+              ("Decoder.formApplicative[M].map" <> show (Array.length statements))
               ","
               " {"
               decs
@@ -1506,7 +1503,7 @@ largeRecordDecoder name nelProps = buildApplyStatement tupleStatements
               decs <- traverse recordFieldDecoder part
               pure \d ->
                 parenVStrings
-                  ("cats.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length part))
+                  ("Decoder.formApplicative[M].tuple" <> show (Array.length part))
                   ","
                   d
                   decs
@@ -1522,7 +1519,7 @@ largeRecordDecoder name nelProps = buildApplyStatement tupleStatements
               decs <- traverse _.decoderDefinitionSyntax recursionResults
               pure \d ->
                 parenVBoxes
-                  ("cats.Apply[Decoder.Form[M, *]].tuple" <> show (Array.length parts))
+                  ("Decoder.formApplicative[M].tuple" <> show (Array.length parts))
                   ","
                   d
                   decs

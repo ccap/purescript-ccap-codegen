@@ -56,7 +56,13 @@ specs =
           let
             { scalaPkg, pursPkg } = fileSource.contents.exports
           pool <- ExceptT <<< liftEffect <<< map pure $ poolConfig >>= Pool.new
-          dbModule <- tableModule pool scalaPkg pursPkg "Case"
+          dbModule <-
+            tableModule pool
+              { scalaPkg
+              , pursPkg
+              , enableQueryDao: true
+              }
+              "Case"
           pure $ Tuple fileSource.contents dbModule
       either fail (uncurry printAndDiff) results
 
