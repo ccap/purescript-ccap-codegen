@@ -5,7 +5,7 @@ module Ccap.Codegen.Database
 
 import Prelude
 import Ccap.Codegen.Cst as Cst
-import Ccap.Codegen.Shared (dbSupportTypes)
+import Ccap.Codegen.DbSupportType (dbSupportTypes)
 import Control.Monad.Except (ExceptT, except, withExceptT, runExceptT)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)

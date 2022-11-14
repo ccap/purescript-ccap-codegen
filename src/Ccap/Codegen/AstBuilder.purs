@@ -4,12 +4,15 @@ module Ccap.Codegen.AstBuilder
   ) where
 
 import Prelude
+import Ccap.Codegen.Annotations as Annotations
 import Ccap.Codegen.Ast as Ast
 import Ccap.Codegen.Cst as Cst
+import Ccap.Codegen.DbSupportType (dbSupportTypes, supportTypes)
 import Ccap.Codegen.Error as Error
 import Ccap.Codegen.FileSystem as FileSystem
 import Ccap.Codegen.Parser as Parser
 import Ccap.Codegen.Parser.Export as Export
+import Control.Alt ((<|>))
 import Control.Monad.Except (ExceptT(..), except, runExceptT)
 import Control.Monad.State (StateT)
 import Control.Monad.State as S
@@ -25,7 +28,7 @@ import Data.Foldable (any, elem)
 import Data.Generic.Rep (class Generic)
 import Data.Map (Map)
 import Data.Map as Map
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe, isJust, maybe)
 import Data.Set (Set)
 import Data.Set as Set
 import Data.Show.Generic (genericShow)
@@ -90,12 +93,18 @@ buildAstModule (ModuleWithImports { mod, imports: is }) = do
               ( traverse (Validation.V <<< lmap NonEmptyArray.singleton <<< cstTypeDeclToAstTypeDecl params) mod.contents.types
               )
           )
+      declsWithSqlTypes <-
+        T.lift
+          ( Validation.toEither
+              ( traverse (Validation.V <<< lmap NonEmptyArray.singleton <<< fillInSqlTypes params.filePath decls) (NonEmptyArray.zip mod.contents.types decls)
+              )
+          )
       let
         result =
           { source: mod.source
           , contents:
               Ast.Module
-                { types: decls
+                { types: declsWithSqlTypes
                 , exports: mod.contents.exports
                 , imports: importedModules
                 , name: mod.contents.name
@@ -111,6 +120,69 @@ type BuildTypeDeclParams
     , importedModules :: Map String Ast.Module
     , moduleName :: Cst.ModuleName
     }
+
+-- XXX This is a bit of a hack. It would be better to do this as the definition
+-- is being resolved, but this would require topologically sorting the
+-- definitions. This isn't a big deal, but still a bigger deal than is worth
+-- doing now.
+fillInSqlTypes :: FilePath -> NonEmptyArray Ast.TypeDecl -> Tuple Cst.TypeDecl Ast.TypeDecl -> Either Error.Error Ast.TypeDecl
+fillInSqlTypes filePath currentModule (Tuple cstTypeDecl astTypeDecl) = case cstTypeDecl, astTypeDecl of
+  Cst.TypeDecl { topType: Cst.Record cstProps }, Ast.TypeDecl r@{ topType: Ast.Record astProps }
+    | any (\p -> Annotations.getIsPrimaryKey p.annots) astProps -> do
+      props <- traverse (fillInSqlType filePath currentModule cstTypeDecl) (NonEmptyArray.zip cstProps astProps)
+      Right (Ast.TypeDecl (r { topType = Ast.Record props }))
+  _, _ -> Right astTypeDecl
+
+fillInSqlType :: FilePath -> NonEmptyArray Ast.TypeDecl -> Cst.TypeDecl -> Tuple Cst.RecordProp Ast.RecordProp -> Either Error.Error Ast.RecordProp
+fillInSqlType filePath currentModule cstTypeDecl (Tuple cstRecordProp astRecordProp) = do
+  sqlType <-
+    maybe
+      (Left (Error.Positioned filePath cstRecordProp.position (Error.TypeDecl (Error.CannotResolveSqlType cstRecordProp) cstTypeDecl)))
+      Right
+      (findSqlType true currentModule astRecordProp.typ)
+  Right (astRecordProp { sqlType = Just sqlType })
+
+findSqlType :: Boolean -> NonEmptyArray Ast.TypeDecl -> Ast.TypeOrParam -> Maybe Ast.SqlType
+findSqlType directReference currentModule = case _ of
+  Ast.TParam _ -> Nothing
+  Ast.TType typ -> case typ of
+    Ast.Primitive p -> case p of
+      Cst.PBoolean -> Just (Ast.SqlTypePrimitive "boolean")
+      Cst.PInt -> Just (Ast.SqlTypePrimitive "integer")
+      Cst.PDecimal -> Just (Ast.SqlTypePrimitive "numeric")
+      Cst.PString -> Just (Ast.SqlTypePrimitive "text")
+      Cst.PStringValidationHack -> Just (Ast.SqlTypePrimitive "text")
+      Cst.PJson -> Just (Ast.SqlTypePrimitive "text")
+    Ast.Ref { decl: Just (Tuple (Ast.Module { name: Cst.ModuleName modName }) (Ast.TypeDecl { name: typName })) }
+      | any (\{ moduleName, typeName } -> moduleName == modName && typeName == typName) dbSupportTypes ->
+        map (\d -> Ast.SqlTypeDbSupportType { needsImports: directReference, dbSupportType: d })
+          ( Array.find (\{ moduleName, typeName } -> moduleName == modName && typeName == typName) dbSupportTypes
+          )
+    Ast.Ref { decl: Just (Tuple (Ast.Module { name: Cst.ModuleName modName }) (Ast.TypeDecl { name: typName })) }
+      | any (\{ moduleName, typeName } -> moduleName == modName && typeName == typName) supportTypes ->
+        map (Ast.SqlTypePrimitive <<< _.underlyingSqlType)
+          ( Array.find (\{ moduleName, typeName } -> moduleName == modName && typeName == typName) supportTypes
+          )
+    Ast.Ref { decl, typ: typName } -> do
+      let
+        imported = map (\(Tuple (Ast.Module { types }) d) -> Tuple types d) decl
+
+        local = map (Tuple currentModule) (NonEmptyArray.find (\(Ast.TypeDecl { name }) -> name == typName) currentModule)
+      Tuple m d <- imported <|> local
+      findSqlTypeFromTypeDecl m d
+    Ast.Array _ -> Nothing
+    Ast.Option o -> findSqlType directReference currentModule o
+
+findSqlTypeFromTypeDecl :: NonEmptyArray Ast.TypeDecl -> Ast.TypeDecl -> Maybe Ast.SqlType
+findSqlTypeFromTypeDecl currentModule (Ast.TypeDecl { topType, annots }) = case topType of
+  Ast.Typ t -> findSqlType true currentModule (Ast.TType t)
+  Ast.Wrap t ->
+    if isJust (Annotations.getInstances annots) then
+      findSqlType false currentModule (Ast.TType t)
+    else
+      Nothing
+  Ast.Record _ -> Nothing
+  Ast.Sum _ -> Nothing
 
 findDups :: NonEmptyArray String -> Set String
 findDups ss =
@@ -276,9 +348,8 @@ cstTypeDeclToAstTypeDecl { filePath, dups: typeDeclDups, importedModules, decls,
       Left (Error.Positioned filePath position (Error.TypeDecl (Error.DuplicateRecordProperty prop) decl))
     else
       Right unit
-    map
-      (\t -> { name: n, typ: t, annots: as })
-      (cstTypeParamToAstTypeParam position typ)
+    t <- cstTypeParamToAstTypeParam position typ
+    Right { name: n, typ: t, annots: as, sqlType: Nothing }
 
   cstConstructorStringName :: Cst.Constructor -> String
   cstConstructorStringName = case _ of

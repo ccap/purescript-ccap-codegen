@@ -7,14 +7,13 @@ import Ccap.Codegen.Annotations as Annotations
 import Ccap.Codegen.Ast as Ast
 import Ccap.Codegen.Cst as Cst
 import Ccap.Codegen.Parser.Export as Export
-import Ccap.Codegen.Shared (OutputSpec, dbSupportTypes, indented)
+import Ccap.Codegen.Shared (OutputSpec, indented)
 import Control.Monad.Reader (Reader, asks, runReader)
 import Data.Array (foldl)
 import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Compactable (compact)
-import Data.Either (Either(..))
 import Data.Foldable (class Foldable, any, intercalate)
 import Data.List.NonEmpty as NonEmptyList
 import Data.Maybe (Maybe(..), fromMaybe, maybe, maybe')
@@ -24,7 +23,7 @@ import Data.Traversable (for, traverse)
 import Data.TraversableWithIndex (forWithIndex)
 import Data.Tuple (Tuple(..))
 import Node.Path (FilePath)
-import Text.PrettyPrint.Boxes (Box, (//))
+import Text.PrettyPrint.Boxes (Box, (//), (<<>>))
 import Text.PrettyPrint.Boxes as Boxes
 
 type Env
@@ -111,6 +110,14 @@ curlyV pre boxes =
     ""
     (Boxes.char '}')
     (map const boxes)
+
+parenV :: forall f. Foldable f => Functor f => String -> f Box -> Box
+parenV pre boxes =
+  surroundV
+    (Boxes.text (pre <> "("))
+    ","
+    (Boxes.char ')')
+    (map (\b d -> b <<>> Boxes.text d) boxes)
 
 parenVBoxes ::
   forall f.
@@ -257,20 +264,15 @@ defDef declSpec defn =
 defDef1 :: DeclSpec -> String -> Box
 defDef1 declSpec defn = defDecl' declSpec (" = " <> defn)
 
-defType' :: String -> Array Cst.TypeParam -> String
-defType' name typParams =
+defType :: String -> Array Cst.TypeParam -> String
+defType name typParams =
   "type "
     <> typeDescr name (typeParams typParams)
     <> " ="
 
-defType :: String -> Array Cst.TypeParam -> Box -> Box
-defType name typParams defn =
-  Boxes.text (defType' name typParams)
-    // indented defn
-
 defType1 :: String -> Array Cst.TypeParam -> String -> String
 defType1 name typParams defn =
-  defType' name typParams
+  defType name typParams
     <> " "
     <> defn
 
@@ -354,131 +356,145 @@ wrapDecoder annots name dType t dec = do
         )
     )
 
+column :: TypeDeclOutputMode -> String -> Ast.RecordProp -> Codegen Box
+column mode name prop = do
+  ty <- case prop.typ of
+    Ast.TType t -> typeDef mode t
+    Ast.TParam (Cst.TypeParam c) -> pure (initialUpper c)
+  let
+    lambda = straddle " => "
+
+    underlyingSqlType =
+      map
+        ( case _ of
+            Ast.SqlTypePrimitive s -> s
+            Ast.SqlTypeDbSupportType { dbSupportType } -> dbSupportType.underlyingSqlType
+        )
+        prop.sqlType
+  pure
+    ( defVal
+        (initialUpper prop.name)
+        (colType name)
+        ( parenV
+            (colType name)
+            ( map
+                (\{ lhs, rhs } -> Boxes.text (assign lhs rhs))
+                [ { lhs: "eq"
+                  , rhs:
+                      lambda
+                        (parenH_ [ "e1", "e2" ])
+                        ("cats.kernel.Eq[" <> ty <> "].eqv(e1." <> prop.name <> ", e2." <> prop.name <> ")")
+                  }
+                , { lhs: "fragment"
+                  , rhs:
+                      lambda
+                        "e"
+                        ( """fr0"${e."""
+                            <> prop.name
+                            <> "} :: "
+                            <> fromMaybe "unknown" underlyingSqlType
+                            <> "\""
+                        )
+                  }
+                , { lhs: "name"
+                  , rhs: show prop.name
+                  }
+                , { lhs: "underlyingSqlType"
+                  , rhs: maybe "(internal error)" show underlyingSqlType
+                  }
+                , { lhs: "isPrimaryKey"
+                  , rhs: show (Annotations.getIsPrimaryKey prop.annots)
+                  }
+                , { lhs: "isDbManaged"
+                  , rhs: show (Annotations.getIsDbManaged prop.annots)
+                  }
+                ]
+            )
+        )
+    )
+
+columns ::
+  TypeDeclOutputMode ->
+  String ->
+  NonEmptyArray Ast.RecordProp ->
+  Codegen Box
+columns mode name props = do
+  let
+    extraImports = do
+      prop <- NonEmptyArray.toArray props
+      case prop.sqlType of
+        Just (Ast.SqlTypeDbSupportType { needsImports: true, dbSupportType }) ->
+          [ dbSupportType.instances.meta
+          , dbSupportType.instances.equal
+          ]
+        _ -> []
+  cols <- traverse (column mode name) props
+  pure
+    ( Boxes.text "object Columns {"
+        // indented
+            ( Boxes.text "import doobie.syntax.string.toSqlInterpolator"
+                // Boxes.vcat Boxes.left (map (Boxes.text <<< append "import ") (Array.sort (Array.nub extraImports)))
+                // Boxes.vcat Boxes.left cols
+            )
+        // Boxes.char '}'
+    )
+
+colType :: String -> String
+colType name = dbMetadata <> ".Column[" <> name <> "]"
+
 dbMetadata :: String
 dbMetadata = "gov.wicourts.cc.tx.dbc.queries.DbMetadata"
 
 defDbMetadata ::
   String ->
-  Array (Tuple Ast.RecordProp ColumnType) ->
-  NonEmptyArray (Tuple Ast.RecordProp ColumnType) ->
+  NonEmptyArray Ast.RecordProp ->
+  NonEmptyArray Ast.RecordProp ->
   Box
-defDbMetadata name nonPrimaryKeyProps primaryKeyProps =
+defDbMetadata name props primaryKeyProps =
   let
     typParams = [ name, "PrimaryKey" ]
 
-    colType = dbMetadata <> ".Column[" <> name <> "]"
-
     dbMetadataWithTypeParams = typeDescr dbMetadata typParams
 
-    dbMetadataPrereqs =
-      typeDescr
-        "gov.wicourts.cc.tx.dbc.queries.DbMetadataPrereqs"
-        typParams
+    dbMetadataConstructorParams =
+      [ "read" <> name
+      , "read" <> name <> "PrimaryKey"
+      , "write" <> name
+      , "write" <> name <> "PrimaryKey"
+      ]
 
     new =
       curlyV
         ( "new "
-            <> dbMetadataPrereqs
-            <> " with "
             <> dbMetadataWithTypeParams
+            <> parenH_ dbMetadataConstructorParams
         )
 
-    column (Tuple prop { underlyingType }) delim =
-      let
-        lambda = straddle " => "
-
-        underlyingSqlType' = underlyingSqlType underlyingType
-      in
-        parenVStrings
-          colType
-          ","
-          delim
-          ( map
-              (\{ lhs, rhs } -> assign lhs rhs)
-              [ { lhs: "eq"
-                , rhs:
-                    lambda
-                      (parenH_ [ "e1", "e2" ])
-                      ( straddle
-                          " === "
-                          ("e1." <> prop.name)
-                          ("e2." <> prop.name)
-                      )
-                }
-              , { lhs: "fragment"
-                , rhs:
-                    lambda
-                      "e"
-                      ( """fr0"${e."""
-                          <> prop.name
-                          <> "} :: "
-                          <> underlyingSqlType'
-                          <> "\""
-                      )
-                }
-              , { lhs: "name"
-                , rhs: show prop.name
-                }
-              , { lhs: "underlyingSqlType"
-                , rhs: show underlyingSqlType'
-                }
-              ]
-          )
-
-    columns ::
+    columnsRefs ::
       forall f.
       Foldable f =>
       Functor f =>
       String ->
       String ->
       String ->
-      f (Tuple Ast.RecordProp ColumnType) ->
+      f Ast.RecordProp ->
       Box
-    columns functionName typ constructor props =
+    columnsRefs functionName typ constructor pp =
       defDef
         { modifiers: [ "override" ]
         , name: functionName
         , typParams: []
         , args: []
-        , typ: typeDescr typ [ colType ]
+        , typ: typeDescr typ [ colType name ]
         }
-        (parenVBoxes_ constructor (map column props))
+        (parenVStrings_ constructor (map (\{ name: propName } -> "Columns." <> initialUpper propName) pp))
 
-    dbManagedColumns :: Box
-    dbManagedColumns =
-      let
-        dbManagedProps =
-          Array.filter
-            (\(Tuple prop _) -> Annotations.getIsDbManaged prop.annots)
-            (nonPrimaryKeyProps <> Array.fromFoldable primaryKeyProps)
-
-        declSpec =
-          { modifiers: [ "override" ]
-          , name: "dbManagedColumns"
-          , typParams: []
-          , args: []
-          , typ: typeDescr "Set" [ "String" ]
-          }
-      in
-        if Array.null dbManagedProps then
-          defDef1 declSpec "Set.empty"
-        else
-          defDef
-            declSpec
-            ( parenVBoxes_
-                "Set"
-                ( map
-                    (\(Tuple prop _) delim -> Boxes.text ((show prop.name) <> delim))
-                    dbManagedProps
-                )
-            )
-
-    nonPrimaryKeyColumns =
-      columns
-        "nonPrimaryKeyColumns"
-        "List"
-        "List"
-        nonPrimaryKeyProps
+    allColumns =
+      columnsRefs
+        "columns"
+        "cats.data.NonEmptyList"
+        "cats.data.NonEmptyList.of"
+        props
 
     primaryKey =
       defDef
@@ -489,18 +505,18 @@ defDbMetadata name nonPrimaryKeyProps primaryKeyProps =
         , typ: "PrimaryKey"
         }
         ( parenVStrings_
-            ""
+            "PrimaryKey"
             ( map
-                (\(Tuple { name: propName } _) -> "entity." <> propName)
+                (\{ name: propName } -> propName <> " = entity." <> propName)
                 primaryKeyProps
             )
         )
 
     primaryKeyColumns =
-      columns
+      columnsRefs
         "primaryKeyColumns"
-        "NonEmptyList"
-        "NonEmptyList.of"
+        "cats.data.NonEmptyList"
+        "cats.data.NonEmptyList.of"
         primaryKeyProps
 
     tableName =
@@ -515,8 +531,7 @@ defDbMetadata name nonPrimaryKeyProps primaryKeyProps =
 
     defn =
       new
-        [ dbManagedColumns
-        , nonPrimaryKeyColumns
+        [ allColumns
         , primaryKey
         , primaryKeyColumns
         , tableName
@@ -579,106 +594,21 @@ defInstances name typ annots =
     )
     (Annotations.getInstances annots)
 
-type ColumnType
-  = { isOption :: Boolean
-    , typ :: String
-    , underlyingType :: Either Cst.Primitive (Tuple Cst.ModuleName String)
-    }
-
-columnType :: Ast.RecordProp -> Maybe (Tuple Ast.RecordProp ColumnType)
-columnType prop@{ typ } =
-  let
-    moduleName :: Tuple Ast.Module Ast.TypeDecl -> Tuple Cst.ModuleName String
-    moduleName (Tuple mod typDecl) =
-      let
-        Ast.Module { name: modName } = mod
-
-        typeName = Ast.typeDeclName typDecl
-      in
-        Tuple modName typeName
-
-    moduleName_ :: Tuple Ast.Module Ast.TypeDecl -> String
-    moduleName_ decl =
-      let
-        Tuple (Cst.ModuleName modName) typeName = moduleName decl
-      in
-        modName <> "." <> typeName
-
-    option' :: String -> String
-    option' t = "Option[" <> t <> "]"
-
-    underlyingType ::
-      Tuple Ast.Module Ast.TypeDecl ->
-      Either Cst.Primitive (Tuple Cst.ModuleName String)
-    underlyingType decl@(Tuple _ typDecl) =
-      let
-        Tuple mn@(Cst.ModuleName modName) typeName = moduleName decl
-      in
-        if modName == "Domains" then case Ast.typeDeclTopType typDecl of
-          Ast.Wrap (Ast.Primitive p) -> Left p
-          Ast.Wrap (Ast.Ref { decl: Just decl' }) ->
-            let
-              Tuple mn' typeName' = moduleName decl'
-            in
-              Right (Tuple mn' typeName')
-          _ -> Right (Tuple mn typeName)
-        else
-          Right (Tuple mn typeName)
-  in
-    case typ of
-      Ast.TParam _ -> Nothing
-      Ast.TType (Ast.Array _) -> Nothing
-      Ast.TType (Ast.Option (Ast.TType (Ast.Primitive p))) ->
-        Just
-          ( Tuple
-              prop
-              { isOption: true
-              , typ: option' (primitive p)
-              , underlyingType: Left p
-              }
-          )
-      Ast.TType (Ast.Option (Ast.TType (Ast.Ref { decl: Just decl }))) ->
-        Just
-          ( Tuple
-              prop
-              { isOption: true
-              , typ: option' (moduleName_ decl)
-              , underlyingType: underlyingType decl
-              }
-          )
-      Ast.TType (Ast.Option _) -> Nothing
-      Ast.TType (Ast.Primitive p) ->
-        Just
-          ( Tuple
-              prop
-              { isOption: false
-              , typ: primitive p
-              , underlyingType: Left p
-              }
-          )
-      Ast.TType (Ast.Ref { decl: Just decl }) ->
-        Just
-          ( Tuple
-              prop
-              { isOption: false
-              , typ: moduleName_ decl
-              , underlyingType: underlyingType decl
-              }
-          )
-      Ast.TType (Ast.Ref { decl: Nothing }) -> Nothing
-
-defPrimaryKey :: NonEmptyArray (Tuple Ast.RecordProp ColumnType) -> Box
-defPrimaryKey primaryKeyProps =
-  defType
-    "PrimaryKey"
-    []
+defPrimaryKey :: TypeDeclOutputMode -> NonEmptyArray Ast.RecordProp -> Codegen Box
+defPrimaryKey mode primaryKeyProps = do
+  decls <- traverse (recordFieldType mode) primaryKeyProps
+  pure
     ( parenVStrings_
-        ""
-        ( map
-            (\(Tuple _ { typ }) -> typ)
-            primaryKeyProps
-        )
+        "final case class PrimaryKey"
+        decls
     )
+
+defDoobieInstances :: String -> Box
+defDoobieInstances name =
+  Boxes.text ("implicit val read" <> name <> ": doobie.util.Read[" <> name <> "] = implicitly")
+    // Boxes.text ("implicit val write" <> name <> ": doobie.util.Write[" <> name <> "] = implicitly")
+    // Boxes.text ("implicit val read" <> name <> "PrimaryKey: doobie.util.Read[PrimaryKey] = implicitly")
+    // Boxes.text ("implicit val write" <> name <> "PrimaryKey: doobie.util.Write[PrimaryKey] = implicitly")
 
 data TypeDeclOutputMode
   = TopLevelCaseClass
@@ -810,121 +740,68 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
         )
         scalaDecoderType
     let
-      fieldNamesTarget =
+      companionObjectTarget =
         if modName == name then
           Nothing
         else
           Just name
 
-      names = fieldNames fieldNamesTarget (props <#> _.name)
+      names = fieldNames (props <#> _.name)
 
-      propsWithColumnType = NonEmptyArray.mapMaybe columnType props
+      primaryKeyProps =
+        NonEmptyArray.filter
+          (\{ annots } -> Annotations.getIsPrimaryKey annots)
+          props
+    { meta, primaryKey, doobieInstances, columnDefs } <-
+      maybe
+        ( pure
+            { meta: Boxes.nullBox
+            , primaryKey: Boxes.nullBox
+            , doobieInstances: Boxes.nullBox
+            , columnDefs: Boxes.nullBox
+            }
+        )
+        ( \primaryKeyProps' -> do
+            columnDefs <- columns outputMode name props
+            primaryKeyDef <- defPrimaryKey outputMode primaryKeyProps'
+            pure
+              { meta: defDbMetadata name props primaryKeyProps'
+              , primaryKey: primaryKeyDef
+              , doobieInstances: defDoobieInstances name
+              , columnDefs
+              }
+        )
+        (NonEmptyArray.fromArray primaryKeyProps)
+    let
+      companionObjectBody =
+        names
+          // columnDefs
+          // doobieInstances
+          // meta
 
-      { no: nonPrimaryKeyProps, yes: primaryKeyProps } =
-        Array.partition
-          (\(Tuple { annots } _) -> Annotations.getIsPrimaryKey annots)
-          propsWithColumnType
-
-      { extraImports, meta, primaryKey } =
+      companionObject =
         maybe
-          { extraImports: Boxes.nullBox
-          , meta: Boxes.nullBox
-          , primaryKey: Boxes.nullBox
-          }
-          ( \primaryKeyProps' ->
-              let
-                allProps = nonPrimaryKeyProps <> primaryKeyProps
-
-                moduleName { typ } =
-                  let
-                    fromRef ref =
-                      map
-                        (\(Tuple (Ast.Module { name }) _) -> name)
-                        ref.decl
-                  in
-                    case typ of
-                      Ast.TParam _ -> Nothing
-                      Ast.TType (Ast.Option (Ast.TType (Ast.Ref ref))) -> fromRef ref
-                      Ast.TType (Ast.Ref ref) -> fromRef ref
-                      Ast.TType _ -> Nothing
-
-                usesDomains =
-                  any
-                    ( \(Tuple prop _) ->
-                        any
-                          (\(Cst.ModuleName modName) -> modName == "Domains")
-                          (moduleName prop)
-                    )
-                    allProps
-
-                requiresCommonMetaImport =
-                  let
-                    isCommonDbSupportType underlyingType =
-                      any
-                        ( \(Tuple (Cst.ModuleName modName) typeName) ->
-                            any
-                              ( \dbSupportType ->
-                                  dbSupportType.isCommon
-                                    && (dbSupportType.moduleName == modName)
-                                    && (dbSupportType.typeName == typeName)
-                              )
-                              dbSupportTypes
-                        )
-                        underlyingType
-
-                    isDomains prop =
-                      any
-                        (\(Cst.ModuleName n) -> n == "Domains")
-                        (moduleName prop)
-                  in
-                    any
-                      ( \(Tuple prop { underlyingType }) ->
-                          not isDomains prop
-                            && isCommonDbSupportType underlyingType
-                      )
-                      allProps
-              in
-                { extraImports:
-                    Boxes.vcat
-                      Boxes.left
-                      ( Array.concat
-                          [ guard usesDomains [ Boxes.text "import Domains._" ]
-                          , [ Boxes.text "import cats.data.NonEmptyList"
-                            , Boxes.text "import cats.implicits._"
-                            , Boxes.text "import doobie.implicits._"
-                            ]
-                          , guard
-                              requiresCommonMetaImport
-                              [ Boxes.text "import gov.wicourts.common.Meta._" ]
-                          ]
-                      )
-                , meta: defDbMetadata name nonPrimaryKeyProps primaryKeyProps'
-                , primaryKey: defPrimaryKey primaryKeyProps'
-                }
-          )
-          (NonEmptyArray.fromArray primaryKeyProps)
+          companionObjectBody
+          (\b -> curlyV ("object " <> b) [ companionObjectBody ])
+          companionObjectTarget
 
       output
         | modName == name && outputMode == TopLevelCaseClass = cls
 
       output
         | modName == name && outputMode == CompanionObject =
-          extraImports
-            // primaryKey
+          primaryKey
             // enc
             // dec
-            // names
-            // meta
+            // companionObject
 
       output
         | otherwise =
           cls
-            // extraImports
             // primaryKey
             // enc
             // dec
-            // names
-            // meta
+            // companionObject
     pure output
   Ast.Sum constructors ->
     maybe
@@ -1176,18 +1053,12 @@ dataConstructor outputMode name pp includeExtends = case _ of
           params
       )
 
-fieldNames :: Maybe String -> NonEmptyArray String -> Box
-fieldNames mod names =
-  maybe
-    body
-    (\m -> curlyV ("object " <> m) [ body ])
-    mod
+fieldNames :: NonEmptyArray String -> Box
+fieldNames names =
+  curlyV
+    "object FieldNames"
+    (names <#> (Boxes.text <<< fieldNameConst))
   where
-  body =
-    curlyV
-      "object FieldNames"
-      (names <#> (Boxes.text <<< fieldNameConst))
-
   fieldNameConst s = defVal1 (initialUpper s) "String" (show s)
 
 initialUpper :: String -> String
@@ -1257,27 +1128,6 @@ externalTypeRef (Tuple importedModule importedType) =
       prefix [ scalaName ] typeName
     else
       typeName
-
-underlyingSqlType ::
-  Either Cst.Primitive (Tuple Cst.ModuleName String) ->
-  String
-underlyingSqlType = case _ of
-  Left Cst.PBoolean -> "boolean"
-  Left Cst.PDecimal -> "numeric"
-  Left Cst.PInt -> "integer"
-  Left Cst.PString -> "text"
-  Right (Tuple (Cst.ModuleName modName) typeName) ->
-    maybe
-      "text"
-      _.underlyingSqlType
-      ( Array.find
-          ( \dbSupportType ->
-              dbSupportType.moduleName == modName
-                && (dbSupportType.typeName == typeName)
-          )
-          dbSupportTypes
-      )
-  _ -> "text"
 
 primaryClass :: Ast.Module -> Maybe Ast.TypeDecl
 primaryClass (Ast.Module { types }) = NonEmptyList.find (\(Ast.TypeDecl { isPrimary }) -> isPrimary) types

@@ -33,6 +33,7 @@ data Import
 data TypeDecl
   = DuplicateType
   | DuplicateRecordProperty Cst.RecordProp
+  | CannotResolveSqlType Cst.RecordProp
   | DuplicateConstructorNames (Array Cst.ConstructorName)
   | UnknownTypeParam Cst.TypeParam
   | CircularType (Array String)
@@ -66,6 +67,10 @@ toString = case _ of
           TypeDecl typeDeclError decl -> case typeDeclError of
             DuplicateType -> "type " <> Cst.typeDeclName decl <> " is defined multiple times"
             DuplicateRecordProperty { name } -> "record property " <> name <> " is defined multiple times"
+            CannotResolveSqlType { name } ->
+              "record property "
+                <> name
+                <> " cannot be mapped to a SQL type. Only primitive, date-like, OCC ID, and UUID types (wrapped/unwrapped) are supported."
             DuplicateConstructorNames names -> "constructor " <> String.joinWith ", " (map (\(Cst.ConstructorName name) -> name) names) <> " is defined multiple times"
             UnknownTypeParam (Cst.TypeParam param) -> "Unknown type parameter " <> param
             CircularType names ->
