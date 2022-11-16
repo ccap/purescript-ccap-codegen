@@ -3,6 +3,7 @@ module Ccap.Codegen.Ast
   , Module(..)
   , RecordProp(..)
   , ScalaDecoderType(..)
+  , SqlType(..)
   , TRef
   , TopType(..)
   , Typ(..)
@@ -16,6 +17,7 @@ module Ccap.Codegen.Ast
 
 import Prelude
 import Ccap.Codegen.Cst as Cst
+import Ccap.Codegen.DbSupportType (DbSupportType)
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(..))
@@ -68,6 +70,14 @@ type RecordProp
   = { name :: String
     , typ :: TypeOrParam
     , annots :: Array Cst.Annotation
+    , sqlType :: Maybe SqlType
+    }
+
+data SqlType
+  = SqlTypePrimitive String
+  | SqlTypeDbSupportType
+    { needsImports :: Boolean
+    , dbSupportType :: DbSupportType
     }
 
 data Constructor
@@ -147,4 +157,11 @@ derive instance eqTypeDecl :: Eq TypeDecl
 derive instance genericTypeDecl :: Generic TypeDecl _
 
 instance showTypeDecl :: Show TypeDecl where
+  show = genericShow
+
+derive instance eqSqlType :: Eq SqlType
+
+derive instance genericSqlType :: Generic SqlType _
+
+instance showSqlType :: Show SqlType where
   show = genericShow
