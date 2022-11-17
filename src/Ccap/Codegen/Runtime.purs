@@ -14,6 +14,7 @@ module Ccap.Codegen.Runtime
   , jsonCodec_json
   , jsonCodec_maybe
   , jsonCodec_number
+  , jsonCodec_short
   , jsonCodec_string
   , obj
   , standardDecoderApi
@@ -156,6 +157,10 @@ jsonCodec_number =
   { decode: lmap TypeMismatch <<< decodeNumber_ api
   , encode: Argonaut.fromNumber
   }
+
+-- TODO (DRS): Fix in codegen
+jsonCodec_short :: JsonCodec Int
+jsonCodec_short = jsonCodec_int
 
 jsonCodec_int :: JsonCodec Int
 jsonCodec_int =

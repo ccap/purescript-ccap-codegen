@@ -35,6 +35,7 @@ primitive p =
     Cst.PBoolean -> "Boolean"
     Cst.PInt -> "Int"
     Cst.PDecimal -> "Decimal"
+    Cst.PSmallInt -> "SmallInt"
     Cst.PString -> "String"
     Cst.PStringValidationHack -> "StringValidationHack"
     Cst.PJson -> "Json"

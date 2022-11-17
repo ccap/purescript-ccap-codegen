@@ -38,7 +38,6 @@ type AliasedType
 type Config
   = { scalaPkg :: String
     , pursPkg :: String
-    , enableQueryDao :: Boolean
     }
 
 aliasedTypes :: Array AliasedType
@@ -149,13 +148,13 @@ occIdColumn =
   }
 
 tableModule :: Pool -> Config -> String -> ExceptT String Aff Cst.Module
-tableModule pool config@{ scalaPkg, pursPkg } tableName =
+tableModule pool { scalaPkg, pursPkg } tableName =
   withExceptT show
     $ withConnection runExceptT pool \conn -> do
         columns <- queryColumns tableName conn
         nelColumns <- except (note (ConversionError ("Expected at least one column. Does the \"" <> tableName <> "\" table exist?")) (NonEmptyArray.fromArray columns))
         let
-          decl = tableType config tableName (nelColumns `NonEmptyArray.snoc` occIdColumn)
+          decl = tableType tableName (nelColumns `NonEmptyArray.snoc` occIdColumn)
         pure
           { types: NonEmptyArray.singleton decl
           , imports: tableImports decl # Array.sort
@@ -211,29 +210,28 @@ queryColumns tableName conn = do
     ORDER BY c.ordinal_position ;
     """
 
-tableType :: Config -> String -> NonEmptyArray DbColumn -> Cst.TypeDecl
-tableType config tableName columns =
+tableType :: String -> NonEmptyArray DbColumn -> Cst.TypeDecl
+tableType tableName columns =
   Cst.TypeDecl
     { position: emptyPos
     , name: tableName
-    , topType: Cst.Record (dbRecordProp config <$> columns)
+    , topType: Cst.Record (map dbRecordProp columns)
     , annots: []
     , params: []
     }
 
-dbRecordProp :: Config -> DbColumn -> Cst.RecordProp
-dbRecordProp config col@{ columnName, domainName, dataType, isDbManaged, isNullable, isPrimaryKey } =
+dbRecordProp :: DbColumn -> Cst.RecordProp
+dbRecordProp col@{ columnName, domainName, dataType, isDbManaged, isNullable, isPrimaryKey } =
   let
     baseType = maybe (dbType dataType) domainRef domainName
 
     optioned = if isNullable == "YES" then Cst.Option (Cst.TType baseType) else baseType
 
     annots =
-      guard config.enableQueryDao
-        ( (Array.fromFoldable (dbManagedAnnotation isDbManaged))
-            <> (Array.fromFoldable (primaryKeyAnnotation isPrimaryKey))
-        )
-        <> guard (isNothing domainName) annotations col
+      ( (Array.fromFoldable (dbManagedAnnotation isDbManaged))
+          <> (Array.fromFoldable (primaryKeyAnnotation isPrimaryKey))
+      )
+      <> guard (isNothing domainName) annotations col
   in
     { name: columnName, typ: Cst.TType optioned, annots, position: emptyPos }
 
@@ -248,7 +246,7 @@ dbType dataType = case dataType of
   "character varying" -> Cst.Primitive Cst.PString
   "character" -> Cst.Primitive Cst.PString
   "integer" -> Cst.Primitive Cst.PInt
-  "smallint" -> Cst.Primitive Cst.PInt
+  "smallint" -> Cst.Primitive Cst.PSmallInt
   "text" -> Cst.Primitive Cst.PString
   "boolean" -> Cst.Primitive Cst.PBoolean
   "date" -> Cst.Ref emptyPos { mod: Just (Cst.ModuleRef "DateTimeSupport"), typ: "Date", params: [] }
@@ -297,7 +295,7 @@ instancesAnnotation dataType =
               "character" -> stringAttrs
               "integer" -> intAttrs
               "numeric" -> primAttrs "bigDecimal"
-              "smallint" -> intAttrs
+              "smallint" -> primAttrs "short"
               "text" -> stringAttrs
               _ -> stringAttrs
           )

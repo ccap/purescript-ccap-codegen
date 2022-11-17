@@ -47,6 +47,7 @@ tokenParser =
             , "purs"
             , "Boolean"
             , "Int"
+            , "SmallInt"
             , "Decimal"
             , "String"
             , "StringValidationHack"
@@ -119,6 +120,7 @@ anyPrimitiveExceptJson =
   primitive "Boolean" Cst.PBoolean
     <|> primitive "Int" Cst.PInt
     <|> primitive "Decimal" Cst.PDecimal
+    <|> primitive "SmallInt" Cst.PSmallInt
     <|> primitive "String" Cst.PString
     <|> primitive "StringValidationHack" Cst.PStringValidationHack
 

@@ -81,6 +81,7 @@ fastPathDecoderType = case _ of
     Cst.PBoolean -> FBoolean
     Cst.PInt -> FInt
     Cst.PDecimal -> FDecimal
+    Cst.PSmallInt -> FInt
     Cst.PString -> FString
     Cst.PStringValidationHack -> FString
     Cst.PJson -> FJson
@@ -90,6 +91,7 @@ fastPathDecoderType = case _ of
     Cst.PBoolean -> FOptionBoolean
     Cst.PInt -> FOptionInt
     Cst.PDecimal -> FOptionDecimal
+    Cst.PSmallInt -> FOptionInt
     Cst.PString -> FOptionString
     Cst.PStringValidationHack -> FOptionString
     Cst.PJson -> FOptionJson

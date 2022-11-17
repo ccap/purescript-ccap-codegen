@@ -15,20 +15,18 @@ type GetSchemaConfig
     , table :: Maybe String
     , scalaPkg :: String
     , pursPkg :: String
-    , enableQueryDao :: Boolean
     }
 
 getSchemaConfig :: OptParse.Parser GetSchemaConfig
 getSchemaConfig = do
-  ( \domains database table scalaPkg pursPkg enableQueryDao ->
-      { domains, database, table, scalaPkg, pursPkg, enableQueryDao }
+  ( \domains database table scalaPkg pursPkg ->
+      { domains, database, table, scalaPkg, pursPkg }
   )
     <$> domainsOption
     <*> databaseOption
     <*> tableOption
     <*> scalaPkgOption
     <*> pursPkgOption
-    <*> enableQueryDaoOption
 
 domainsOption :: OptParse.Parser Boolean
 domainsOption =
@@ -75,12 +73,4 @@ pursPkgOption =
         [ OptParse.long "purs-pkg"
         , OptParse.metavar "Purescript package"
         , OptParse.short 'p'
-        ]
-
-enableQueryDaoOption :: OptParse.Parser Boolean
-enableQueryDaoOption =
-  OptParse.switch
-    $ fold
-        [ OptParse.long "enable-query-dao"
-        , OptParse.help "Enable Doobie DAO support"
         ]
