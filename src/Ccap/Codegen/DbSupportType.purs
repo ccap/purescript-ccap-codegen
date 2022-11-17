@@ -5,6 +5,8 @@ module Ccap.Codegen.DbSupportType
   , supportTypes
   ) where
 
+import Data.Maybe (Maybe(..))
+
 type SupportType
   = { moduleName :: String
     , typeName :: String
@@ -28,6 +30,7 @@ type DbSupportType
     , instances ::
         { equal :: String
         , meta :: String
+        , read :: Maybe String
         }
     , moduleName :: String
     , typeName :: String
@@ -40,6 +43,7 @@ dbSupportTypes =
     , instances:
         { equal: "gov.wicourts.common.instances.dates.localDateEqual"
         , meta: "gov.wicourts.common.Meta.metaLocalDate"
+        , read: Nothing
         }
     , moduleName: "DateTimeSupport"
     , typeName: "Date"
@@ -49,6 +53,7 @@ dbSupportTypes =
     , instances:
         { equal: "gov.wicourts.jsoncommon.data.DurationWithLife.Duration.eqDuration"
         , meta: "gov.wicourts.jsoncommon.data.DurationWithLife.Duration.metaDuration"
+        , read: Nothing
         }
     , moduleName: "DateTimeSupport"
     , typeName: "Duration"
@@ -58,6 +63,7 @@ dbSupportTypes =
     , instances:
         { equal: "gov.wicourts.common.instances.times.equalLocalTime"
         , meta: "gov.wicourts.common.Meta.metaLocalTime"
+        , read: Nothing
         }
     , moduleName: "DateTimeSupport"
     , typeName: "Time"
@@ -67,6 +73,7 @@ dbSupportTypes =
     , instances:
         { equal: "gov.wicourts.common.instances.dates.localDateTimeEqual"
         , meta: "gov.wicourts.common.Meta.metaLocalDateTime"
+        , read: Nothing
         }
     , moduleName: "DateTimeSupport"
     , typeName: "Timestamp"
@@ -76,6 +83,7 @@ dbSupportTypes =
     , instances:
         { equal: "gov.wicourts.common.instances.uuid.equalUUID"
         , meta: "gov.wicourts.common.Meta.metaUuid"
+        , read: Just "gov.wicourts.common.instances.uuid.ReadInstances._"
         }
     , moduleName: "UUIDSupport"
     , typeName: "UUID"

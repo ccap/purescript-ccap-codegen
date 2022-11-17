@@ -49,7 +49,7 @@ getWrapOpts lang an =
       typ <- f "t"
       decode <- f "decode" <|> pure ""
       encode <- f "encode" <|> pure ""
-      pure { typ, decode, encode }
+      pure { decode, encode, typ }
 
 getMaxLength :: Array Cst.Annotation -> Maybe String
 getMaxLength = field "validations" "maxLength"

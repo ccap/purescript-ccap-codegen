@@ -89,6 +89,12 @@ parenH pre delim post = surroundH (pre <> "(") delim (")" <> post)
 parenH_ :: forall f. Foldable f => f String -> String
 parenH_ = parenH "" ", " ""
 
+parentheses :: String -> String
+parentheses s = "(" <> s <> ")"
+
+quote :: String -> String
+quote s = "\"" <> s <> "\""
+
 surroundV ::
   forall f.
   Foldable f =>
@@ -294,6 +300,10 @@ defVal1 name typ defn =
   defVal' name typ
     <> " "
     <> defn
+
+defValTag1 :: { valName :: String, tagType :: String, variableName :: String } -> String
+defValTag1 { valName, tagType, variableName } =
+  defVal1 valName tagType (tagType <> parentheses (quote variableName))
 
 defEncoder :: Boolean -> String -> Array Cst.TypeParam -> Box -> Box
 defEncoder includeName name pp =
@@ -619,8 +629,11 @@ derive instance eqTypeDeclOutputMode :: Eq TypeDeclOutputMode
 noGenericParameters :: String
 noGenericParameters = "// Scala decoders that involve parameterized types are not supported"
 
+eqOccId :: Ast.RecordProp -> Boolean
+eqOccId = eq "occId" <<< _.name
+
 hasOccId :: NonEmptyArray Ast.RecordProp -> Boolean
-hasOccId = any (eq "occId" <<< _.name)
+hasOccId = any eqOccId
 
 hasOccId_ :: Ast.Module -> Boolean
 hasOccId_ mod =
@@ -752,23 +765,26 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
         NonEmptyArray.filter
           (\{ annots } -> Annotations.getIsPrimaryKey annots)
           props
-    { meta, primaryKey, doobieInstances, columnDefs } <-
+    { fragments, meta, primaryKey, doobieInstances, columnDefs } <-
       maybe
         ( pure
             { meta: Boxes.nullBox
             , primaryKey: Boxes.nullBox
             , doobieInstances: Boxes.nullBox
             , columnDefs: Boxes.nullBox
+            , fragments: Boxes.nullBox
             }
         )
         ( \primaryKeyProps' -> do
             columnDefs <- columns outputMode name props
             primaryKeyDef <- defPrimaryKey outputMode primaryKeyProps'
+            fragments <- (doobieFragments name outputMode props)
             pure
               { meta: defDbMetadata name props primaryKeyProps'
               , primaryKey: primaryKeyDef
               , doobieInstances: defDoobieInstances name
               , columnDefs
+              , fragments
               }
         )
         (NonEmptyArray.fromArray primaryKeyProps)
@@ -778,6 +794,7 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
           // columnDefs
           // doobieInstances
           // meta
+          // fragments
 
       companionObject =
         maybe
@@ -1399,3 +1416,55 @@ chunksOf :: forall a. Int -> Array a -> Array (Array a)
 chunksOf n as =
   Array.range 0 ((Array.length as - 1) / n)
     <#> \i -> Array.slice (i * n) (i * n + n) as
+
+doobieFragments :: String -> TypeDeclOutputMode -> NonEmptyArray Ast.RecordProp -> Codegen Box
+doobieFragments tableName mode props = do
+  fragmentFieldTypes <-
+    traverse fragmentType (Array.filter (not eqOccId) $ NonEmptyArray.toArray props)
+  let
+    instanceImports = do
+      prop <- NonEmptyArray.toArray props
+      case prop.sqlType of
+        Just (Ast.SqlTypeDbSupportType { needsImports: true, dbSupportType }) ->
+          Array.fromFoldable dbSupportType.instances.read
+        _ -> []
+
+    extraImports =
+        Boxes.vcat Boxes.left
+          $ [ Boxes.text "import gov.wicourts.jsoncommon.Selectable" ]
+          <> map (\i -> Boxes.text $ "import " <> i) (Array.nub instanceImports)
+
+    classDef :: String
+    classDef =
+      "final case class Fragments(tableIndex: Int) extends Selectable.Table"
+
+    tableNameT :: Box
+    tableNameT =
+      Boxes.text
+        $ defValTag1
+            { tagType: "Selectable.TableNameT"
+            , valName: "tableName"
+            , variableName: tableName
+            }
+
+    selectableColumn :: Box
+    selectableColumn =
+      Boxes.text
+        ( "def selectableColumn[A: doobie.util.Read](columnName: String): Selectable.SelectableColumn[A] =\
+          \Selectable.SelectableColumn[A](tableName, tableIndex, columnName)"
+        )
+
+    defs :: Array Box
+    defs = [ tableNameT, selectableColumn ] <> fragmentFieldTypes
+  pure $ extraImports // curlyV classDef defs
+  where
+  fragmentType :: Ast.RecordProp -> Codegen Box
+  fragmentType { name, typ } = do
+    ty <- case typ of
+      Ast.TType t -> typeDef mode t
+      Ast.TParam (Cst.TypeParam c) -> pure (initialUpper c)
+    let
+      queryType = typeDescr "Selectable.SelectableColumn" [ ty ]
+
+      implementation = "selectableColumn[" <> ty <> "](" <> quote name <> ")"
+    pure $ Boxes.text $ defVal1 name queryType implementation
