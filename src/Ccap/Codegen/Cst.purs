@@ -116,11 +116,12 @@ data Constructor
 
 data Primitive
   = PBoolean
-  | PInt
   | PDecimal
+  | PInt
+  | PJson
+  | PSmallInt
   | PString
   | PStringValidationHack
-  | PJson
 
 isRecord :: TopType -> Boolean
 isRecord = case _ of

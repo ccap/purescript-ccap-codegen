@@ -72,12 +72,12 @@ app config =
     portFromString = note "Database port must be an integer" <<< Int.fromString
 
 dbModules :: Config -> ExceptT String Aff (Maybe Cst.Module)
-dbModules config@{ getSchemaConfig: { scalaPkg, pursPkg, enableQueryDao } } = do
+dbModules config@{ getSchemaConfig: { scalaPkg, pursPkg } } = do
   pool <- liftEffect $ Pool.new config.poolConfig
   if config.getSchemaConfig.domains then
-    Just <$> Database.domainModule pool { scalaPkg, pursPkg, enableQueryDao }
+    Just <$> Database.domainModule pool { scalaPkg, pursPkg }
   else
-    for config.table $ Database.tableModule pool { scalaPkg, pursPkg, enableQueryDao }
+    for config.table $ Database.tableModule pool { scalaPkg, pursPkg }
 
 type Config
   = { table :: Maybe String

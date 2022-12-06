@@ -93,6 +93,7 @@ primitive = case _ of
   Cst.PBoolean -> pure (text "Boolean")
   Cst.PInt -> pure (text "Int")
   Cst.PDecimal -> emit { mod: "Data.Decimal", typ: Just "Decimal", alias: Nothing } (text "Decimal")
+  Cst.PSmallInt -> pure (text "Int")
   Cst.PString -> pure (text "String")
   Cst.PStringValidationHack -> pure (text "String")
   Cst.PJson -> emit { mod: "Data.Argonaut.Core", typ: Nothing, alias: Just "A" } (text "A.Json")
@@ -454,6 +455,7 @@ jsonCodec ty includeParensIfNeeded = do
                     Cst.PBoolean -> "boolean"
                     Cst.PInt -> "int"
                     Cst.PDecimal -> "decimal"
+                    Cst.PSmallInt -> "short"
                     Cst.PString -> "string"
                     Cst.PStringValidationHack -> "string"
                     Cst.PJson -> "json"

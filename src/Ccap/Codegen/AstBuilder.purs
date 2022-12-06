@@ -150,6 +150,7 @@ findSqlType directReference currentModule = case _ of
       Cst.PBoolean -> Just (Ast.SqlTypePrimitive "boolean")
       Cst.PInt -> Just (Ast.SqlTypePrimitive "integer")
       Cst.PDecimal -> Just (Ast.SqlTypePrimitive "numeric")
+      Cst.PSmallInt -> Just (Ast.SqlTypePrimitive "smallint")
       Cst.PString -> Just (Ast.SqlTypePrimitive "text")
       Cst.PStringValidationHack -> Just (Ast.SqlTypePrimitive "text")
       Cst.PJson -> Just (Ast.SqlTypePrimitive "text")

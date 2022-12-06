@@ -14,10 +14,12 @@ import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Compactable (compact)
+import Data.Either (Either(..), either)
 import Data.Foldable (class Foldable, any, intercalate)
 import Data.List.NonEmpty as NonEmptyList
 import Data.Maybe (Maybe(..), fromMaybe, maybe, maybe')
 import Data.Monoid (guard)
+import Data.Monoid as Monoid
 import Data.String as String
 import Data.Traversable (for, traverse)
 import Data.TraversableWithIndex (forWithIndex)
@@ -88,6 +90,12 @@ parenH pre delim post = surroundH (pre <> "(") delim (")" <> post)
 
 parenH_ :: forall f. Foldable f => f String -> String
 parenH_ = parenH "" ", " ""
+
+parentheses :: String -> String
+parentheses s = "(" <> s <> ")"
+
+quote :: String -> String
+quote s = "\"" <> s <> "\""
 
 surroundV ::
   forall f.
@@ -294,6 +302,10 @@ defVal1 name typ defn =
   defVal' name typ
     <> " "
     <> defn
+
+defValTag1 :: { valName :: String, tagType :: String, variableName :: String } -> String
+defValTag1 { valName, tagType, variableName } =
+  defVal1 valName tagType (tagType <> parentheses (quote variableName))
 
 defEncoder :: Boolean -> String -> Array Cst.TypeParam -> Box -> Box
 defEncoder includeName name pp =
@@ -619,8 +631,11 @@ derive instance eqTypeDeclOutputMode :: Eq TypeDeclOutputMode
 noGenericParameters :: String
 noGenericParameters = "// Scala decoders that involve parameterized types are not supported"
 
+eqOccId :: Ast.RecordProp -> Boolean
+eqOccId = eq "occId" <<< _.name
+
 hasOccId :: NonEmptyArray Ast.RecordProp -> Boolean
-hasOccId = any (eq "occId" <<< _.name)
+hasOccId = any eqOccId
 
 hasOccId_ :: Ast.Module -> Boolean
 hasOccId_ mod =
@@ -752,23 +767,26 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
         NonEmptyArray.filter
           (\{ annots } -> Annotations.getIsPrimaryKey annots)
           props
-    { meta, primaryKey, doobieInstances, columnDefs } <-
+    { meta, primaryKey, doobieInstances, columnDefs, fragments } <-
       maybe
         ( pure
             { meta: Boxes.nullBox
             , primaryKey: Boxes.nullBox
             , doobieInstances: Boxes.nullBox
             , columnDefs: Boxes.nullBox
+            , fragments: Boxes.nullBox
             }
         )
         ( \primaryKeyProps' -> do
             columnDefs <- columns outputMode name props
             primaryKeyDef <- defPrimaryKey outputMode primaryKeyProps'
+            fragments <- doobieFragments name outputMode props
             pure
               { meta: defDbMetadata name props primaryKeyProps'
               , primaryKey: primaryKeyDef
               , doobieInstances: defDoobieInstances name
               , columnDefs
+              , fragments
               }
         )
         (NonEmptyArray.fromArray primaryKeyProps)
@@ -778,6 +796,7 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
           // columnDefs
           // doobieInstances
           // meta
+          // fragments
 
       companionObject =
         maybe
@@ -1073,6 +1092,7 @@ primitive = case _ of
   Cst.PBoolean -> "Boolean"
   Cst.PInt -> "Int"
   Cst.PDecimal -> "BigDecimal"
+  Cst.PSmallInt -> "Short"
   Cst.PString -> "String"
   Cst.PStringValidationHack -> "String"
   Cst.PJson -> "argonaut.Json"
@@ -1203,6 +1223,7 @@ jsonPrimitive = case _ of
   Cst.PBoolean -> ".boolean"
   Cst.PInt -> ".int"
   Cst.PDecimal -> ".decimal"
+  Cst.PSmallInt -> ".short"
   Cst.PString -> ".string"
   Cst.PStringValidationHack -> ".stringValidationHack"
   Cst.PJson -> ".json"
@@ -1399,3 +1420,86 @@ chunksOf :: forall a. Int -> Array a -> Array (Array a)
 chunksOf n as =
   Array.range 0 ((Array.length as - 1) / n)
     <#> \i -> Array.slice (i * n) (i * n + n) as
+
+doobieFragments :: String -> TypeDeclOutputMode -> NonEmptyArray Ast.RecordProp -> Codegen Box
+doobieFragments tableName mode props = do
+  fragmentFieldTypes <-
+    traverse fragmentType (Array.filter (not eqOccId) $ NonEmptyArray.toArray props)
+  let
+    instanceImports = do
+      prop <- NonEmptyArray.toArray props
+      case prop.sqlType of
+        Just (Ast.SqlTypeDbSupportType { needsImports: true, dbSupportType }) ->
+          Array.fromFoldable dbSupportType.instances.get
+        _ -> []
+
+    extraImports =
+        Boxes.vcat Boxes.left
+          $ [ Boxes.text "import gov.wicourts.cc.tx.dbc.queries.Selectable" ]
+          <> map (\i -> Boxes.text $ "import " <> i) (Array.nub instanceImports)
+
+    classDef :: String
+    classDef =
+      "final case class Fragments(tableIndex: Int) extends Selectable.Table"
+
+    tableNameT :: Box
+    tableNameT =
+      Boxes.text
+        $ defValTag1
+            { tagType: "Selectable.TableNameT"
+            , valName: "tableName"
+            , variableName: tableName
+            }
+
+    selectableColumnNullable :: Box
+    selectableColumnNullable =
+      Boxes.text
+        ( "private def selectableColumnNullable[A: doobie.util.Get](columnName: String): Selectable.ColumnNullable[A] =\
+          \Selectable.ColumnNullable[A](tableName, tableIndex, columnName)"
+        )
+
+    selectableColumn :: Box
+    selectableColumn =
+      Boxes.text
+        ( "private def selectableColumn[A: doobie.util.Get](columnName: String): Selectable.Column[A] =\
+          \Selectable.Column[A](tableName, tableIndex, columnName)"
+        )
+    isNullableColumn = case _ of
+      Ast.TType ty -> case ty of
+        Ast.Option _ -> true
+        _ -> false
+      _ -> false
+
+    hasNullableColumn =
+      any (isNullableColumn <<< _.typ) (Array.filter (not eqOccId) $ NonEmptyArray.toArray props)
+
+    defs :: Array Box
+    defs =
+      [ tableNameT, selectableColumn ]
+        <> Monoid.guard hasNullableColumn [ selectableColumnNullable ]
+        <> fragmentFieldTypes
+  pure $ extraImports // curlyV classDef defs
+  where
+  fragmentType :: Ast.RecordProp -> Codegen Box
+  fragmentType { name, typ } = do
+    ty <- case typ of
+      Ast.TType ty -> case ty of
+        Ast.Option (Ast.TType t) -> map Left (typeDef mode t)
+        Ast.Option (Ast.TParam (Cst.TypeParam p)) -> pure $ Left (initialUpper p)
+        _ -> map Right (typeDef mode ty)
+      Ast.TParam (Cst.TypeParam c) -> pure $ Right (initialUpper c)
+    let
+      { queryType, implementation } =
+        either
+          (\optionType ->
+            { queryType: typeDescr "Selectable.ColumnNullable" [ optionType ]
+            , implementation: "selectableColumnNullable[" <> optionType <> "](" <> quote name <> ")"
+            }
+          )
+          (\otherType ->
+            { queryType: typeDescr "Selectable.Column" [ otherType ]
+            , implementation: "selectableColumn[" <> otherType <> "](" <> quote name <> ")"
+            }
+          )
+          ty
+    pure $ Boxes.text $ defVal1 name queryType implementation

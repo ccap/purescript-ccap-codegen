@@ -60,7 +60,6 @@ specs =
             tableModule pool
               { scalaPkg
               , pursPkg
-              , enableQueryDao: true
               }
               "Case"
           pure $ Tuple fileSource.contents dbModule
