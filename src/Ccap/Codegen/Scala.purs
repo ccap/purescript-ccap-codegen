@@ -304,8 +304,7 @@ defVal1 name typ defn =
     <> defn
 
 defValTag1 :: { valName :: String, tagType :: String, variableName :: String } -> String
-defValTag1 { valName, tagType, variableName } =
-  defVal1 valName tagType (tagType <> parentheses (quote variableName))
+defValTag1 { valName, tagType, variableName } = defVal1 valName tagType (tagType <> parentheses (quote variableName))
 
 defEncoder :: Boolean -> String -> Array Cst.TypeParam -> Box -> Box
 defEncoder includeName name pp =
@@ -368,8 +367,8 @@ wrapDecoder annots name dType t dec = do
         )
     )
 
-column :: TypeDeclOutputMode -> String -> Ast.RecordProp -> Codegen Box
-column mode name prop = do
+column :: TypeDeclOutputMode -> String -> Boolean -> Ast.RecordProp -> Codegen Box
+column mode name primaryKeyMode prop = do
   ty <- case prop.typ of
     Ast.TType t -> typeDef mode t
     Ast.TParam (Cst.TypeParam c) -> pure (initialUpper c)
@@ -384,11 +383,15 @@ column mode name prop = do
         )
         prop.sqlType
   pure
-    ( defVal
+    if eqOccId prop then
+      defVal "Xmin" (colType name primaryKeyMode) (Boxes.text "gov.wicourts.cc.tx.dbc.queries.HasOccId.xmin")
+        // defVal "Ctid" (colType name primaryKeyMode) (Boxes.text "gov.wicourts.cc.tx.dbc.queries.HasOccId.ctid")
+    else
+      defVal
         (initialUpper prop.name)
-        (colType name)
+        (colType name primaryKeyMode)
         ( parenV
-            (colType name)
+            (colType name primaryKeyMode)
             ( map
                 (\{ lhs, rhs } -> Boxes.text (assign lhs rhs))
                 [ { lhs: "eq"
@@ -420,29 +423,46 @@ column mode name prop = do
                 , { lhs: "isDbManaged"
                   , rhs: show (Annotations.getIsDbManaged prop.annots)
                   }
+                , { lhs: "isOcc"
+                  , rhs: "false"
+                  }
                 ]
             )
         )
-    )
 
 columns ::
   TypeDeclOutputMode ->
   String ->
+  Boolean ->
   NonEmptyArray Ast.RecordProp ->
   Codegen Box
-columns mode name props = do
+columns mode name primaryKeyMode props = do
   let
+    targetProps =
+      if primaryKeyMode then
+        NonEmptyArray.filter (Annotations.getIsPrimaryKey <<< _.annots) props
+      else
+        NonEmptyArray.toArray props
+
     extraImports = do
-      prop <- NonEmptyArray.toArray props
+      prop <- targetProps
       case prop.sqlType of
         Just (Ast.SqlTypeDbSupportType { needsImports: true, dbSupportType }) ->
           [ dbSupportType.instances.meta
-          , dbSupportType.instances.equal
           ]
+            <> Monoid.guard (not dbSupportType.catsSupportsEq)
+                [ dbSupportType.instances.equal
+                ]
         _ -> []
-  cols <- traverse (column mode name) props
+
+    colObjectName =
+      if primaryKeyMode then
+        "PrimaryKey"
+      else
+        "Columns"
+  cols <- traverse (column mode name primaryKeyMode) targetProps
   pure
-    ( Boxes.text "object Columns {"
+    ( Boxes.text ("object " <> colObjectName <> " {")
         // indented
             ( Boxes.text "import doobie.syntax.string.toSqlInterpolator"
                 // Boxes.vcat Boxes.left (map (Boxes.text <<< append "import ") (Array.sort (Array.nub extraImports)))
@@ -451,8 +471,11 @@ columns mode name props = do
         // Boxes.char '}'
     )
 
-colType :: String -> String
-colType name = dbMetadata <> ".Column[" <> name <> "]"
+colTypeRef :: String -> Boolean -> String
+colTypeRef name isPrimaryKey = dbMetadata <> ".Column[" <> name <> (if isPrimaryKey then ".PrimaryKey" else "") <> "]"
+
+colType :: String -> Boolean -> String
+colType name isPrimaryKey = dbMetadata <> ".Column[" <> (if isPrimaryKey then "companion_ref.PrimaryKey" else name) <> "]"
 
 dbMetadata :: String
 dbMetadata = "gov.wicourts.cc.tx.dbc.queries.DbMetadata"
@@ -471,8 +494,6 @@ defDbMetadata name props primaryKeyProps =
     dbMetadataConstructorParams =
       [ "read" <> name
       , "read" <> name <> "PrimaryKey"
-      , "write" <> name
-      , "write" <> name <> "PrimaryKey"
       ]
 
     new =
@@ -489,23 +510,37 @@ defDbMetadata name props primaryKeyProps =
       String ->
       String ->
       String ->
+      Boolean ->
       f Ast.RecordProp ->
       Box
-    columnsRefs functionName typ constructor pp =
+    columnsRefs functionName typ constructor isPrimaryKey pp =
       defDef
         { modifiers: [ "override" ]
         , name: functionName
         , typParams: []
         , args: []
-        , typ: typeDescr typ [ colType name ]
+        , typ: typeDescr typ [ colTypeRef name isPrimaryKey ]
         }
-        (parenVStrings_ constructor (map (\{ name: propName } -> "Columns." <> initialUpper propName) pp))
+        ( parenVStrings_ constructor
+            ( bind (Array.fromFoldable pp)
+                ( \(prop@{ name: propName }) ->
+                    if eqOccId prop then
+                      [ "Columns.Xmin", "Columns.Ctid" ]
+                    else
+                      [ (if isPrimaryKey then "PrimaryKey" else "Columns")
+                          <> "."
+                          <> initialUpper propName
+                      ]
+                )
+            )
+        )
 
     allColumns =
       columnsRefs
         "columns"
         "cats.data.NonEmptyList"
         "cats.data.NonEmptyList.of"
+        false
         props
 
     primaryKey =
@@ -529,6 +564,7 @@ defDbMetadata name props primaryKeyProps =
         "primaryKeyColumns"
         "cats.data.NonEmptyList"
         "cats.data.NonEmptyList.of"
+        true
         primaryKeyProps
 
     tableName =
@@ -615,12 +651,24 @@ defPrimaryKey mode primaryKeyProps = do
         decls
     )
 
-defDoobieInstances :: String -> Box
-defDoobieInstances name =
-  Boxes.text ("implicit val read" <> name <> ": doobie.util.Read[" <> name <> "] = implicitly")
-    // Boxes.text ("implicit val write" <> name <> ": doobie.util.Write[" <> name <> "] = implicitly")
-    // Boxes.text ("implicit val read" <> name <> "PrimaryKey: doobie.util.Read[PrimaryKey] = implicitly")
-    // Boxes.text ("implicit val write" <> name <> "PrimaryKey: doobie.util.Write[PrimaryKey] = implicitly")
+defDoobieInstances :: NonEmptyArray Ast.RecordProp -> String -> Box
+defDoobieInstances props name =
+  let
+    instanceImports = do
+      prop <- NonEmptyArray.toArray props
+      case prop.sqlType of
+        Just (Ast.SqlTypeDbSupportType { needsImports: true, dbSupportType }) ->
+          [ Boxes.text ("import " <> dbSupportType.instances.meta)
+          ]
+        _ -> []
+  in
+    Boxes.vcat
+      Boxes.left
+      ( instanceImports
+          <> [ Boxes.text ("implicit val read" <> name <> ": doobie.util.Read[" <> name <> "] = doobie.util.Read.generic")
+            , Boxes.text ("implicit val read" <> name <> "PrimaryKey: doobie.util.Read[PrimaryKey] = doobie.util.Read.generic")
+            ]
+      )
 
 data TypeDeclOutputMode
   = TopLevelCaseClass
@@ -767,7 +815,7 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
         NonEmptyArray.filter
           (\{ annots } -> Annotations.getIsPrimaryKey annots)
           props
-    { meta, primaryKey, doobieInstances, columnDefs, fragments } <-
+    { meta, primaryKey, doobieInstances, columnDefs, fragments, companionRef } <-
       maybe
         ( pure
             { meta: Boxes.nullBox
@@ -775,18 +823,21 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
             , doobieInstances: Boxes.nullBox
             , columnDefs: Boxes.nullBox
             , fragments: Boxes.nullBox
+            , companionRef: Boxes.nullBox
             }
         )
         ( \primaryKeyProps' -> do
-            columnDefs <- columns outputMode name props
+            columnDefs <- columns outputMode name false props
+            pkColumnDefs <- columns outputMode name true props
             primaryKeyDef <- defPrimaryKey outputMode primaryKeyProps'
             fragments <- doobieFragments name outputMode props
             pure
               { meta: defDbMetadata name props primaryKeyProps'
               , primaryKey: primaryKeyDef
-              , doobieInstances: defDoobieInstances name
-              , columnDefs
+              , doobieInstances: defDoobieInstances props name
+              , columnDefs: Boxes.vcat Boxes.left [ columnDefs, pkColumnDefs ]
               , fragments
+              , companionRef: Boxes.text "companion_ref =>"
               }
         )
         (NonEmptyArray.fromArray primaryKeyProps)
@@ -809,7 +860,8 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
 
       output
         | modName == name && outputMode == CompanionObject =
-          primaryKey
+          companionRef
+            // primaryKey
             // enc
             // dec
             // companionObject
@@ -817,6 +869,7 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
       output
         | otherwise =
           cls
+            // companionRef
             // primaryKey
             // enc
             // dec
@@ -1426,21 +1479,10 @@ doobieFragments tableName mode props = do
   fragmentFieldTypes <-
     traverse fragmentType (Array.filter (not eqOccId) $ NonEmptyArray.toArray props)
   let
-    instanceImports = do
-      prop <- NonEmptyArray.toArray props
-      case prop.sqlType of
-        Just (Ast.SqlTypeDbSupportType { needsImports: true, dbSupportType }) ->
-          Array.fromFoldable dbSupportType.instances.get
-        _ -> []
-
-    extraImports =
-        Boxes.vcat Boxes.left
-          $ [ Boxes.text "import gov.wicourts.cc.tx.dbc.queries.Selectable" ]
-          <> map (\i -> Boxes.text $ "import " <> i) (Array.nub instanceImports)
+    extraImports = Boxes.text "import gov.wicourts.cc.tx.dbc.queries.Selectable"
 
     classDef :: String
-    classDef =
-      "final case class Fragments(tableIndex: Int) extends Selectable.Table"
+    classDef = "final case class Fragments(tableIndex: Int) extends Selectable.Table"
 
     tableNameT :: Box
     tableNameT =
@@ -1464,14 +1506,14 @@ doobieFragments tableName mode props = do
         ( "private def selectableColumn[A: doobie.util.Get](columnName: String): Selectable.Column[A] =\
           \Selectable.Column[A](tableName, tableIndex, columnName)"
         )
+
     isNullableColumn = case _ of
       Ast.TType ty -> case ty of
         Ast.Option _ -> true
         _ -> false
       _ -> false
 
-    hasNullableColumn =
-      any (isNullableColumn <<< _.typ) (Array.filter (not eqOccId) $ NonEmptyArray.toArray props)
+    hasNullableColumn = any (isNullableColumn <<< _.typ) (Array.filter (not eqOccId) $ NonEmptyArray.toArray props)
 
     defs :: Array Box
     defs =
@@ -1491,15 +1533,15 @@ doobieFragments tableName mode props = do
     let
       { queryType, implementation } =
         either
-          (\optionType ->
-            { queryType: typeDescr "Selectable.ColumnNullable" [ optionType ]
-            , implementation: "selectableColumnNullable[" <> optionType <> "](" <> quote name <> ")"
-            }
+          ( \optionType ->
+              { queryType: typeDescr "Selectable.ColumnNullable" [ optionType ]
+              , implementation: "selectableColumnNullable[" <> optionType <> "](" <> quote name <> ")"
+              }
           )
-          (\otherType ->
-            { queryType: typeDescr "Selectable.Column" [ otherType ]
-            , implementation: "selectableColumn[" <> otherType <> "](" <> quote name <> ")"
-            }
+          ( \otherType ->
+              { queryType: typeDescr "Selectable.Column" [ otherType ]
+              , implementation: "selectableColumn[" <> otherType <> "](" <> quote name <> ")"
+              }
           )
           ty
     pure $ Boxes.text $ defVal1 name queryType implementation
