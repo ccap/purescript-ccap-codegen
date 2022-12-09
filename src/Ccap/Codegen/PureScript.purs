@@ -470,7 +470,7 @@ jsonCodec ty includeParensIfNeeded = do
       pure (tycon "maybe" ref)
     Ast.Option (Ast.TParam (Cst.TypeParam p)) -> pure (tycon "maybe" (text ("jsonCodec_param_" <> p)))
     Ast.Ref { decl, typ, params } -> internalCodecRef decl params typ
-  pure
+  emitRuntime
     ( if includeParensIfNeeded && needsParens ty then
         parens result
       else
@@ -570,7 +570,6 @@ recordDecoderApi props = do
       , "addErrorPrefix :: forall a. String -> E.Either JsonDecodeError a -> E.Either JsonDecodeError a"
       , "missingValue :: forall b. String -> E.Either JsonDecodeError b"
       , "typeMismatch :: forall b. String -> E.Either JsonDecodeError b"
-
       , "jsonCodec_primitive_decimal :: R.JsonCodec Decimal"
       ]
 

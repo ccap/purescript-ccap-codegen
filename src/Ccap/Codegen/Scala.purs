@@ -17,7 +17,7 @@ import Data.Compactable (compact)
 import Data.Either (Either(..), either)
 import Data.Foldable (class Foldable, any, intercalate)
 import Data.List.NonEmpty as NonEmptyList
-import Data.Maybe (Maybe(..), fromMaybe, maybe, maybe')
+import Data.Maybe (Maybe(..), fromMaybe, isJust, maybe, maybe')
 import Data.Monoid (guard)
 import Data.Monoid as Monoid
 import Data.String as String
@@ -190,10 +190,14 @@ typeDescr name typParams =
       "]"
       typParams
 
-standardImports :: Array String
-standardImports =
+encoderImports :: Array String
+encoderImports =
+  [ "gov.wicourts.jsoncommon.Encoder"
+  ]
+
+decoderImports :: Array String
+decoderImports =
   [ "cats.Monad"
-  , "gov.wicourts.jsoncommon.Encoder"
   , "gov.wicourts.jsoncommon.Decoder"
   ]
 
@@ -212,7 +216,13 @@ imports mod@(Ast.Module m) =
         [ "gov.wicourts.cc.tx.dbc.queries.HasOccId"
         ]
 
-    all = extraImports <> impts <> standardImports # Array.sort >>> Array.nub
+    all =
+      extraImports
+        <> impts
+        <> Monoid.guard (any (\(Ast.TypeDecl { scalaDecoderType: s }) -> isJust s) m.types) decoderImports
+        <> encoderImports
+        # Array.sort
+        >>> Array.nub
   in
     Boxes.vcat Boxes.left (all <#> \s -> Boxes.text ("import " <> s))
 
