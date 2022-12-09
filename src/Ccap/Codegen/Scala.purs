@@ -739,7 +739,7 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
               , d
               , defInstances name ty an
               ]
-      Just { typ, decode, encode } -> do
+      Just { typ, decode, empty, encode } -> do
         wrappedEncoder <- wrapEncoder name pp t encode
         wrappedDecoder <-
           maybe'
@@ -755,29 +755,27 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
             scalaDecoderType
         pure
           $ Boxes.text (defType1 name [] typ)
+          // maybe Boxes.nullBox (Boxes.text <<< defVal1 "empty" name) empty
           // wrappedEncoder
           // wrappedDecoder
   Ast.Record props -> do
     mod <- asks _.currentModule
-    let
-      addExtendsHasOccId =
-        outputMode == TopLevelCaseClass
-          && isPrimaryClass (objectName mod) typDecl
-          && hasOccId props
-    recordFieldTypes <-
-      traverse
-        (recordFieldType outputMode)
-        props
     recordFields <- traverse recordFieldEncoder props
+    classDefinition <- do
+      let
+        addExtendsHasOccId =
+          outputMode == TopLevelCaseClass
+            && isPrimaryClass (objectName mod) typDecl
+            && hasOccId props
+      recordFieldTypes <- traverse (recordFieldType outputMode) props
+      pure
+        $ parenVStrings
+            ("final case class " <> typeDescr name (typeParams pp))
+            ","
+            (if addExtendsHasOccId then " extends HasOccId" else "")
+            recordFieldTypes
     let
       modName = objectName mod
-
-      cls =
-        parenVStrings
-          ("final case class " <> typeDescr name (typeParams pp))
-          ","
-          (if addExtendsHasOccId then " extends HasOccId" else "")
-          recordFieldTypes
 
       enc =
         defEncoder
@@ -856,7 +854,7 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
           companionObjectTarget
 
       output
-        | modName == name && outputMode == TopLevelCaseClass = cls
+        | modName == name && outputMode == TopLevelCaseClass = classDefinition
 
       output
         | modName == name && outputMode == CompanionObject =
@@ -868,7 +866,7 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
 
       output
         | otherwise =
-          cls
+          classDefinition
             // companionRef
             // primaryKey
             // enc
@@ -1324,11 +1322,27 @@ encodeTypeParam (Cst.TypeParam t) e =
     <> ")"
 
 recordFieldType :: TypeDeclOutputMode -> Ast.RecordProp -> Codegen String
-recordFieldType mode { name, typ } = do
+recordFieldType mode { annots, name, typ } = do
   ty <- case typ of
     Ast.TType t -> typeDef mode t
     Ast.TParam (Cst.TypeParam c) -> pure (initialUpper c)
-  pure (arg name ty)
+  let
+    -- If a field is marked as DbManaged add a default argument.
+    defaultArgument =
+      if Annotations.getIsDbManaged annots then
+        defaultArgumentForType typ
+      else
+        Nothing
+  pure
+    $ arg name ty
+    <> maybe "" (\dA -> " = " <> dA) defaultArgument
+  where
+  defaultArgumentForType = case _ of
+    Ast.TType tTyp -> case tTyp of
+      Ast.Ref tRef ->
+        if tRef.typ == "OccId" then Just "OccSupport.empty" else Nothing
+      _ -> Nothing
+    Ast.TParam (Cst.TypeParam _) -> Nothing
 
 recordFieldEncoder :: Ast.RecordProp -> Codegen String
 recordFieldEncoder { name, typ } = do

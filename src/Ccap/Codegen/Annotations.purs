@@ -14,7 +14,7 @@ import Prelude
 import Ccap.Codegen.Cst as Cst
 import Control.Alt ((<|>))
 import Data.Array as Array
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(..))
 
 params :: Array Cst.Annotation -> String -> Maybe (Array Cst.AnnotationParam)
 params annots annotKey = do
@@ -40,7 +40,15 @@ fieldWithOptParamValue annotKey paramKey annots = do
 field :: String -> String -> Array Cst.Annotation -> Maybe String
 field annotKey paramKey = join <<< fieldWithOptParamValue annotKey paramKey
 
-getWrapOpts :: String -> Array Cst.Annotation -> Maybe { typ :: String, decode :: String, encode :: String }
+type WrapOpts
+  = { typ :: String
+    , decode :: String
+    , empty :: Maybe String
+    , encode :: String
+    }
+
+
+getWrapOpts :: String -> Array Cst.Annotation -> Maybe WrapOpts
 getWrapOpts lang an =
   let
     f n = field lang n an
@@ -48,8 +56,9 @@ getWrapOpts lang an =
     do
       typ <- f "t"
       decode <- f "decode" <|> pure ""
+      empty <- Just $ f "empty"
       encode <- f "encode" <|> pure ""
-      pure { typ, decode, encode }
+      pure { typ, decode, empty, encode }
 
 getMaxLength :: Array Cst.Annotation -> Maybe String
 getMaxLength = field "validations" "maxLength"

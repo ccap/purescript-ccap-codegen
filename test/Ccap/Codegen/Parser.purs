@@ -59,7 +59,7 @@ specs =
               scala <- ExceptT $ readTextFile scalaFile
               pure $ Tuple printed scala
       either fail (uncurry diffByLine) results
-    it "Prints a purs a file as expected" do
+    it "Prints a purs file as expected" do
       results <-
         liftEffect
           $ runExceptT do
