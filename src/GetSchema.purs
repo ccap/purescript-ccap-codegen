@@ -72,12 +72,12 @@ app config =
     portFromString = note "Database port must be an integer" <<< Int.fromString
 
 dbModules :: Config -> ExceptT String Aff (Maybe Cst.Module)
-dbModules config@{ getSchemaConfig: { scalaPkg, pursPkg } } = do
+dbModules config@{ getSchemaConfig: { dbManagedColumns, scalaPkg, pursPkg } } = do
   pool <- liftEffect $ Pool.new config.poolConfig
   if config.getSchemaConfig.domains then
-    Just <$> Database.domainModule pool { scalaPkg, pursPkg }
+    Just <$> Database.domainModule pool { dbManagedColumns, scalaPkg, pursPkg }
   else
-    for config.table $ Database.tableModule pool { scalaPkg, pursPkg }
+    for config.table $ Database.tableModule pool { dbManagedColumns, scalaPkg, pursPkg }
 
 type Config
   = { table :: Maybe String

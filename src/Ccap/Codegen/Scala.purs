@@ -654,7 +654,7 @@ defInstances name typ annots =
 
 defPrimaryKey :: TypeDeclOutputMode -> NonEmptyArray Ast.RecordProp -> Codegen Box
 defPrimaryKey mode primaryKeyProps = do
-  decls <- traverse (recordFieldType mode) primaryKeyProps
+  decls <- traverse (recordFieldType mode false) primaryKeyProps
   pure
     ( parenVStrings_
         "final case class PrimaryKey"
@@ -777,7 +777,7 @@ typeDecl outputMode typDecl@(Ast.TypeDecl { name, topType: tt, annots: an, param
           outputMode == TopLevelCaseClass
             && isPrimaryClass (objectName mod) typDecl
             && hasOccId props
-      recordFieldTypes <- traverse (recordFieldType outputMode) props
+      recordFieldTypes <- traverse (recordFieldType outputMode true) props
       pure
         $ parenVStrings
             ("final case class " <> typeDescr name (typeParams pp))
@@ -1331,28 +1331,51 @@ encodeTypeParam (Cst.TypeParam t) e =
     <> e
     <> ")"
 
-recordFieldType :: TypeDeclOutputMode -> Ast.RecordProp -> Codegen String
-recordFieldType mode { annots, name, typ } = do
+recordFieldType :: TypeDeclOutputMode -> Boolean -> Ast.RecordProp -> Codegen String
+recordFieldType mode withDefaultArguments { annots, name, typ } = do
   ty <- case typ of
     Ast.TType t -> typeDef mode t
     Ast.TParam (Cst.TypeParam c) -> pure (initialUpper c)
   let
-    -- If a field is marked as DbManaged add a default argument.
     defaultArgument =
-      if Annotations.getIsDbManaged annots then
-        defaultArgumentForType typ
+      if withDefaultArguments && Annotations.getIsDbManaged annots then
+        defaultArgumentForType ty typ
       else
         Nothing
   pure
     $ arg name ty
     <> maybe "" (\dA -> " = " <> dA) defaultArgument
   where
-  defaultArgumentForType = case _ of
+  defaultArgumentForType typeDefinition = case _ of
     Ast.TType tTyp -> case tTyp of
       Ast.Ref tRef ->
-        if tRef.typ == "OccId" then Just "OccSupport.empty" else Nothing
-      _ -> Nothing
+        if tRef.typ == "OccId" then
+          Just "OccSupport.empty"
+        else
+          tRef.decl >>=
+            ( case _ of
+                (Tuple _ (Ast.TypeDecl { topType: Ast.Wrap (Ast.Primitive prim) })) ->
+                   map
+                     (\primitiveDefault -> typeDefinition <> "(" <> primitiveDefault <> ")")
+                     (defaultArgumentForPrimitive prim)
+                _ -> Nothing
+            )
+      Ast.Array (Ast.TType _) -> Just "Nil"
+      Ast.Array (Ast.TParam (Cst.TypeParam _)) -> Just "Nil"
+      Ast.Option (Ast.TType _) -> Just "None"
+      Ast.Option (Ast.TParam (Cst.TypeParam _)) -> Just "None"
+      Ast.Primitive p -> defaultArgumentForPrimitive p
     Ast.TParam (Cst.TypeParam _) -> Nothing
+
+  defaultArgumentForPrimitive :: Cst.Primitive -> Maybe String
+  defaultArgumentForPrimitive = case _ of
+    Cst.PBoolean -> Just "false"
+    Cst.PDecimal -> Just "BigDecimal(0.0)"
+    Cst.PInt -> Just "-1"
+    Cst.PJson -> Nothing
+    Cst.PSmallInt -> Just "-1"
+    Cst.PString -> Just (show "")
+    Cst.PStringValidationHack -> Just (show "")
 
 recordFieldEncoder :: Ast.RecordProp -> Codegen String
 recordFieldEncoder { name, typ } = do

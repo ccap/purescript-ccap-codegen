@@ -11,9 +11,9 @@ import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Either (note)
-import Data.Foldable (any)
+import Data.Foldable as Foldable
 import Data.Maybe (Maybe(..), isNothing, maybe)
-import Data.Monoid (guard)
+import Data.Monoid as Monoid
 import Data.String as String
 import Database.PostgreSQL (Connection, PGError(..))
 import Database.PostgreSQL.PG (Pool, Query(..), query, withConnection)
@@ -36,7 +36,8 @@ type AliasedType
     }
 
 type Config
-  = { scalaPkg :: String
+  = { dbManagedColumns :: Maybe (Array String)
+    , scalaPkg :: String
     , pursPkg :: String
     }
 
@@ -89,7 +90,7 @@ domainModule pool { scalaPkg, pursPkg } =
           typesWithoutAlias =
             Array.filter
               ( \(Cst.TypeDecl typeDecl) ->
-                  not (any (\aliasedType -> typeDecl.name == aliasedType.name) aliasedTypes)
+                  not (Foldable.any (\aliasedType -> typeDecl.name == aliasedType.name) aliasedTypes)
               )
               types
         nelTypes <- except ((note (ConversionError "Expected at least one type")) (NonEmptyArray.fromArray typesWithoutAlias))
@@ -125,13 +126,13 @@ type DbColumn
     , isPrimaryKey :: Boolean
     }
 
-dbRowToColumn :: Row6 String String (Maybe String) (Maybe Int) String Boolean -> DbColumn
-dbRowToColumn (Row6 columnName dataType domainName charMaxLen isNullable isPrimaryKey) =
+dbRowToColumn :: Maybe (Array String) -> Row6 String String (Maybe String) (Maybe Int) String Boolean -> DbColumn
+dbRowToColumn dbManagedColumns (Row6 columnName dataType domainName charMaxLen isNullable isPrimaryKey) =
   { columnName
   , dataType
   , domainName
   , charMaxLen
-  , isDbManaged: false
+  , isDbManaged: Foldable.any (Foldable.elem columnName) dbManagedColumns
   , isNullable
   , isPrimaryKey
   }
@@ -148,10 +149,10 @@ occIdColumn =
   }
 
 tableModule :: Pool -> Config -> String -> ExceptT String Aff Cst.Module
-tableModule pool { scalaPkg, pursPkg } tableName =
+tableModule pool { dbManagedColumns, scalaPkg, pursPkg } tableName =
   withExceptT show
     $ withConnection runExceptT pool \conn -> do
-        columns <- queryColumns tableName conn
+        columns <- queryColumns dbManagedColumns tableName conn
         nelColumns <- except (note (ConversionError ("Expected at least one column. Does the \"" <> tableName <> "\" table exist?")) (NonEmptyArray.fromArray columns))
         let
           decl = tableType tableName (nelColumns `NonEmptyArray.snoc` occIdColumn)
@@ -174,10 +175,10 @@ tableImports =
     >>> Array.nub
     >>> map (\(Cst.ModuleRef name) -> Cst.Import emptyPos name)
 
-queryColumns :: String -> Connection -> ExceptT PGError Aff (Array DbColumn)
-queryColumns tableName conn = do
+queryColumns :: Maybe (Array String) -> String -> Connection -> ExceptT PGError Aff (Array DbColumn)
+queryColumns dbManagedColumns tableName conn = do
   results <- query conn (Query sql) (Row1 tableName)
-  pure $ dbRowToColumn <$> results
+  pure $ dbRowToColumn dbManagedColumns <$> results
   where
   sql =
     """
@@ -231,7 +232,7 @@ dbRecordProp col@{ columnName, domainName, dataType, isDbManaged, isNullable, is
       ( (Array.fromFoldable (dbManagedAnnotation isDbManaged))
           <> (Array.fromFoldable (primaryKeyAnnotation isPrimaryKey))
       )
-      <> guard (isNothing domainName) annotations col
+      <> Monoid.guard (isNothing domainName) annotations col
   in
     { name: columnName, typ: Cst.TType optioned, annots, position: emptyPos }
 

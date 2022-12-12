@@ -8,7 +8,7 @@ import Ccap.Codegen.Util (scrubEolSpaces)
 import Control.Monad.Except (ExceptT(..), runExceptT)
 import Data.Either (either)
 import Data.Int as Int
-import Data.Maybe (fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Tuple (Tuple(..), uncurry)
 import Database.PostgreSQL.Pool as Pool
 import Effect (Effect)
@@ -58,7 +58,8 @@ specs =
           pool <- ExceptT <<< liftEffect <<< map pure $ poolConfig >>= Pool.new
           dbModule <-
             tableModule pool
-              { scalaPkg
+              { dbManagedColumns: Nothing
+              , scalaPkg
               , pursPkg
               }
               "Case"
