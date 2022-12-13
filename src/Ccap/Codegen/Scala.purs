@@ -580,7 +580,7 @@ defDbMetadata name props primaryKeyProps =
     tableName =
       defDef
         { modifiers: [ "override" ]
-        , name: "tableName"
+        , name:"table"
         , typParams: []
         , args: []
         , typ: "String"
@@ -1536,22 +1536,22 @@ doobieFragments tableName mode props = do
       Boxes.text
         $ defValTag1
             { tagType: "Selectable.TableNameT"
-            , valName: "tableName"
+            , valName:"table"
             , variableName: tableName
             }
 
     selectableColumnNullable :: Box
     selectableColumnNullable =
       Boxes.text
-        ( "private def selectableColumnNullable[A: doobie.util.Get](columnName: String): Selectable.ColumnNullable[A] =\
-          \Selectable.ColumnNullable[A](tableName, tableIndex, columnName)"
+        ("private def selectableColumnNullable[A: doobie.util.Get](columnName: String): Selectable.ColumnNullable[A] =\
+          \Selectable.ColumnNullable[A](table, tableIndex, columnName)"
         )
 
     selectableColumn :: Box
     selectableColumn =
       Boxes.text
-        ( "private def selectableColumn[A: doobie.util.Get](columnName: String): Selectable.Column[A] =\
-          \Selectable.Column[A](tableName, tableIndex, columnName)"
+        ("private def selectableColumn[A: doobie.util.Get](columnName: String): Selectable.Column[A] =\
+          \Selectable.Column[A](table, tableIndex, columnName)"
         )
 
     isNullableColumn = case _ of
