@@ -22,6 +22,10 @@ supportTypes =
     , typeName: "OccId"
     , underlyingSqlType: "text"
     }
+  , { moduleName: "TSVectorSupport"
+  , typeName: "TSVector"
+  , underlyingSqlType: "tsvector"
+  }
   ]
 
 type DbSupportType
