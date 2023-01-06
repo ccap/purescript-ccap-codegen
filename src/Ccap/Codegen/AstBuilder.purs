@@ -428,8 +428,15 @@ imports { importPaths } { source } i@(Cst.Import position ref) = do
   pure case Array.nub existing of
     [] -> Left (Error.Positioned source position (Error.Import Error.ImportNotFound i))
     [ path ] -> Right path
-    paths -> Left (Error.Positioned source position (Error.Import (Error.MultipleMatches paths) i))
+    paths ->
+      maybe
+        (Left (Error.Positioned source position (Error.Import (Error.MultipleMatches paths) i)))
+        Right
+        (Array.find sameDirectoryAsSource paths)
   where
+  sameDirectoryAsSource :: FilePath -> Boolean
+  sameDirectoryAsSource path = Path.dirname source == Path.dirname path
+
   possibleImportPaths :: Effect (Array FilePath)
   possibleImportPaths = traverse (Path.resolve [] <<< resolveImport) (Path.dirname source : importPaths)
 
