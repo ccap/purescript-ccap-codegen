@@ -580,7 +580,7 @@ defDbMetadata name props primaryKeyProps =
     tableName =
       defDef
         { modifiers: [ "override" ]
-        , name:"table"
+        , name: "table"
         , typParams: []
         , args: []
         , typ: "String"
@@ -1352,14 +1352,14 @@ recordFieldType mode withDefaultArguments { annots, name, typ } = do
         if tRef.typ == "OccId" then
           Just "OccSupport.empty"
         else
-          tRef.decl >>=
-            ( case _ of
-                (Tuple _ (Ast.TypeDecl { topType: Ast.Wrap (Ast.Primitive prim) })) ->
-                   map
-                     (\primitiveDefault -> typeDefinition <> "(" <> primitiveDefault <> ")")
-                     (defaultArgumentForPrimitive prim)
-                _ -> Nothing
-            )
+          tRef.decl
+            >>= ( case _ of
+                  (Tuple _ (Ast.TypeDecl { topType: Ast.Wrap (Ast.Primitive prim) })) ->
+                    map
+                      (\primitiveDefault -> typeDefinition <> "(" <> primitiveDefault <> ")")
+                      (defaultArgumentForPrimitive prim)
+                  _ -> Nothing
+              )
       Ast.Array (Ast.TType _) -> Just "Nil"
       Ast.Array (Ast.TParam (Cst.TypeParam _)) -> Just "Nil"
       Ast.Option (Ast.TType _) -> Just "None"
@@ -1452,23 +1452,15 @@ largeRecordDecoder name nelProps = buildApplyStatement tupleStatements
               // Boxes.char '}'
           )
     where
-    go (Final part) =
-      if Array.length part == 1 then
-        maybe
-          ( { decoderDefinitionSyntax: pure (const Boxes.nullBox)
-            , extractionSyntax: const Boxes.nullBox
-            }
-          )
-          ( \r ->
-              { decoderDefinitionSyntax:
-                  map
-                    (\s d -> Boxes.text (s <> d))
-                    (recordFieldDecoder r)
-              , extractionSyntax: const (Boxes.text r.name)
-              }
-          )
-          (Array.head part)
-      else
+    go (Final part) = case part of
+      [ head ] ->
+        { decoderDefinitionSyntax:
+            map
+              (\s d -> Boxes.text (s <> d))
+              (recordFieldDecoder head)
+        , extractionSyntax: const (Boxes.text head.name)
+        }
+      _ ->
         { decoderDefinitionSyntax:
             do
               decs <- traverse recordFieldDecoder part
@@ -1481,27 +1473,35 @@ largeRecordDecoder name nelProps = buildApplyStatement tupleStatements
         , extractionSyntax: \d -> Boxes.text (parenH_ (map _.name part) <> d)
         }
 
-    go (Intermediate parts) =
-      let
-        recursionResults = parts <#> go
-      in
-        { decoderDefinitionSyntax:
-            do
-              decs <- traverse _.decoderDefinitionSyntax recursionResults
-              pure \d ->
+    go (Intermediate parts) = case parts of
+      [ head ] ->
+        let
+          result = go head
+        in
+          { decoderDefinitionSyntax: result.decoderDefinitionSyntax
+          , extractionSyntax: result.extractionSyntax
+          }
+      _ ->
+        let
+          recursionResults = parts <#> go
+        in
+          { decoderDefinitionSyntax:
+              do
+                decs <- traverse _.decoderDefinitionSyntax recursionResults
+                pure \d ->
+                  parenVBoxes
+                    ("Decoder.formApplicative[M].tuple" <> show (Array.length parts))
+                    ","
+                    d
+                    decs
+          , extractionSyntax:
+              \d ->
                 parenVBoxes
-                  ("Decoder.formApplicative[M].tuple" <> show (Array.length parts))
+                  ""
                   ","
                   d
-                  decs
-        , extractionSyntax:
-            \d ->
-              parenVBoxes
-                ""
-                ","
-                d
-                (recursionResults <#> _.extractionSyntax)
-        }
+                  (recursionResults <#> _.extractionSyntax)
+          }
 
   applyAllParams :: Array (String -> Box) -> Box
   applyAllParams statements =
@@ -1536,21 +1536,21 @@ doobieFragments tableName mode props = do
       Boxes.text
         $ defValTag1
             { tagType: "Selectable.TableNameT"
-            , valName:"table"
+            , valName: "table"
             , variableName: tableName
             }
 
     selectableColumnNullable :: Box
     selectableColumnNullable =
       Boxes.text
-        ("private def selectableColumnNullable[A: doobie.util.Get](columnName: String): Selectable.ColumnNullable[A] =\
+        ( "private def selectableColumnNullable[A: doobie.util.Get](columnName: String): Selectable.ColumnNullable[A] =\
           \Selectable.ColumnNullable[A](table, tableIndex, columnName)"
         )
 
     selectableColumn :: Box
     selectableColumn =
       Boxes.text
-        ("private def selectableColumn[A: doobie.util.Get](columnName: String): Selectable.Column[A] =\
+        ( "private def selectableColumn[A: doobie.util.Get](columnName: String): Selectable.Column[A] =\
           \Selectable.Column[A](table, tableIndex, columnName)"
         )
 
