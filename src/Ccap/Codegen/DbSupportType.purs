@@ -54,8 +54,8 @@ dbSupportTypes =
     }
   , { dataType: "interval"
     , instances:
-        { equal: "gov.wicourts.jsoncommon.data.DurationWithLife.Duration.eqDuration"
-        , meta: "gov.wicourts.jsoncommon.data.DurationWithLife.Duration.metaDuration"
+        { equal: "gov.wicourts.jsoncommon.data.Duration.eqDuration"
+        , meta: "gov.wicourts.jsoncommon.data.Duration.metaDuration"
         }
     , moduleName: "DateTimeSupport"
     , typeName: "Duration"
