@@ -244,7 +244,6 @@ sumJsonCodec cs = do
     [ { mod: "Data.Either", typ: Nothing, alias: Just "E" }
     , { mod: "Data.Tuple", typ: Nothing, alias: Just "T" }
     , { mod: "Data.Array", typ: Nothing, alias: Just "Array" }
-    , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError", alias: Nothing }
     , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError(..)", alias: Just "JDE" }
     ]
   encodeBranches <- traverse encodeBranch cs
