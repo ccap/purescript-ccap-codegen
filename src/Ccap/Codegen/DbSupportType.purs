@@ -79,7 +79,7 @@ dbSupportTypes =
         }
     , moduleName: "DateTimeSupport"
     , typeName: "Timestamp"
-    , underlyingSqlType: "timestamp"
+    , underlyingSqlType: "timestamptz"
     , catsSupportsEq: false
     }
   , { dataType: "uuid"
