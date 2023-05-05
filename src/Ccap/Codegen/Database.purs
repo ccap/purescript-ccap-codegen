@@ -16,7 +16,9 @@ import Data.Maybe (Maybe(..), isNothing, maybe)
 import Data.Monoid as Monoid
 import Data.String as String
 import Database.PostgreSQL (Connection, PGError(..))
-import Database.PostgreSQL.PG (Pool, Query(..), query, withConnection)
+import Database.PostgreSQL.Aff (Query(..))
+import Database.PostgreSQL.PG (query, withConnection)
+import Database.PostgreSQL.Pool (Pool)
 import Database.PostgreSQL.Row (Row0(..), Row1(..), Row3(..), Row6(..))
 import Effect.Aff (Aff)
 import Parsing (Position(..))
