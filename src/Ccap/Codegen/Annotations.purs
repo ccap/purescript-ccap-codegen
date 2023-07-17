@@ -15,8 +15,7 @@ import Prelude
 import Ccap.Codegen.Cst as Cst
 import Control.Alt ((<|>))
 import Data.Array as Array
-import Data.Maybe (Maybe(..))
-import Data.Maybe (isJust)
+import Data.Maybe (Maybe(..), isJust)
 
 params :: Array Cst.Annotation -> String -> Maybe (Array Cst.AnnotationParam)
 params annots annotKey = do
@@ -49,7 +48,6 @@ type WrapOpts
     , encode :: String
     }
 
-
 getWrapOpts :: String -> Array Cst.Annotation -> Maybe WrapOpts
 getWrapOpts lang an =
   let
@@ -73,10 +71,10 @@ getMaxSize = field "validations" "maxSize"
 
 getPSInstances :: Array Cst.Annotation -> Maybe { generic :: Boolean }
 getPSInstances annots = do
-    params' <- params annots "psinstances"
-    let
-        generic = isJust $ optParamValue params' "generic"
-    pure { generic }
+  params' <- params annots "psinstances"
+  let
+    generic = isJust $ optParamValue params' "generic"
+  pure { generic }
 
 getInstances :: Array Cst.Annotation -> Maybe { equal :: String, meta :: Maybe String }
 getInstances annots = do
