@@ -15,6 +15,7 @@ import Data.Foldable as Foldable
 import Data.Maybe (Maybe(..), isNothing, maybe)
 import Data.Monoid as Monoid
 import Data.String as String
+import Data.Traversable (for)
 import Database.PostgreSQL (Connection, PGError(..))
 import Database.PostgreSQL.Aff (Query(..))
 import Database.PostgreSQL.PG (query, withConnection)
@@ -81,31 +82,45 @@ maxLengthAnnotation = Cst.Annotation "validations" emptyPos <<< Array.singleton 
   where
   param = Cst.AnnotationParam "maxLength" emptyPos <<< Just <<< show
 
-domainModule :: Pool -> Config -> ExceptT String Aff Cst.Module
-domainModule pool { scalaPkg, pursPkg } =
-  withExceptT show
-    $ withConnection runExceptT pool \conn -> do
-        results <- query conn (Query sql) Row0
-        let
-          types = Array.sortWith Cst.typeDeclName $ domainTypeDecl <<< rowToDomain <$> results
-
-          typesWithoutAlias =
-            Array.filter
-              ( \(Cst.TypeDecl typeDecl) ->
-                  not (Foldable.any (\aliasedType -> typeDecl.name == aliasedType.name) aliasedTypes)
-              )
-              types
-        nelTypes <- except ((note (ConversionError "Expected at least one type")) (NonEmptyArray.fromArray typesWithoutAlias))
-        pure
-          { types: nelTypes
-          , imports: types >>= tableImports # Array.nub # Array.sort
-          , exports:
-              { scalaPkg
-              , pursPkg
-              }
-          , name: Cst.ModuleName "Domains"
-          }
+domainModule :: Array Pool -> Config -> ExceptT String Aff (Maybe Cst.Module)
+domainModule pools { scalaPkg, pursPkg } = do
+  modules <- withExceptT show $ for pools domainsForOneDb
+  pure
+    $ map buildDomains
+    $ NonEmptyArray.fromArray modules
   where
+  buildDomains :: NonEmptyArray PartialDomainsModule -> Cst.Module
+  buildDomains partialDomains =
+    { types: partialDomains >>= _.types # NonEmptyArray.nubEq
+    , imports: NonEmptyArray.toArray partialDomains >>= _.imports # Array.nub # Array.sort
+    , exports: { pursPkg, scalaPkg }
+    , name: Cst.ModuleName "Domains"
+    }
+
+  domainsForOneDb :: Pool -> ExceptT PGError Aff PartialDomainsModule
+  domainsForOneDb pool =
+    withConnection runExceptT pool \conn -> do
+      results <- query conn (Query sql) Row0
+      let
+        types = Array.sortWith Cst.typeDeclName $ domainTypeDecl <<< rowToDomain <$> results
+
+        typesWithoutAlias =
+          Array.filter
+            ( \(Cst.TypeDecl typeDecl) ->
+                not Foldable.any (\aliasedType -> typeDecl.name == aliasedType.name) aliasedTypes
+            )
+            types
+      nelTypes <-
+        except
+          ( note
+              (ConversionError "Expected at least one type")
+              (NonEmptyArray.fromArray typesWithoutAlias)
+          )
+      pure
+        { types: nelTypes
+        , imports: types >>= tableImports # Array.nub # Array.sort
+        }
+
   sql =
     """
           select distinct domain_name, data_type, character_maximum_length
@@ -117,6 +132,11 @@ domainModule pool { scalaPkg, pursPkg } =
                                 'timestamp with time zone', 'interval') and
                   domain_name not in ('BatchIDT', 'XMLT')
           """
+
+type PartialDomainsModule
+  = { types :: NonEmptyArray Cst.TypeDecl
+    , imports :: Array Cst.Import
+    }
 
 type DbColumn
   = { columnName :: String
@@ -234,7 +254,7 @@ dbRecordProp col@{ columnName, domainName, dataType, isDbManaged, isNullable, is
       ( (Array.fromFoldable (dbManagedAnnotation isDbManaged))
           <> (Array.fromFoldable (primaryKeyAnnotation isPrimaryKey))
       )
-      <> Monoid.guard (isNothing domainName) annotations col
+        <> Monoid.guard (isNothing domainName) annotations col
   in
     { name: columnName, typ: Cst.TType optioned, annots, position: emptyPos }
 

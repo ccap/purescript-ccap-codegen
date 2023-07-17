@@ -1,43 +1,64 @@
 module Ccap.Codegen.GetSchemaConfig
-  ( GetSchemaConfig
+  ( DomainsConfig
+  , SchemaConfig(..)
+  , TableConfig
   , getSchemaConfig
   ) where
 
 import Prelude
+import Data.Either (Either(..))
 import Data.Foldable (fold)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..))
 import Data.String (split) as String
 import Options.Applicative as OptParse
 import Options.Applicative.Types as OptParse.Types
 
-type GetSchemaConfig
-  = { domains :: Boolean
-    , database :: String
+data SchemaConfig
+  = Table TableConfig
+  | Domains DomainsConfig
+
+type TableConfig
+  = { database :: String
     , dbManagedColumns :: Maybe (Array String)
-    , table :: Maybe String
-    , scalaPkg :: String
+    , table :: String
     , pursPkg :: String
+    , scalaPkg :: String
     }
 
-getSchemaConfig :: OptParse.Parser GetSchemaConfig
-getSchemaConfig = do
-  ( \domains database table scalaPkg pursPkg dbManagedColumns ->
-      { database
-      , dbManagedColumns
-      , domains
-      , pursPkg
-      , scalaPkg
-      , table
-      }
-  )
-    <$> domainsOption
-    <*> databaseOption
-    <*> tableOption
-    <*> scalaPkgOption
-    <*> pursPkgOption
-    <*> dbManagedColumnsOption
+type DomainsConfig
+  = { databases :: Array String
+    , pursPkg :: String
+    , scalaPkg :: String
+    }
 
+getSchemaConfig :: OptParse.Parser (Either String SchemaConfig)
+getSchemaConfig = ado
+  domains <- domainsOption
+  database <- databaseOption
+  maybeTable <- tableOption
+  scalaPkg <- scalaPkgOption
+  pursPkg <- pursPkgOption
+  dbManagedColumns <- dbManagedColumnsOption
+  in case domains, maybeTable of
+    true, Nothing ->
+      Right
+        $ Domains
+            { databases: String.split (Pattern "::") database
+            , pursPkg
+            , scalaPkg
+            }
+    false, (Just "") -> Left "The table option requires a value."
+    false, (Just table) ->
+      Right
+        $ Table
+            { database
+            , dbManagedColumns
+            , pursPkg
+            , scalaPkg
+            , table
+            }
+    _, _ -> Left "The table option should be used iff the domain option is not."
 
 domainsOption :: OptParse.Parser Boolean
 domainsOption =
@@ -93,10 +114,10 @@ dbManagedColumnsOption =
 
     arrayStringParse = map split OptParse.str
   in
-   OptParse.Types.optional
-    $ OptParse.option arrayStringParse
-    $ fold
-        [ OptParse.long "db-managed-columns"
-        , OptParse.metavar "DbManaged Columns"
-        , OptParse.help "Columns to set the dbManaged annotation"
-        ]
+    OptParse.Types.optional
+      $ OptParse.option arrayStringParse
+      $ fold
+          [ OptParse.long "db-managed-columns"
+          , OptParse.metavar "DbManaged Columns"
+          , OptParse.help "Columns to set the dbManaged annotation"
+          ]
