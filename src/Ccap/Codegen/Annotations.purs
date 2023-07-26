@@ -6,6 +6,7 @@ module Ccap.Codegen.Annotations
   , getMaxLength
   , getMaxSize
   , getMinLength
+  , getPSInstances
   , getWrapOpts
   , field
   ) where
@@ -15,6 +16,7 @@ import Ccap.Codegen.Cst as Cst
 import Control.Alt ((<|>))
 import Data.Array as Array
 import Data.Maybe (Maybe(..))
+import Data.Maybe (isJust)
 
 params :: Array Cst.Annotation -> String -> Maybe (Array Cst.AnnotationParam)
 params annots annotKey = do
@@ -68,6 +70,13 @@ getMinLength = field "validations" "minLength"
 
 getMaxSize :: Array Cst.Annotation -> Maybe String
 getMaxSize = field "validations" "maxSize"
+
+getPSInstances :: Array Cst.Annotation -> Maybe { generic :: Boolean }
+getPSInstances annots = do
+    params' <- params annots "psinstances"
+    let
+        generic = isJust $ optParamValue params' "generic"
+    pure { generic }
 
 getInstances :: Array Cst.Annotation -> Maybe { equal :: String, meta :: Maybe String }
 getInstances annots = do
