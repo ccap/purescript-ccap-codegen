@@ -3,6 +3,7 @@ module Ccap.Codegen.PureScript
   ) where
 
 import Prelude
+
 import Ccap.Codegen.Annotations as Annotations
 import Ccap.Codegen.Ast as Ast
 import Ccap.Codegen.Cst as Cst
@@ -14,7 +15,7 @@ import Data.Array as Array
 import Data.Array.NonEmpty (NonEmptyArray)
 import Data.Array.NonEmpty as NonEmptyArray
 import Data.Compactable (compact)
-import Data.Foldable (fold, intercalate)
+import Data.Foldable (any, fold, intercalate)
 import Data.Function (on)
 import Data.Maybe (Maybe(..), fromMaybe, isJust, maybe)
 import Data.String (Pattern(..))
@@ -23,7 +24,7 @@ import Data.Traversable (for, traverse)
 import Data.TraversableWithIndex (forWithIndex)
 import Data.Tuple (Tuple(..), fst)
 import Node.Path (FilePath)
-import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, punctuateH, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
+import Text.PrettyPrint.Boxes (Box, char, emptyBox, hsep, nullBox, punctuateH, render, text, vcat, vsep, (//), (<<+>>), (<<>>))
 import Text.PrettyPrint.Boxes as Boxes
 
 type PsImport
@@ -133,6 +134,8 @@ typeDecl (Ast.TypeDecl { name, topType: tt, annots, params: typeParams }) =
         " " <> intercalate " " (map (\(Cst.TypeParam p) -> p) typeParams)
 
     dec kw = text kw <<+>> text (name <> pp) <<+>> char '='
+    instances = Annotations.getPSInstances annots
+    genericImpl = if any _.generic instances then genericInstance name typeParams else pure nullBox
   in
     case tt of
       Ast.Typ t -> do
@@ -142,6 +145,8 @@ typeDecl (Ast.TypeDecl { name, topType: tt, annots, params: typeParams }) =
           // defJsonCodec name typeParams j
       Ast.Wrap t -> case Annotations.getWrapOpts "purs" annots of
         Nothing -> do
+          show <- newtypeShowInstance name typeParams
+          generic <- genericImpl
           other <- otherInstances name typeParams
           ty <- tyType t false
           j <- newtypeJsonCodec t
@@ -151,6 +156,8 @@ typeDecl (Ast.TypeDecl { name, topType: tt, annots, params: typeParams }) =
             <<+>> text name
             <<+>> ty
             // newtype_
+            // show
+            // generic
             // other
             // defJsonCodec name typeParams j
         Just { typ, decode, encode } -> do
@@ -188,6 +195,8 @@ typeDecl (Ast.TypeDecl { name, topType: tt, annots, params: typeParams }) =
       Ast.Sum constructors ->
         maybe
           ( do
+              show <- sumShowImpl name typeParams constructors
+              generic <- genericImpl
               other <- otherInstances name typeParams
               cs <-
                 for constructors case _ of
@@ -199,19 +208,39 @@ typeDecl (Ast.TypeDecl { name, topType: tt, annots, params: typeParams }) =
               pure
                 $ dec "data"
                 // indented (hsep 1 Boxes.bottom $ vcat Boxes.left <$> [ NonEmptyArray.drop 1 cs <#> \_ -> char '|', NonEmptyArray.toArray cs ])
+                // show
+                // generic
                 // other
                 // defJsonCodec name typeParams codec
           )
           ( \vs -> do
+              show <- noArgSumShowImpl name typeParams vs
+              generic <- genericImpl
               other <- otherInstances name typeParams
               codec <- noArgSumJsonCodec name vs
               pure
                 $ dec "data"
                 // indented (hsep 1 Boxes.bottom $ vcat Boxes.left <$> [ NonEmptyArray.drop 1 vs <#> \_ -> char '|', NonEmptyArray.toArray (vs <#> text) ])
+                // show
+                // generic
                 // other
                 // defJsonCodec name typeParams codec
           )
           (Ast.noArgConstructorNames constructors)
+
+noArgSumShowImpl :: String -> Array Cst.TypeParam -> NonEmptyArray String -> Codegen Box
+noArgSumShowImpl name params vs = do
+  tell
+    [ { mod: "Prelude", typ: Nothing, alias: Nothing }
+    ]
+  pure
+    $ text (declInstance name params "Show" <> " where")
+    // indented (text "show = case _ of")
+    // indented (indented (branches encodeBranch))
+  where
+  branches branch = vcat Boxes.left (vs <#> branch)
+
+  encodeBranch v = text v <<+>> text "->" <<+>> text (show v)
 
 noArgSumJsonCodec :: String -> NonEmptyArray String -> Codegen Box
 noArgSumJsonCodec name vs = do
@@ -220,9 +249,7 @@ noArgSumJsonCodec name vs = do
     , { mod: "Data.Argonaut.Decode.Error", typ: Just "JsonDecodeError(..)", alias: Just "JDE" }
     ]
   let
-    encode =
-      text "encode: case _ of"
-        // indented (branches encodeBranch)
+    encode = text "encode: show"
 
     decode =
       text "decode: case _ of"
@@ -232,11 +259,40 @@ noArgSumJsonCodec name vs = do
   where
   branches branch = vcat Boxes.left (vs <#> branch)
 
-  encodeBranch v = text v <<+>> text "->" <<+>> text (show v)
-
   decodeBranch v = text (show v) <<+>> text "-> Right" <<+>> text v
 
   fallthrough = text $ "s -> Left $ JDE.TypeMismatch $ \"Invalid value \" <> show s <> \" for " <> name <> "\""
+
+sumShowImpl :: String -> Array Cst.TypeParam -> NonEmptyArray Ast.Constructor -> Codegen Box
+sumShowImpl name typParams cs = do
+  tell
+    [ { mod: "Prelude", typ: Nothing, alias: Nothing }
+    , { mod: "Data.Foldable", typ: Nothing, alias: Just "Foldable" }
+    ]
+  pure
+    (text (declInstance name typParams "Show" <> " where")
+    // indented
+        ( text "show = case _ of"
+            // indented (vcat Boxes.left $ map showBranch cs)
+        ))
+  where
+  showBranch :: Ast.Constructor -> Box
+  showBranch = case _ of
+    Ast.NoArg (Cst.ConstructorName n) -> text n <<+>> text ("-> " <> show n)
+    Ast.WithArgs (Cst.ConstructorName n) params ->
+      let
+        showParams = Array.range 0 (NonEmptyArray.length params - 1) <#> \i -> "show param_" <> show i
+        showCtor = "\"" <> n <> "\""
+        showImpl = text ("\"(\" <> Foldable.intercalate \" \" [" <> intercalate ", " ([ showCtor ] <> showParams) <> "] <> \")\"")
+
+        binder =
+          text
+            ( n
+                <> " "
+                <> intercalate " " (map (\i -> "param_" <> show i) (Array.range 0 (NonEmptyArray.length params - 1)))
+            )
+      in
+        (binder <<+>> text " -> " <<+>> showImpl)
 
 sumJsonCodec :: NonEmptyArray Ast.Constructor -> Codegen Box
 sumJsonCodec cs = do
@@ -338,31 +394,39 @@ newtypeInstances name = do
     // text ("instance decodeJson" <> name <> " :: DecodeJson " <> name <> " where ")
     // indented (text $ "decodeJson a = jsonCodec_" <> name <> ".decode a")
 
+newtypeShowInstance :: String -> Array Cst.TypeParam -> Codegen Box
+newtypeShowInstance name params = do
+  tell [ { mod: "Prelude", typ: Nothing, alias: Nothing } ]
+  pure $ text ("derive newtype " <> declInstance name params "Show")
+
+declInstance :: String -> Array Cst.TypeParam -> String -> String
+declInstance name params instName = "instance " <> String.toLower instName <> name <> " :: " <> depends <> instName <> " " <> nameWithParams
+  where
+  depends :: String
+  depends = case params of
+    [] -> ""
+    [ Cst.TypeParam p ] -> instName <> " " <> p <> " => "
+    _ -> "(" <> intercalate ", " (map (\(Cst.TypeParam p) -> instName <> " " <> p) params) <> ") => "
+
+  nameWithParams =
+    if Array.null params then
+      name
+    else
+      "(" <> name <> " " <> intercalate " " (map (\(Cst.TypeParam p) -> p) params) <> ")"
+
+genericInstance :: String -> Array Cst.TypeParam -> Codegen Box
+genericInstance name params = do
+    tell [     { mod: "Data.Generic.Rep", typ: Just "class Generic", alias: Nothing } ]
+    pure $ text ("derive " <> declInstance name params "Generic" <> " _")
+
 otherInstances :: String -> Array Cst.TypeParam -> Codegen Box
 otherInstances name params = do
   tell
     [ { mod: "Prelude", typ: Nothing, alias: Nothing }
-    , { mod: "Data.Generic.Rep", typ: Just "class Generic", alias: Nothing }
-    , { mod: "Data.Show.Generic", typ: Just "genericShow", alias: Nothing }
     ]
-  let
-    nameWithParams =
-      if Array.null params then
-        name
-      else
-        "(" <> name <> " " <> intercalate " " (map (\(Cst.TypeParam p) -> p) params) <> ")"
-
-    depends :: String -> String
-    depends which = case params of
-      [] -> ""
-      [ Cst.TypeParam p ] -> which <> " " <> p <> " => "
-      _ -> "(" <> intercalate ", " (map (\(Cst.TypeParam p) -> which <> " " <> p) params) <> ") => "
   pure
-    $ text ("derive instance eq" <> name <> " :: " <> depends "Eq" <> "Eq " <> nameWithParams)
-    // text ("derive instance ord" <> name <> " :: " <> depends "Ord" <> "Ord " <> nameWithParams)
-    // text ("derive instance generic" <> name <> " :: Generic " <> nameWithParams <> " _")
-    // text ("instance show" <> name <> " :: " <> depends "Show" <> "Show " <> nameWithParams <> " where")
-    // indented (text "show a = genericShow a")
+    $ text ("derive " <> declInstance name params "Eq")
+    // text ("derive " <> declInstance name params "Ord")
 
 tyType :: Ast.Typ -> Boolean -> Codegen Box
 tyType tt includeParensIfNeeded =

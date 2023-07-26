@@ -15,11 +15,11 @@ import Data.Bifunctor as B
 import Data.Decimal (Decimal)
 import Data.Either (Either(..))
 import Data.Either as E
+import Data.Foldable as Foldable
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe)
 import Data.Maybe as M
 import Data.Newtype (class Newtype)
-import Data.Show.Generic (genericShow)
 import Data.Tuple as T
 import Foreign.Object as FO
 import Prelude
@@ -51,11 +51,9 @@ instance encodeJsonTagType :: EncodeJson TagType where
   encodeJson a = jsonCodec_TagType.encode a
 instance decodeJsonTagType :: DecodeJson TagType where
   decodeJson a = jsonCodec_TagType.decode a
+derive newtype instance showTagType :: Show TagType
 derive instance eqTagType :: Eq TagType
 derive instance ordTagType :: Ord TagType
-derive instance genericTagType :: Generic TagType _
-instance showTagType :: Show TagType where
-  show a = genericShow a
 jsonCodec_TagType :: R.JsonCodec TagType
 jsonCodec_TagType =
   R.codec_newtype R.jsonCodec_int
@@ -141,11 +139,12 @@ jsonCodec_ArrayOfSomething jsonCodec_param_a =
 data Either a b =
     Left a
   | Right b
+instance showEither :: (Show a, Show b) => Show (Either a b) where
+  show = case _ of
+    Left param_0  ->  "(" <> Foldable.intercalate " " ["Left", show param_0] <> ")"
+    Right param_0  ->  "(" <> Foldable.intercalate " " ["Right", show param_0] <> ")"
 derive instance eqEither :: (Eq a, Eq b) => Eq (Either a b)
 derive instance ordEither :: (Ord a, Ord b) => Ord (Either a b)
-derive instance genericEither :: Generic (Either a b) _
-instance showEither :: (Show a, Show b) => Show (Either a b) where
-  show a = genericShow a
 jsonCodec_Either :: forall a b. R.JsonCodec a -> R.JsonCodec b -> R.JsonCodec (Either a b)
 jsonCodec_Either jsonCodec_param_a jsonCodec_param_b =
   R.composeCodec
@@ -171,11 +170,12 @@ jsonCodec_EitherWithStringError jsonCodec_param_a =
 data List a =
     Nil
   | Cons a (List a)
+instance showList :: Show a => Show (List a) where
+  show = case _ of
+    Nil -> "Nil"
+    Cons param_0 param_1  ->  "(" <> Foldable.intercalate " " ["Cons", show param_0, show param_1] <> ")"
 derive instance eqList :: Eq a => Eq (List a)
 derive instance ordList :: Ord a => Ord (List a)
-derive instance genericList :: Generic (List a) _
-instance showList :: Show a => Show (List a) where
-  show a = genericShow a
 jsonCodec_List :: forall a. R.JsonCodec a -> R.JsonCodec (List a)
 jsonCodec_List jsonCodec_param_a =
   R.composeCodec
@@ -194,11 +194,11 @@ jsonCodec_List jsonCodec_param_a =
 
 data Tuple a b =
    Tuple a b
+instance showTuple :: (Show a, Show b) => Show (Tuple a b) where
+  show = case _ of
+    Tuple param_0 param_1  ->  "(" <> Foldable.intercalate " " ["Tuple", show param_0, show param_1] <> ")"
 derive instance eqTuple :: (Eq a, Eq b) => Eq (Tuple a b)
 derive instance ordTuple :: (Ord a, Ord b) => Ord (Tuple a b)
-derive instance genericTuple :: Generic (Tuple a b) _
-instance showTuple :: (Show a, Show b) => Show (Tuple a b) where
-  show a = genericShow a
 jsonCodec_Tuple :: forall a b. R.JsonCodec a -> R.JsonCodec b -> R.JsonCodec (Tuple a b)
 jsonCodec_Tuple jsonCodec_param_a jsonCodec_param_b =
   R.composeCodec
@@ -271,11 +271,14 @@ data Enum =
     Red
   | Green
   | Blue
+instance showEnum :: Show Enum where
+  show = case _ of
+    Red -> "Red"
+    Green -> "Green"
+    Blue -> "Blue"
+derive instance genericEnum :: Generic Enum _
 derive instance eqEnum :: Eq Enum
 derive instance ordEnum :: Ord Enum
-derive instance genericEnum :: Generic Enum _
-instance showEnum :: Show Enum where
-  show a = genericShow a
 jsonCodec_Enum :: R.JsonCodec Enum
 jsonCodec_Enum =
   R.composeCodec
@@ -284,10 +287,7 @@ jsonCodec_Enum =
         "Green" -> Right Green
         "Blue" -> Right Blue
         s -> Left $ JDE.TypeMismatch $ "Invalid value " <> show s <> " for Enum"
-    , encode: case _ of
-        Red -> "Red"
-        Green -> "Green"
-        Blue -> "Blue"
+    , encode: show
     }
     R.jsonCodec_string
 
