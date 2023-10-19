@@ -608,7 +608,7 @@ defInstances name typ annots =
         let
           meta' =
             fromMaybe
-              (typeDescr "doobie.Meta" [ typ ])
+              ("gov.wicourts.common.Meta.Distinct.meta" <> typ)
               meta
 
           timap =
